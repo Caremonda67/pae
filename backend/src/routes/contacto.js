@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // Rutas de Contacto
 // ============================================================
 // Guarda los mensajes que los usuarios envian desde el formulario
@@ -6,7 +6,7 @@
 // ============================================================
 
 import { Router } from "express";
-import { supabase } from "../config/supabase.js";
+import { getSupabase } from "../config/supabase.js";
 
 const router = Router();
 
@@ -20,7 +20,7 @@ router.post("/", async (req, res) => {
     return res.status(400).json({ error: "Faltan datos obligatorios" });
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from("contactos")
     .insert([{ nombre, correo, mensaje }])
     .select()
