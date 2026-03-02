@@ -1,0 +1,24 @@
+# ============================================================
+# Archivos que Git debe ignorar (no se suben al repositorio)
+# ============================================================
+
+# Dependencias de Node
+node_modules/
+
+# Variables de entorno con secretos (nunca subir!)
+.env
+.env.local
+.env.*.local
+
+# Archivos de compilacion
+dist/
+build/
+
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db
+
+# Registros y bases de datos locales
+*.log
+*.sqlite
+*.sqlite3

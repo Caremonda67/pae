@@ -1,0 +1,488 @@
+/* ============================================================
+   Estilos globales del proyecto PAE
+   Diseno responsivo: se adapta a celular y computador.
+   ============================================================ */
+
+:root {
+  /* Paleta de colores de la marca */
+  --verde: #2e7d32;
+  --verde-oscuro: #1b5e20;
+  --verde-claro: #e8f5e9;
+  --naranja: #ef6c00;
+  --texto: #263238;
+  --texto-suave: #546e7a;
+  --fondo: #f6faf7;
+  --blanco: #ffffff;
+  --error: #c62828;
+  --exito: #2e7d32;
+  --radio: 14px;
+  --sombra: 0 6px 20px rgba(0, 0, 0, 0.08);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  background-color: var(--fondo);
+  color: var(--texto);
+  line-height: 1.6;
+}
+
+/* Contenido principal centrado */
+.contenido {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+  min-height: calc(100vh - 200px);
+}
+
+h1 {
+  font-size: 2rem;
+  color: var(--verde-oscuro);
+  margin-bottom: 0.5rem;
+}
+
+.subtitulo {
+  color: var(--texto-suave);
+  margin-bottom: 1.5rem;
+  max-width: 650px;
+}
+
+/* ============================================================
+   Barra de navegacion
+   ============================================================ */
+
+.nav {
+  background-color: var(--verde);
+  box-shadow: var(--sombra);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.nav-interior {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.8rem 1.5rem;
+}
+
+.nav-logo {
+  color: var(--blanco);
+  font-weight: 800;
+  font-size: 1.4rem;
+  text-decoration: none;
+}
+
+.nav-enlaces {
+  display: flex;
+  gap: 1.2rem;
+  align-items: center;
+}
+
+.nav-enlaces a {
+  color: var(--blanco);
+  text-decoration: none;
+  font-weight: 500;
+  padding: 0.4rem 0.8rem;
+  border-radius: 8px;
+  transition: background-color 0.2s;
+}
+
+.nav-enlaces a:hover {
+  background-color: var(--verde-oscuro);
+}
+
+.nav-enlaces a.activo {
+  background-color: var(--verde-oscuro);
+}
+
+.nav-admin {
+  background-color: var(--naranja);
+  border-radius: 8px;
+}
+
+/* Boton hamburguesa: oculto en pantallas grandes */
+.nav-hamburguesa {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--blanco);
+  font-size: 1.6rem;
+  cursor: pointer;
+}
+
+/* ============================================================
+   Botones
+   ============================================================ */
+
+.boton {
+  display: inline-block;
+  padding: 0.7rem 1.4rem;
+  border-radius: 10px;
+  font-weight: 600;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.boton:hover {
+  transform: translateY(-2px);
+}
+
+.boton-primario {
+  background-color: var(--verde);
+  color: var(--blanco);
+}
+
+.boton-primario:hover {
+  box-shadow: 0 6px 16px rgba(46, 125, 50, 0.35);
+}
+
+.boton-secundario {
+  background-color: var(--verde-claro);
+  color: var(--verde-oscuro);
+}
+
+/* ============================================================
+   Home
+   ============================================================ */
+
+.hero-pae {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  background: linear-gradient(135deg, var(--verde-claro), var(--blanco));
+  border-radius: 20px;
+  padding: 2.5rem;
+  margin-bottom: 2.5rem;
+  box-shadow: var(--sombra);
+}
+
+.hero-texto {
+  flex: 1;
+}
+
+.hero-texto h1 {
+  font-size: 2.4rem;
+}
+
+.hero-sub {
+  color: var(--texto-suave);
+  font-size: 1.1rem;
+  margin: 0.8rem 0 1.5rem;
+}
+
+.hero-acciones {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.hero-emoticon {
+  font-size: 6rem;
+  animation: flotar 3s ease-in-out infinite;
+}
+
+@keyframes flotar {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-12px);
+  }
+}
+
+.titulo-seccion {
+  text-align: center;
+  color: var(--verde-oscuro);
+  margin-bottom: 1.5rem;
+}
+
+.tarjetas {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+.tarjeta {
+  background-color: var(--blanco);
+  border-radius: var(--radio);
+  padding: 1.5rem;
+  box-shadow: var(--sombra);
+  text-align: center;
+  transition: transform 0.2s;
+}
+
+.tarjeta:hover {
+  transform: scale(1.03);
+}
+
+.tarjeta-icono {
+  font-size: 2.5rem;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.tarjeta h3 {
+  color: var(--verde-oscuro);
+  margin-bottom: 0.5rem;
+}
+
+.tarjeta p {
+  color: var(--texto-suave);
+}
+
+/* ============================================================
+   Menu
+   ============================================================ */
+
+.lista-menu {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.plato {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: var(--blanco);
+  border-left: 6px solid var(--verde);
+  border-radius: var(--radio);
+  padding: 1.2rem 1.5rem;
+  box-shadow: var(--sombra);
+}
+
+.plato-dia {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--naranja);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.plato h3 {
+  color: var(--texto);
+  margin-top: 0.2rem;
+}
+
+.plato p {
+  color: var(--texto-suave);
+  font-size: 0.95rem;
+}
+
+.plato-calorias {
+  background-color: var(--verde-claro);
+  color: var(--verde-oscuro);
+  font-weight: 600;
+  padding: 0.4rem 0.8rem;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.centrar {
+  text-align: center;
+}
+
+/* ============================================================
+   Formularios (Reserva y Contacto)
+   ============================================================ */
+
+.formulario {
+  background-color: var(--blanco);
+  border-radius: var(--radio);
+  padding: 2rem;
+  box-shadow: var(--sombra);
+  max-width: 560px;
+  display: grid;
+  gap: 1rem;
+}
+
+.formulario label {
+  display: grid;
+  gap: 0.4rem;
+  font-weight: 600;
+  color: var(--texto);
+}
+
+.formulario input,
+.formulario select,
+.formulario textarea {
+  padding: 0.7rem 0.9rem;
+  border: 1.5px solid #cfd8dc;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+
+.formulario input:focus,
+.formulario select:focus,
+.formulario textarea:focus {
+  outline: none;
+  border-color: var(--verde);
+}
+
+.formulario .boton {
+  justify-self: start;
+}
+
+.boton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Estados de carga, exito y error */
+.estado {
+  background-color: var(--verde-claro);
+  color: var(--exito);
+  border-radius: 10px;
+  padding: 0.8rem 1rem;
+  font-weight: 600;
+}
+
+.estado.error {
+  background-color: #fdecea;
+  color: var(--error);
+}
+
+.estado.exito {
+  background-color: var(--verde-claro);
+  color: var(--exito);
+}
+
+/* ============================================================
+   Admin
+   ============================================================ */
+
+.admin-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.lista-totales {
+  display: grid;
+  gap: 0.8rem;
+  margin-top: 1.5rem;
+}
+
+.total-fecha {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: var(--blanco);
+  border-radius: var(--radio);
+  padding: 1rem 1.5rem;
+  box-shadow: var(--sombra);
+}
+
+.total-fecha-nombre {
+  font-weight: 600;
+}
+
+.total-fecha-cantidad {
+  background-color: var(--naranja);
+  color: var(--blanco);
+  font-weight: 700;
+  padding: 0.4rem 1rem;
+  border-radius: 20px;
+}
+
+/* ============================================================
+   Footer
+   ============================================================ */
+
+.footer {
+  background-color: var(--verde-oscuro);
+  color: var(--blanco);
+  text-align: center;
+  padding: 1.5rem 1rem;
+  margin-top: 2rem;
+}
+
+.footer-creditos {
+  opacity: 0.8;
+  font-size: 0.85rem;
+  margin-top: 0.3rem;
+}
+
+/* ============================================================
+   Responsive: pantallas pequenas (celulares)
+   ============================================================ */
+
+@media (max-width: 768px) {
+  .nav-hamburguesa {
+    display: block;
+  }
+
+  /* El menu se despliega verticalmente cuando se abre el boton */
+  .nav-enlaces {
+    display: none;
+    flex-direction: column;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background-color: var(--verde);
+    padding: 1rem;
+    gap: 0.6rem;
+    align-items: stretch;
+  }
+
+  .nav-enlaces.abierto {
+    display: flex;
+  }
+
+  .nav-enlaces a {
+    display: block;
+    text-align: center;
+  }
+
+  .hero-pae {
+    flex-direction: column;
+    text-align: center;
+    padding: 2rem 1.5rem;
+  }
+
+  .hero-acciones {
+    justify-content: center;
+  }
+
+  .hero-emoticon {
+    font-size: 4rem;
+  }
+
+  .tarjetas {
+    grid-template-columns: 1fr;
+  }
+
+  h1 {
+    font-size: 1.6rem;
+  }
+
+  .hero-texto h1 {
+    font-size: 1.8rem;
+  }
+
+  .plato {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.6rem;
+  }
+
+  .formulario {
+    padding: 1.5rem;
+  }
+}
