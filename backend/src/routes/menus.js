@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // Rutas de Menus
 // ============================================================
 // CRUD del menu semanal del PAE. La cocina publica que se sirve
@@ -6,14 +6,14 @@
 // ============================================================
 
 import { Router } from "express";
-import { supabase } from "../config/supabase.js";
+import { getSupabase } from "../config/supabase.js";
 
 const router = Router();
 
 // GET /api/menus
 // Lista todos los menus del programa
 router.get("/", async (_req, res) => {
-  const { data, error } = await supabase.from("menus").select("*").order("dia", { ascending: true });
+  const { data, error } = await getSupabase().from("menus").select("*").order("dia", { ascending: true });
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
 });
@@ -28,7 +28,7 @@ router.post("/", async (req, res) => {
     return res.status(400).json({ error: "Faltan datos obligatorios" });
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from("menus")
     .insert([{ dia, platillo, descripcion, calorias }])
     .select()

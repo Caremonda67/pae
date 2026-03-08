@@ -1,10 +1,10 @@
-# ============================================================
-# PAE API - Servidor Express
-# ============================================================
-# Este archivo es el punto de entrada del backend.
-# Crea un servidor que expone una API REST consumida por el
-# frontend (React). La base de datos vive en Supabase (nube).
-# ============================================================
+// ============================================================
+// PAE API - Servidor Express
+// ============================================================
+// Este archivo es el punto de entrada del backend.
+// Crea un servidor que expone una API REST consumida por el
+// frontend (React). La base de datos vive en Supabase (nube).
+// ============================================================
 
 import "dotenv/config";
 import express from "express";

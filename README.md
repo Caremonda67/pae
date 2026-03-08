@@ -99,3 +99,24 @@ Por defecto: `pae2026` (se recomienda cambiarla y validar contra el backend en p
 ## 🧑‍🤝‍🧑 Equipo
 
 Proyecto desarrollado en pareja como proyecto final de la Ruta Avanzada.
+
+| Integrante | Usuario GitHub | Correo |
+|---|---|---|
+| A | `Caremonda67` | `3167373525luis@gmail.com` |
+| B | `marianasalinasmss-stack` | `marianasalinasmss@gmail.com` |
+
+### Identidad Git por integrante
+
+Cada integrante configura su identidad en la PC donde vaya a programar:
+
+```bash
+# En la PC del integrante A
+git config user.name "Caremonda67"
+git config user.email "3167373525luis@gmail.com"
+
+# En la PC del integrante B
+git config user.name "marianasalinasmss-stack"
+git config user.email "marianasalinasmss@gmail.com"
+```
+
+Así GitHub muestra correctamente quién hizo cada commit. Para trabajar en paralelo se usan ramas y pull requests.
