@@ -1,7 +1,4 @@
-// ============================================================
-// Pagina "Noticias"
-// Muestra los avisos y novedades del programa.
-// ============================================================
+// pagina de noticias y avisos del programa
 
 const NOTICIAS = [
   {

@@ -1,9 +1,5 @@
-// ============================================================
-// Pagina de inicio (Home)
-// Replica la estructura visual de la referencia:
-// hero + buscador, metricas, impacto, menu de la semana,
-// avisos, galeria y cita.
-// ============================================================
+// pagina principal, sigue la estructura de la referencia:
+// hero, metricas, impacto, menu de la semana, avisos, galeria y cita
 
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";

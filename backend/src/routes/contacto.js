@@ -1,9 +1,4 @@
-﻿// ============================================================
-// Rutas de Contacto
-// ============================================================
-// Guarda los mensajes que los usuarios envian desde el formulario
-// de contacto de la pagina web.
-// ============================================================
+﻿// guarda los mensajes que llegan por el formulario de contacto
 
 import { Router } from "express";
 import { getSupabase } from "../config/supabase.js";

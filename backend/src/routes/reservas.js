@@ -1,10 +1,6 @@
-﻿// ============================================================
-// Rutas de Reservas
-// ============================================================
-// CRUD de reservas de comida. El estudiante confirma que comera
-// y la cocina consulta los totales por fecha para preparar
-// exactamente la cantidad de minutas necesarias.
-// ============================================================
+﻿// rutas de las reservas
+// el estudiante reserva su comida y aca se guarda en la base,
+// tambien se calcula cuantas minutas hay por fecha para la cocina
 
 import { Router } from "express";
 import { getSupabase } from "../config/supabase.js";

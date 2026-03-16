@@ -1,7 +1,5 @@
-// ============================================================
-// Pagina "Beneficiarios"
-// Muestra las estadisticas del programa y a quienes beneficia.
-// ============================================================
+// pagina de beneficiarios, muestra a quien llega el programa
+// el numero de minutas reservadas se cuenta desde la base de datos
 
 import { useEffect, useState } from "react";
 

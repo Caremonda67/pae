@@ -1,8 +1,5 @@
-// ============================================================
-// Pagina de Reserva (corazon del negocio)
-// El estudiante confirma que recibira comida en el restaurante
-// escolar. Con estos datos la cocina prepara la cantidad exacta.
-// ============================================================
+// pagina donde el estudiante confirma que va a comer
+// asi la cocina sabe cuantas minutas preparar y no sobra comida
 
 import { useState } from "react";
 
