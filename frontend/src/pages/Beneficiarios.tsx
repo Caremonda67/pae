@@ -16,10 +16,10 @@ function Beneficiarios() {
         if (!respuesta.ok) throw new Error("Error al cargar");
         const datos = await respuesta.json();
         // Sumamos todas las reservas de todas las fechas
-        const total = Object.values(datos as Record<string, number>).reduce(
-          (suma: number, valor: number) => suma + valor,
-          0
-        );
+        let total = 0;
+        for (const fecha in datos) {
+          total += datos[fecha].reservas;
+        }
         setReservas(total);
       } catch {
         setReservas(0);

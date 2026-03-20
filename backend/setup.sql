@@ -22,8 +22,12 @@ create table if not exists reservas (
   sede text not null,
   turno text not null,
   fecha date not null,
+  asistio boolean default false,
   created_at timestamptz default now()
 );
+
+-- Si la tabla ya existia sin la columna de asistencia, se agrega aca
+alter table reservas add column if not exists asistio boolean default false;
 
 -- 3. Tabla de contactos: mensajes del formulario de contacto
 create table if not exists contactos (

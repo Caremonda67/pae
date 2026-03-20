@@ -18,17 +18,57 @@ router.get("/", async (_req, res) => {
 // GET /api/reservas/hoy
 // Total de reservas agrupadas por fecha (para que cocina sepa cuantas minutas preparar)
 router.get("/totales", async (_req, res) => {
-  const { data, error } = await getSupabase().from("reservas").select("fecha");
+  const { data, error } = await getSupabase()
+    .from("reservas")
+    .select("fecha, asistio");
   if (error) return res.status(500).json({ error: error.message });
 
-  // Contamos cuantas reservas hay por cada fecha
+  // Contamos cuantas reservas hay por cada fecha y cuantas asistieron
   const totales = {};
   for (const reserva of data) {
     const fecha = reserva.fecha;
-    totales[fecha] = (totales[fecha] || 0) + 1;
+    if (!totales[fecha]) {
+      totales[fecha] = { reservas: 0, asistieron: 0 };
+    }
+    totales[fecha].reservas += 1;
+    if (reserva.asistio) {
+      totales[fecha].asistieron += 1;
+    }
   }
 
   res.json(totales);
+});
+
+// GET /api/reservas/reporte
+// Reporte de desperdicio: cuantas minutas se reservaron, cuantas
+// se sirvieron y cuantas se desperdiciaron por no asistir.
+router.get("/reporte", async (_req, res) => {
+  const { data, error } = await getSupabase()
+    .from("reservas")
+    .select("fecha, asistio");
+  if (error) return res.status(500).json({ error: error.message });
+
+  let total = 0;
+  let asistieron = 0;
+  for (const reserva of data) {
+    total += 1;
+    if (reserva.asistio) asistieron += 1;
+  }
+
+  const desperdicio = total - asistieron;
+
+  // porcentaje de desperdicio, evitando dividir entre cero
+  let porcentaje = 0;
+  if (total > 0) {
+    porcentaje = Math.round((desperdicio / total) * 100);
+  }
+
+  res.json({
+    totalReservas: total,
+    minutasServidas: asistieron,
+    minutasDesperdiciadas: desperdicio,
+    porcentajeDesperdicio: porcentaje,
+  });
 });
 
 // GET /api/reservas/:id
