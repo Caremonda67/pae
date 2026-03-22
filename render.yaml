@@ -1,0 +1,21 @@
+# Configuracion para desplegar el backend en Render
+# Render lee este archivo al importar el repositorio
+# (New Web Service -> conectar GitHub -> elegir el repo "pae")
+
+services:
+  - type: web
+    name: pae-api
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node src/server.js
+    plan: free
+    envVars:
+      - key: PORT
+        value: 4000
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
