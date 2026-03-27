@@ -9,6 +9,7 @@ import Noticias from "./pages/Noticias";
 import Reserva from "./pages/Reserva";
 import Contacto from "./pages/Contacto";
 import Admin from "./pages/Admin";
+import Reportes from "./pages/Reportes";
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
             <Route path="/noticias" element={<Noticias />} />
             <Route path="/reserva" element={<Reserva />} />
             <Route path="/contacto" element={<Contacto />} />
+            <Route path="/reportes" element={<Reportes />} />
             <Route path="/admin" element={<Admin />} />
           </Routes>
         </main>
