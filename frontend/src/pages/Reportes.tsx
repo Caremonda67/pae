@@ -1,6 +1,8 @@
 // pagina de reportes
-// muestra las reservas de cada fecha como grafico de barras
-// y el resumen de desperdicio, todo con datos reales del backend
+// muestra las reservas de cada fecha como grafico de barras,
+// el resumen de desperdicio con desglose por sede y turno,
+// la tabla diaria para la cocina y botones para exportar a
+// CSV o imprimir/PDF. Todo con datos reales del backend.
 
 import { useEffect, useState } from "react";
 
@@ -11,6 +13,18 @@ interface Reporte {
   minutasServidas: number;
   minutasDesperdiciadas: number;
   porcentajeDesperdicio: number;
+  porSede: Record<string, { reservas: number; asistieron: number }>;
+  porTurno: Record<string, { reservas: number; asistieron: number }>;
+}
+
+interface ReservaDiaria {
+  id: number;
+  estudiante: string;
+  documento: string;
+  sede: string;
+  turno: string;
+  fecha: string;
+  asistio: boolean;
 }
 
 function Reportes() {
@@ -18,6 +32,13 @@ function Reportes() {
   const [reporte, setReporte] = useState<Reporte | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
+
+  // tabla diaria de cocina
+  const [fechaDiaria, setFechaDiaria] = useState(() =>
+    new Date().toISOString().slice(0, 10)
+  );
+  const [diaria, setDiaria] = useState<ReservaDiaria[]>([]);
+  const [diariaCargada, setDiariaCargada] = useState(false);
 
   useEffect(() => {
     const cargarDatos = async () => {
@@ -39,6 +60,71 @@ function Reportes() {
     };
     cargarDatos();
   }, []);
+
+  // Carga las reservas de un dia concreto
+  const cargarDiaria = async (fecha: string) => {
+    setDiariaCargada(false);
+    try {
+      const respuesta = await fetch(
+        `${API_URL}/api/reservas/diario?fecha=${fecha}`
+      );
+      if (!respuesta.ok) throw new Error("No se pudo cargar la tabla diaria");
+      const datos = await respuesta.json();
+      setDiaria(datos.reservas || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error desconocido");
+    } finally {
+      setDiariaCargada(true);
+    }
+  };
+
+  // Cuenta la tabla diaria por turno
+  const conteoDiario = () => {
+    const conteo: Record<string, number> = {};
+    for (const r of diaria) {
+      conteo[r.turno] = (conteo[r.turno] || 0) + 1;
+    }
+    return conteo;
+  };
+
+  // Descarga un CSV con el resumen de reservas por fecha
+  const exportarCSV = () => {
+    const filas = [
+      ["Fecha", "Reservadas", "Asistieron"],
+      ...Object.entries(totales)
+        .sort((a, b) => (a[0] < b[0] ? -1 : 1))
+        .map(([fecha, info]) => [fecha, info.reservas, info.asistieron]),
+      ...(reporte
+        ? [
+            [],
+            ["Reporte general"],
+            ["Total reservadas", reporte.totalReservas],
+            ["Minutas servidas", reporte.minutasServidas],
+            ["Minutas desperdiciadas", reporte.minutasDesperdiciadas],
+            ["Porcentaje de desperdicio", `${reporte.porcentajeDesperdicio}%`],
+          ]
+        : []),
+    ];
+
+    const texto = filas
+      .map((fila) =>
+        fila.map((celda) => `"${String(celda).replace(/"/g, '""')}"`).join(",")
+      )
+      .join("\n");
+
+    const blob = new Blob(["\uFEFF" + texto], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const enlace = document.createElement("a");
+    enlace.href = url;
+    enlace.download = "reporte-pae.csv";
+    enlace.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Imprime / guarda en PDF la tabla diaria de cocina
+  const imprimirDiaria = () => {
+    window.print();
+  };
 
   // la barra mas alta tiene 100% y las demas se calculan respecto a ella
   const fechas = Object.keys(totales).sort();
@@ -78,8 +164,35 @@ function Reportes() {
                   <span className="reporte-etiqueta">Sin asistir ({reporte.porcentajeDesperdicio}%)</span>
                 </div>
               </div>
+
+              {/* Desglose por sede y turno */}
+              <h3 className="reporte-subtitulo">Desglose por sede</h3>
+              <div className="reporte-desglose">
+                {Object.entries(reporte.porSede || {}).map(([sede, info]) => (
+                  <div key={sede} className="reporte-caja">
+                    <span className="reporte-numero">{info.reservas}</span>
+                    <span className="reporte-etiqueta">{sede} · {info.asistieron} asistieron</span>
+                  </div>
+                ))}
+              </div>
+              <h3 className="reporte-subtitulo">Desglose por turno</h3>
+              <div className="reporte-desglose">
+                {Object.entries(reporte.porTurno || {}).map(([turno, info]) => (
+                  <div key={turno} className="reporte-caja">
+                    <span className="reporte-numero">{info.reservas}</span>
+                    <span className="reporte-etiqueta">{turno} · {info.asistieron} asistieron</span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
+
+          {/* Botones de exportacion */}
+          <div className="centrar">
+            <button type="button" className="boton boton-secundario" onClick={exportarCSV}>
+              ⬇️ Exportar CSV
+            </button>
+          </div>
 
           {/* Grafico de barras por fecha */}
           <h2 className="admin-subtitulo">Reservas por fecha</h2>
@@ -118,6 +231,91 @@ function Reportes() {
             Verde: minutas reservadas. Naranja: estudiantes que asistieron. La
             diferencia es el desperdicio evitado al preparar solo lo necesario.
           </p>
+
+          {/* Tabla diaria para la cocina */}
+          <hr className="separador" />
+          <div className="tabla-diaria">
+            <h2 className="admin-subtitulo">Tabla diaria de cocina</h2>
+            <p className="subtitulo">
+              Elige una fecha para ver cuántas minutas preparar por turno. Puedes
+              imprimirla o guardarla en PDF.
+            </p>
+
+            <form
+              className="formulario formulario-fila"
+              onSubmit={(e) => {
+                e.preventDefault();
+                cargarDiaria(fechaDiaria);
+              }}
+            >
+              <label>
+                Fecha
+                <input
+                  type="date"
+                  value={fechaDiaria}
+                  onChange={(e) => setFechaDiaria(e.target.value)}
+                />
+              </label>
+              <button type="submit" className="boton boton-primario">
+                Ver minutas
+              </button>
+              {diariaCargada && (
+                <button type="button" className="boton boton-secundario" onClick={imprimirDiaria}>
+                  🖨️ Imprimir / PDF
+                </button>
+              )}
+            </form>
+
+            {diariaCargada && (
+              <>
+                {diaria.length === 0 ? (
+                  <p className="estado">
+                    No hay reservas para el {fechaDiaria}.
+                  </p>
+                ) : (
+                  <>
+                    <div className="reporte-desglose">
+                      {Object.entries(conteoDiario()).map(([turno, cantidad]) => (
+                        <div key={turno} className="reporte-caja">
+                          <span className="reporte-numero">{cantidad}</span>
+                          <span className="reporte-etiqueta">Minutas · {turno}</span>
+                        </div>
+                      ))}
+                      <div className="reporte-caja">
+                        <span className="reporte-numero">{diaria.length}</span>
+                        <span className="reporte-etiqueta">Total del día</span>
+                      </div>
+                    </div>
+
+                    <div className="tabla-cocina">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Estudiante</th>
+                            <th>Documento</th>
+                            <th>Sede</th>
+                            <th>Turno</th>
+                            <th>Asistió</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {diaria.map((r) => (
+                            <tr key={r.id}>
+                              <td>{r.estudiante}</td>
+                              <td>{r.documento}</td>
+                              <td>{r.sede}</td>
+                              <td>{r.turno}</td>
+                              <td>{r.asistio ? "✓" : "—"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+          </div>
         </>
       )}
     </section>

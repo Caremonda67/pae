@@ -10,10 +10,11 @@ import Reserva from "./pages/Reserva";
 import Contacto from "./pages/Contacto";
 import Admin from "./pages/Admin";
 import Reportes from "./pages/Reportes";
+import NoEncontrado from "./pages/NoEncontrado";
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/pae">
       <div className="app-layout">
         <Sidebar />
         <main className="contenido">
@@ -27,6 +28,7 @@ function App() {
             <Route path="/contacto" element={<Contacto />} />
             <Route path="/reportes" element={<Reportes />} />
             <Route path="/admin" element={<Admin />} />
+            <Route path="*" element={<NoEncontrado />} />
           </Routes>
         </main>
       </div>

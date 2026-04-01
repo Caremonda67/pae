@@ -28,6 +28,7 @@ function Home() {
   // Menu de la semana (se muestra una vista previa)
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [menuError, setMenuError] = useState("");
+  const [menuCargando, setMenuCargando] = useState(true);
   // Avisos publicados por el administrador (vienen de la base)
   const [avisos, setAvisos] = useState<Aviso[]>([]);
   const [buscador, setBuscador] = useState("");
@@ -40,6 +41,8 @@ function Home() {
         setMenu(await respuesta.json());
       } catch (err) {
         setMenuError(err instanceof Error ? err.message : "Error desconocido");
+      } finally {
+        setMenuCargando(false);
       }
     };
     cargarMenu();
@@ -57,6 +60,17 @@ function Home() {
     cargarAvisos();
   }, []);
 
+  // Filtra el menu segun lo que el usuario escriba en el buscador
+  const menuFiltrado = menu.filter((item) => {
+    const busqueda = buscador.trim().toLowerCase();
+    if (!busqueda) return true;
+    return (
+      item.platillo.toLowerCase().includes(busqueda) ||
+      item.dia.toLowerCase().includes(busqueda) ||
+      item.descripcion.toLowerCase().includes(busqueda)
+    );
+  });
+
   return (
     <div className="home-pae">
       {/* ===== HERO ===== */}
@@ -69,12 +83,12 @@ function Home() {
             desarrollo de nuestros estudiantes.
           </p>
 
-          {/* Buscador decorativo del sitio */}
+          {/* Buscador que filtra el menu */}
           <div className="buscador">
             <span aria-hidden="true">🔍</span>
             <input
               type="search"
-              placeholder="Buscar en el PAE..."
+              placeholder="Buscar platillo o día del menú..."
               value={buscador}
               onChange={(e) => setBuscador(e.target.value)}
             />
@@ -145,10 +159,22 @@ function Home() {
 
         {menuError && <p className="estado error">⚠️ {menuError}</p>}
 
-        {menu.length > 0 && (
+        {/* Esqueleto de carga mientras llega el menu */}
+        {menuCargando && (
+          <div className="skeleton-lista">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="skeleton-fila">
+                <span className="skeleton skeleton-dia" />
+                <span className="skeleton skeleton-plato" />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {!menuCargando && menu.length > 0 && (
           <div className="tabla-menu">
             {diasOrden
-              .map((dia) => menu.find((item) => item.dia === dia))
+              .map((dia) => menuFiltrado.find((item) => item.dia === dia))
               .filter(Boolean)
               .map((item) => (
                 <article key={item!.id} className="fila-menu">
@@ -157,6 +183,9 @@ function Home() {
                   <span className="fila-descripcion">{item!.descripcion}</span>
                 </article>
               ))}
+            {buscador.trim() !== "" && menuFiltrado.length === 0 && (
+              <p className="estado">No se encontró nada para "{buscador}".</p>
+            )}
           </div>
         )}
       </section>
