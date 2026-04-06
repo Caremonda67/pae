@@ -42,9 +42,13 @@ function Reserva() {
   const [exito, setExito] = useState("");
   const [error, setError] = useState("");
 
-  // Autocompletado: al escribir el documento se busca el nombre
+  // Autocompletado: al escribir el documento se busca el nombre,
+  // la sede y el turno que ya tiene registrado el estudiante
   const [buscandoBeneficiario, setBuscandoBeneficiario] = useState(false);
   const [infoBeneficiario, setInfoBeneficiario] = useState("");
+  // true cuando el documento es de un beneficiario registrado:
+  // la sede y el turno quedan fijos (no se le preguntan)
+  const [beneficiarioConfirmado, setBeneficiarioConfirmado] = useState(false);
 
   // Mis reservas
   const [docConsulta, setDocConsulta] = useState("");
@@ -63,24 +67,32 @@ function Reserva() {
   };
 
   // Cuando el documento cambia, buscamos al beneficiario y
-  // rellenamos el nombre automaticamente (autocompletado)
+  // rellenamos automaticamente el nombre, la sede y el turno
   const buscarBeneficiario = async (documento: string) => {
     if (!documento || documento.trim().length < 3) {
       setInfoBeneficiario("");
+      setBeneficiarioConfirmado(false);
       return;
     }
 
     setBuscandoBeneficiario(true);
     setInfoBeneficiario("");
+    setBeneficiarioConfirmado(false);
     try {
       const respuesta = await fetch(
         `${API_URL}/api/beneficiarios/buscar?documento=${encodeURIComponent(documento.trim())}`
       );
       if (respuesta.ok) {
         const datos = await respuesta.json();
-        setFormulario((f) => ({ ...f, estudiante: datos.nombre }));
+        setFormulario((f) => ({
+          ...f,
+          estudiante: datos.nombre,
+          sede: datos.sede,
+          turno: datos.turno,
+        }));
+        setBeneficiarioConfirmado(true);
         setInfoBeneficiario(
-          `✅ Encontrado: ${datos.nombre} (${datos.sede}, ${datos.turno})`
+          `✅ Encontrado: ${datos.nombre}. Tu sede (${datos.sede}) y turno (${datos.turno}) ya están definidos.`
         );
       } else {
         setInfoBeneficiario("ℹ️ Documento no registrado. Verifica con el equipo del PAE.");
@@ -120,6 +132,7 @@ function Reserva() {
       // Limpiamos el formulario despues de reservar
       setFormulario({ estudiante: "", documento: "", correo: "", sede: "", turno: "", fecha: "" });
       setInfoBeneficiario("");
+      setBeneficiarioConfirmado(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error desconocido");
     } finally {
@@ -231,26 +244,52 @@ function Reserva() {
 
         <label>
           Sede
-          <select name="sede" value={formulario.sede} onChange={cambiar} required>
-            <option value="">Selecciona tu sede</option>
+          <select
+            name="sede"
+            value={formulario.sede}
+            onChange={cambiar}
+            required
+            disabled={beneficiarioConfirmado}
+          >
+            <option value="">
+              {beneficiarioConfirmado
+                ? "Definida por el registro"
+                : "Selecciona tu sede"}
+            </option>
             {SEDES.map((s) => (
               <option key={s} value={s}>
                 {s}
               </option>
             ))}
           </select>
+          {beneficiarioConfirmado && (
+            <small className="campo-fijo">Tu sede ya está registrada</small>
+          )}
         </label>
 
         <label>
           Turno
-          <select name="turno" value={formulario.turno} onChange={cambiar} required>
-            <option value="">Selecciona el turno</option>
+          <select
+            name="turno"
+            value={formulario.turno}
+            onChange={cambiar}
+            required
+            disabled={beneficiarioConfirmado}
+          >
+            <option value="">
+              {beneficiarioConfirmado
+                ? "Definido por el registro"
+                : "Selecciona el turno"}
+            </option>
             {TURNOS.map((t) => (
               <option key={t} value={t}>
                 {t}
               </option>
             ))}
           </select>
+          {beneficiarioConfirmado && (
+            <small className="campo-fijo">Tu turno ya está registrado</small>
+          )}
         </label>
 
         <label>
