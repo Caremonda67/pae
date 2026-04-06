@@ -1,0 +1,76 @@
+// ============================================================
+// Barra lateral izquierda (Sidebar)
+// Estilo basado en la referencia visual del proyecto.
+// Opciones de navegacion. En movil se vuelve un menu plegable.
+// ============================================================
+
+import { useState } from "react";
+import { NavLink } from "react-router-dom";
+
+function Sidebar() {
+  // abierto controla el menu en pantallas moviles
+  const [abierto, setAbierto] = useState(false);
+
+  const cerrar = () => setAbierto(false);
+
+  return (
+    <>
+      {/* Boton hamburguesa: solo visible en movil */}
+      <button
+        type="button"
+        className="sidebar-boton"
+        onClick={() => setAbierto(!abierto)}
+        aria-label="Abrir menu"
+      >
+        {abierto ? "✕" : "☰"}
+      </button>
+
+      <aside className={`sidebar ${abierto ? "abierto" : ""}`}>
+        <div className="sidebar-marca">
+          <span className="sidebar-logo">🍽️</span>
+          <div>
+            <strong>PAE</strong>
+            <span className="sidebar-submarca">Programa de Alimentación Escolar</span>
+          </div>
+        </div>
+
+        <nav className="sidebar-enlaces">
+          <NavLink to="/" end onClick={cerrar}>
+            <span className="nav-icono">🏠</span> Inicio
+          </NavLink>
+          <NavLink to="/sobre" onClick={cerrar}>
+            <span className="nav-icono">📘</span> Sobre el PAE
+          </NavLink>
+          <NavLink to="/menu" onClick={cerrar}>
+            <span className="nav-icono">🍽️</span> Menú semanal
+          </NavLink>
+          <NavLink to="/beneficiarios" onClick={cerrar}>
+            <span className="nav-icono">👥</span> Beneficiarios
+          </NavLink>
+          <NavLink to="/noticias" onClick={cerrar}>
+            <span className="nav-icono">📰</span> Noticias
+          </NavLink>
+          <NavLink to="/contacto" onClick={cerrar}>
+            <span className="nav-icono">✉️</span> Contacto
+          </NavLink>
+        </nav>
+
+        <div className="sidebar-acciones">
+          <NavLink to="/reserva" onClick={cerrar} className="sidebar-boton-reserva">
+            🥗 Reservar comida
+          </NavLink>
+          <NavLink to="/admin" onClick={cerrar} className="sidebar-enlace-admin">
+            ⚙️ Administrador
+          </NavLink>
+        </div>
+      </aside>
+
+      {/* Fondo oscuro que cierra el menu en movil */}
+      {abierto && (
+        <div className="sidebar-fondo" onClick={() => setAbierto(false)} />
+      )}
+    </>
+  );
+}
+
+export default Sidebar;
