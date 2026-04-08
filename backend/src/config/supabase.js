@@ -1,12 +1,7 @@
-// ============================================================
-// Conexion a Supabase
-// ============================================================
-// Configuracion centralizada del cliente de Supabase.
-// Los valores secretos viven en el archivo .env (no se suben a Git).
-// Usamos una conexion "perezosa" (lazy): el cliente solo se crea
-// cuando hace falta, asi el servidor puede arrancar aunque aun
-// no se hayan configurado las variables.
-// ============================================================
+// conexion con supabase
+// las claves estan en el .env, no se suben a github
+// la conexion se hace perezosa para que el servidor arranque
+// aunque todavia no esten configuradas las variables
 
 import { createClient } from "@supabase/supabase-js";
 

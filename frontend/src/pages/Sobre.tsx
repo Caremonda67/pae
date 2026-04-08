@@ -1,7 +1,4 @@
-// ============================================================
-// Pagina "Sobre el PAE"
-// Explica que es el programa y como funciona la reserva de comida.
-// ============================================================
+// pagina sobre el programa y como funciona la reserva
 
 function Sobre() {
   return (

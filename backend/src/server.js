@@ -1,9 +1,6 @@
 // ============================================================
-// PAE API - Servidor Express
-// ============================================================
-// Este archivo es el punto de entrada del backend.
-// Crea un servidor que expone una API REST consumida por el
-// frontend (React). La base de datos vive en Supabase (nube).
+// servidor principal del backend
+// expone la API que usa el frontend, los datos estan en supabase
 // ============================================================
 
 import "dotenv/config";
@@ -14,6 +11,7 @@ import cors from "cors";
 import reservasRouter from "./routes/reservas.js";
 import menusRouter from "./routes/menus.js";
 import contactoRouter from "./routes/contacto.js";
+import chatRouter from "./routes/chat.js";
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -33,6 +31,7 @@ app.get("/api/health", (_req, res) => {
 app.use("/api/reservas", reservasRouter);
 app.use("/api/menus", menusRouter);
 app.use("/api/contacto", contactoRouter);
+app.use("/api/chat", chatRouter);
 
 // Middleware para rutas no encontradas (error 404)
 app.use((_req, res) => {

@@ -1,7 +1,4 @@
-// ============================================================
-// Pagina de Contacto
-// Formulario real: guarda los mensajes en Supabase.
-// ============================================================
+// formulario de contacto, guarda el mensaje en la base de datos
 
 import { useState } from "react";
 

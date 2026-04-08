@@ -1,8 +1,5 @@
-// ============================================================
-// Pagina de Menu (Catalogo)
-// Muestra el menu semanal del PAE. Los datos vienen del backend
-// (Express + Supabase) mediante fetch.
-// ============================================================
+// pagina del menu semanal
+// los platos se cargan del backend con fetch
 
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";

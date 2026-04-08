@@ -1,9 +1,4 @@
-﻿// ============================================================
-// Rutas de Menus
-// ============================================================
-// CRUD del menu semanal del PAE. La cocina publica que se sirve
-// cada dia y los estudiantes ven el catalogo desde la app.
-// ============================================================
+﻿// rutas del menu semanal
 
 import { Router } from "express";
 import { getSupabase } from "../config/supabase.js";

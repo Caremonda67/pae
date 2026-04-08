@@ -1,8 +1,5 @@
-// ============================================================
-// Barra lateral izquierda (Sidebar)
-// Estilo basado en la referencia visual del proyecto.
-// Opciones de navegacion. En movil se vuelve un menu plegable.
-// ============================================================
+// barra lateral de navegacion, se copio el estilo de la referencia
+// en celular se esconde y sale con el boton de hamburguesa
 
 import { useState } from "react";
 import { NavLink } from "react-router-dom";

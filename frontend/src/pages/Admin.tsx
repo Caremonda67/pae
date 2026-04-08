@@ -1,9 +1,6 @@
-// ============================================================
-// Pagina de Administrador
-// 1. Muestra un login sencillo (contraseña definida por nosotros)
-// 2. Al ingresar, muestra el panel con el total de reservas por
-//    fecha: asi la cocina sabe cuantas minutas preparar.
-// ============================================================
+// panel de administrador
+// primero pide una clave y despues muestra cuantas minutas se
+// reservaron por fecha, asi la cocina prepara solo lo necesario
 
 import { useState } from "react";
 
