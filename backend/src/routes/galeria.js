@@ -1,6 +1,7 @@
-// rutas de los avisos
-// el administrador publica avisos y estos aparecen en la
-// pagina de inicio, tambien los lee el bot para responder
+// rutas de la galeria
+// el administrador publica fotos propias del programa (eventos,
+// equipo, novedades) con un titulo. La Home las muestra junto con
+// las fotos de los platos del menu y los avisos.
 
 import { Router } from "express";
 import { getSupabase } from "../config/supabase.js";
@@ -8,31 +9,31 @@ import { requiereAdmin } from "../config/auth.js";
 
 const router = Router();
 
-// GET /api/avisos
-// lista todos los avisos, los mas nuevos primero (publico)
+// GET /api/galeria
+// Lista las fotos de la galeria (publicas)
 router.get("/", async (_req, res) => {
   const { data, error } = await getSupabase()
-    .from("avisos")
+    .from("galeria")
     .select("*")
     .order("created_at", { ascending: false });
+
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
 });
 
-// POST /api/avisos
-// crea un aviso nuevo (solo admin)
-// cuerpo esperado: { titulo, texto, fecha, imagen }
-//   - imagen: URL publica de la foto (opcional)
+// POST /api/galeria
+// Guarda una foto nueva (solo admin)
+// Cuerpo esperado: { titulo, imagen }
 router.post("/", requiereAdmin, async (req, res) => {
-  const { titulo, texto, fecha, imagen } = req.body;
+  const { titulo, imagen } = req.body;
 
-  if (!titulo || !texto) {
-    return res.status(400).json({ error: "Faltan datos obligatorios" });
+  if (!titulo || !imagen) {
+    return res.status(400).json({ error: "Faltan el título o la imagen" });
   }
 
   const { data, error } = await getSupabase()
-    .from("avisos")
-    .insert([{ titulo, texto, fecha, imagen: imagen || null }])
+    .from("galeria")
+    .insert([{ titulo, imagen }])
     .select()
     .single();
 
@@ -40,11 +41,11 @@ router.post("/", requiereAdmin, async (req, res) => {
   res.status(201).json(data);
 });
 
-// DELETE /api/avisos/:id
-// elimina un aviso (solo admin)
+// DELETE /api/galeria/:id
+// Borra una foto (solo admin)
 router.delete("/:id", requiereAdmin, async (req, res) => {
   const { error } = await getSupabase()
-    .from("avisos")
+    .from("galeria")
     .delete()
     .eq("id", req.params.id);
   if (error) return res.status(500).json({ error: error.message });
