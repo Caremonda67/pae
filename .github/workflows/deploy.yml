@@ -34,18 +34,25 @@ jobs:
         working-directory: frontend
         run: npm install
 
-      # 4. Crear el build de produccion
+      # 4. Guardar la direccion del backend (Render) en un archivo
+      #    .env para que la app publicada hable con el servidor real
+      - name: Configurar API del backend
+        working-directory: frontend
+        run: |
+          echo "VITE_API_URL=${{ secrets.VITE_API_URL }}" > .env
+
+      # 5. Crear el build de produccion
       - name: Build
         working-directory: frontend
         run: npm run build
 
-      # 5. Copiar index.html como 404.html para que las rutas
+      # 6. Copiar index.html como 404.html para que las rutas
       #    internas (ej: /admin) funcionen al recargar la pagina
       - name: Copiar 404.html
         working-directory: frontend
         run: cp dist/index.html dist/404.html
 
-      # 6. Guardar el build como artefacto
+      # 7. Guardar el build como artefacto
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
