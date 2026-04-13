@@ -94,6 +94,31 @@ router.post("/", async (req, res) => {
     return res.status(400).json({ error: "Faltan datos obligatorios" });
   }
 
+  // La fecha no puede ser anterior a hoy
+  const hoy = new Date().toISOString().slice(0, 10);
+  if (fecha < hoy) {
+    return res
+      .status(400)
+      .json({ error: "La fecha no puede ser anterior a hoy" });
+  }
+
+  // Evitar que el mismo documento reserve dos veces la misma fecha
+  const { data: existente, error: errExistente } = await getSupabase()
+    .from("reservas")
+    .select("id")
+    .eq("documento", documento)
+    .eq("fecha", fecha)
+    .maybeSingle();
+
+  if (errExistente) {
+    return res.status(500).json({ error: errExistente.message });
+  }
+  if (existente) {
+    return res
+      .status(400)
+      .json({ error: "Ya tienes una reserva para esa fecha" });
+  }
+
   const { data, error } = await getSupabase()
     .from("reservas")
     .insert([{ estudiante, documento, sede, turno, fecha }])

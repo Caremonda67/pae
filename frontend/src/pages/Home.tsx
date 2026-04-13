@@ -16,26 +16,20 @@ interface MenuItem {
 
 const diasOrden = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
 
-// Avisos importantes (datos de ejemplo; en el futuro vienen del admin)
-const AVISOS = [
-  {
-    titulo: "Suspensión del servicio",
-    texto: "Viernes 6 de junio no habrá servicio por jornada pedagógica.",
-  },
-  {
-    titulo: "Reunión informativa",
-    texto: "Jueves 12 de junio a las 8:00 a.m. en el auditorio de la Institución.",
-  },
-  {
-    titulo: "Actualización de datos",
-    texto: "Recuerda mantener actualizada la información de los estudiantes.",
-  },
-];
+// un aviso que llega del backend
+interface Aviso {
+  id: number;
+  titulo: string;
+  texto: string;
+  fecha?: string;
+}
 
 function Home() {
   // Menu de la semana (se muestra una vista previa)
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [menuError, setMenuError] = useState("");
+  // Avisos publicados por el administrador (vienen de la base)
+  const [avisos, setAvisos] = useState<Aviso[]>([]);
   const [buscador, setBuscador] = useState("");
 
   useEffect(() => {
@@ -49,6 +43,18 @@ function Home() {
       }
     };
     cargarMenu();
+
+    // Tambien cargamos los avisos publicados
+    const cargarAvisos = async () => {
+      try {
+        const respuesta = await fetch(`${API_URL}/api/avisos`);
+        if (!respuesta.ok) throw new Error("No se pudieron cargar los avisos");
+        setAvisos(await respuesta.json());
+      } catch {
+        setAvisos([]);
+      }
+    };
+    cargarAvisos();
   }, []);
 
   return (
@@ -164,8 +170,11 @@ function Home() {
           </Link>
         </div>
         <div className="avisos">
-          {AVISOS.map((aviso) => (
-            <article key={aviso.titulo} className="aviso">
+          {avisos.length === 0 && (
+            <p className="estado">Aún no hay avisos publicados.</p>
+          )}
+          {avisos.map((aviso) => (
+            <article key={aviso.id} className="aviso">
               <h3>{aviso.titulo}</h3>
               <p>{aviso.texto}</p>
             </article>

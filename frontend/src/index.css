@@ -909,6 +909,79 @@ h1 {
   color: var(--blanco);
 }
 
+/* Pestañas del admin */
+.admin-pestanas {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+
+.admin-pestanas button {
+  background-color: var(--blanco);
+  border: 1.5px solid var(--borde);
+  border-radius: 10px;
+  padding: 0.6rem 1.1rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  color: var(--texto);
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.admin-pestanas button:hover {
+  background-color: var(--verde-claro);
+}
+
+.admin-pestanas button.activa {
+  background-color: var(--verde);
+  border-color: var(--verde);
+  color: var(--blanco);
+}
+
+/* Lista de avisos en el admin */
+.lista-avisos-admin {
+  display: grid;
+  gap: 0.7rem;
+  margin-top: 1rem;
+}
+
+.fila-aviso-admin {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background-color: var(--blanco);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: 0.9rem 1.3rem;
+  box-shadow: var(--sombra);
+}
+
+/* Lista de mensajes de contacto */
+.lista-mensajes {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.fila-mensaje {
+  background-color: var(--blanco);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: 1rem 1.3rem;
+  box-shadow: var(--sombra);
+}
+
+.fila-mensaje p {
+  margin-top: 0.4rem;
+  color: var(--texto-suave);
+}
+
+.mensaje-fecha {
+  font-size: 0.78rem;
+  color: var(--texto-suave);
+}
+
 /* ============================================================
    Chatbot (burbuja flotante)
    ============================================================ */

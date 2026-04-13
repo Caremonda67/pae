@@ -5,6 +5,17 @@ import { getSupabase } from "../config/supabase.js";
 
 const router = Router();
 
+// GET /api/contacto
+// lista los mensajes recibidos (para el panel de administrador)
+router.get("/", async (_req, res) => {
+  const { data, error } = await getSupabase()
+    .from("contactos")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
 // POST /api/contacto
 // Recibe el formulario de contacto
 // Cuerpo esperado: { nombre, correo, mensaje }

@@ -1,33 +1,38 @@
-// pagina de noticias y avisos del programa
+// pagina de noticias y avisos
+// los avisos los publica el administrador y se muestran aca,
+// vienen de la base de datos (antes eran datos fijos en el codigo)
 
-const NOTICIAS = [
-  {
-    fecha: "06 de junio",
-    titulo: "Suspensión del servicio",
-    texto:
-      "Viernes 6 de junio no habrá servicio por jornada pedagógica. Las minutas se reprogramarán para la siguiente semana.",
-  },
-  {
-    fecha: "12 de junio",
-    titulo: "Reunión informativa",
-    texto:
-      "Jueves 12 de junio a las 8:00 a.m. en el auditorio de la Institución. Asistencia de representantes de grado.",
-  },
-  {
-    fecha: "Permanente",
-    titulo: "Actualización de datos",
-    texto:
-      "Recuerda mantener actualizada la información de los estudiantes para garantizar el acceso al programa.",
-  },
-  {
-    fecha: "Novedad",
-    titulo: "Reserva de minutas ahora en línea",
-    texto:
-      "Ya puedes reservar tu comida desde la aplicación para que la cocina prepare la cantidad exacta y evitemos el desperdicio.",
-  },
-];
+import { useEffect, useState } from "react";
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
+
+interface Aviso {
+  id: number;
+  titulo: string;
+  texto: string;
+  fecha?: string;
+}
 
 function Noticias() {
+  const [avisos, setAvisos] = useState<Aviso[]>([]);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const cargarAvisos = async () => {
+      try {
+        const respuesta = await fetch(`${API_URL}/api/avisos`);
+        if (!respuesta.ok) throw new Error("No se pudieron cargar los avisos");
+        setAvisos(await respuesta.json());
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Error desconocido");
+      } finally {
+        setCargando(false);
+      }
+    };
+    cargarAvisos();
+  }, []);
+
   return (
     <section className="pagina-simple">
       <h1>Noticias y avisos</h1>
@@ -35,15 +40,25 @@ function Noticias() {
         Novedades y comunicados importantes del programa.
       </p>
 
-      <div className="lista-noticias">
-        {NOTICIAS.map((noticia) => (
-          <article key={noticia.titulo} className="tarjeta-noticia">
-            <span className="noticia-fecha">{noticia.fecha}</span>
-            <h3>{noticia.titulo}</h3>
-            <p>{noticia.texto}</p>
-          </article>
-        ))}
-      </div>
+      {cargando && <p className="estado">Cargando avisos…</p>}
+      {error && <p className="estado error">⚠️ {error}</p>}
+
+      {!cargando && !error && (
+        <div className="lista-noticias">
+          {avisos.length === 0 && (
+            <p className="estado">Aún no hay avisos publicados.</p>
+          )}
+          {avisos.map((aviso) => (
+            <article key={aviso.id} className="tarjeta-noticia">
+              {aviso.fecha && (
+                <span className="noticia-fecha">{aviso.fecha}</span>
+              )}
+              <h3>{aviso.titulo}</h3>
+              <p>{aviso.texto}</p>
+            </article>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
