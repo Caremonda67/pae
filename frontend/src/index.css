@@ -808,6 +808,60 @@ h1 {
   color: var(--texto-suave);
 }
 
+/* Grafico de barras de los reportes */
+.grafico {
+  display: flex;
+  align-items: flex-end;
+  gap: 1.2rem;
+  background-color: var(--blanco);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: 1.5rem;
+  box-shadow: var(--sombra);
+  overflow-x: auto;
+}
+
+.grafico-columna {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 90px;
+}
+
+.grafico-barras {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 160px;
+  width: 44px;
+}
+
+.grafico-barra {
+  width: 18px;
+  border-radius: 6px 6px 0 0;
+  transition: height 0.3s;
+}
+
+.grafico-barra.verde {
+  background-color: var(--verde);
+}
+
+.grafico-barra.naranja {
+  background-color: var(--naranja);
+}
+
+.grafico-fecha {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--texto-suave);
+}
+
+.grafico-leyenda {
+  font-size: 0.72rem;
+  color: var(--texto-suave);
+}
+
 /* Lista de reservas */
 .admin-subtitulo {
   color: var(--verde-oscuro);
