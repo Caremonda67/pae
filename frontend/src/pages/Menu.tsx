@@ -17,6 +17,8 @@ interface MenuItem {
   platillo: string;
   descripcion: string;
   calorias?: number;
+  imagen?: string;
+  jornadas?: string[];
   valoracion?: number | null;
   votos?: number;
 }
@@ -28,6 +30,14 @@ const diasOrden = [
   "Jueves",
   "Viernes",
 ];
+
+// Quita los acentos para comparar nombres de dias sin problemas
+function normalizar(texto: string) {
+  return texto
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
 
 const ESTRELLAS = [1, 2, 3, 4, 5];
 
@@ -43,6 +53,10 @@ function Menu() {
   const [documento, setDocumento] = useState("");
   // plato que se esta calificando ahora mismo
   const [valorando, setValorando] = useState<number | null>(null);
+  // estrellas en vista previa mientras se pasa el raton
+  const [previa, setPrevia] = useState<{ platoId: number; valor: number } | null>(null);
+  // estrellas que el estudiante ya eligio (se quedan sombreadas)
+  const [seleccionada, setSeleccionada] = useState<Record<number, number>>({});
   const [mensaje, setMensaje] = useState<{ texto: string; tipo: string } | null>(null);
 
   // useEffect se ejecuta una vez cuando la pagina se monta
@@ -125,23 +139,40 @@ function Menu() {
     );
   };
 
-  // Estrellas clicables para calificar
-  const estrellasCalificar = (platoId: number) => (
-    <span className="estrellas-calificar">
-      {ESTRELLAS.map((n) => (
-        <button
-          key={n}
-          type="button"
-          className="estrella-boton"
-          title={`${n} estrella${n === 1 ? "" : "s"}`}
-          disabled={valorando === platoId}
-          onClick={() => valorar(platoId, n)}
-        >
-          ★
-        </button>
-      ))}
-    </span>
-  );
+  // Estrellas clicables para calificar. Al pasar el raton se sombrean
+  // todas las estrellas hasta la señalada (vista previa) y al hacer clic
+  // se sombrean las elegidas y quedan marcadas.
+  const estrellasCalificar = (platoId: number) => {
+    // la cantidad sombreada ahora mismo: la vista previa si existe,
+    // si no la que el estudiante ya eligio
+    const sombreadas =
+      previa?.platoId === platoId ? previa.valor : seleccionada[platoId] || 0;
+
+    return (
+      <span
+        className="estrellas-calificar"
+        onMouseLeave={() => setPrevia(null)}
+      >
+        {ESTRELLAS.map((n) => (
+          <button
+            key={n}
+            type="button"
+            className={`estrella-boton ${n <= sombreadas ? "llena" : ""}`}
+            title={`${n} estrella${n === 1 ? "" : "s"}`}
+            disabled={valorando === platoId}
+            onMouseEnter={() => setPrevia({ platoId, valor: n })}
+            onClick={() => {
+              setSeleccionada((prev) => ({ ...prev, [platoId]: n }));
+              setPrevia(null);
+              valorar(platoId, n);
+            }}
+          >
+            ★
+          </button>
+        ))}
+      </span>
+    );
+  };
 
   return (
     <section className="menu-pagina">
@@ -187,14 +218,30 @@ function Menu() {
               <p className="estado">Aún no hay platos publicados.</p>
             )}
             {diasOrden
-              .map((dia) => menu.filter((item) => item.dia === dia))
+              .map((dia) => menu.filter((item) => normalizar(item.dia) === normalizar(dia)))
               .flat()
               .map((item) => (
                 <article key={item.id} className="plato">
+                  {item.imagen && (
+                    <img
+                      className="plato-imagen"
+                      src={item.imagen}
+                      alt={item.platillo}
+                      loading="lazy"
+                    />
+                  )}
                   <div>
                     <span className="plato-dia">{item.dia}</span>
                     <h3>{item.platillo}</h3>
                     <p>{item.descripcion}</p>
+                    <div className="plato-jornadas">
+                      {item.jornadas &&
+                        item.jornadas.map((jornada) => (
+                          <span key={jornada} className="etiqueta-comida">
+                            {jornada}
+                          </span>
+                        ))}
+                    </div>
                     <div className="plato-valoracion">
                       {dibujarEstrellas(item.valoracion)}
                       {item.votos ? (
