@@ -1,0 +1,21 @@
+# Workflow que mantiene despierto el backend de Render
+# Render (plan free) duerme el servidor a los ~15 min sin uso,
+# y la primera peticion tarda mucho. Este "pinger" visita la API
+# cada 10 minutos para que siempre este activa.
+
+name: Mantener backend despierto
+
+on:
+  schedule:
+    # cada 10 minutos (formato cron: minuto hora dia mes dia-semana)
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Llamar a la API del backend
+        run: |
+          curl -sS -o /dev/null -w "Ping OK: %{http_code}" \
+            https://pae-app-y0f2.onrender.com/api/health

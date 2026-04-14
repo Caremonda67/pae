@@ -592,6 +592,29 @@ h1 {
   font-size: 0.9rem;
 }
 
+/* Pagina 404 */
+.no-encontrado {
+  text-align: center;
+  padding: 4rem 1rem;
+  animation: aparecer 0.5s ease both;
+}
+
+.no-encontrado-icono {
+  font-size: 4rem;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.no-encontrado h1 {
+  font-size: 4rem;
+  margin-bottom: 0.5rem;
+}
+
+.no-encontrado p {
+  color: var(--texto-suave);
+  margin-bottom: 1.5rem;
+}
+
 /* ============================================================
    Formularios (Reserva y Contacto)
    ============================================================ */
@@ -1131,6 +1154,107 @@ h1 {
 .chatbot-input button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* ============================================================
+   Skeletons (carga esqueletica) y animaciones
+   ============================================================ */
+
+/* esqueleto que parpadea mientras cargan los datos */
+.skeleton {
+  background: linear-gradient(90deg, #e8ece6 25%, #f2f5f0 50%, #e8ece6 75%);
+  background-size: 200% 100%;
+  animation: brillar 1.4s infinite;
+  border-radius: 8px;
+  display: inline-block;
+}
+
+@keyframes brillar {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.skeleton-lista {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.skeleton-fila {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 1rem;
+  align-items: center;
+  background-color: var(--crema);
+  border-radius: 10px;
+  padding: 0.9rem 1.2rem;
+}
+
+.skeleton-dia {
+  height: 16px;
+  width: 90px;
+}
+
+.skeleton-plato {
+  height: 16px;
+  width: 60%;
+}
+
+/* entrada suave de las secciones */
+.seccion-pae,
+.metrica,
+.tarjeta-info,
+.tarjeta-noticia,
+.plato,
+.fila-reserva,
+.fila-aviso-admin,
+.fila-mensaje {
+  animation: aparecer 0.5s ease both;
+}
+
+@keyframes aparecer {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* las barras del grafico crecen desde abajo al cargar */
+.grafico-barra {
+  animation: crecer 0.6s ease both;
+}
+
+@keyframes crecer {
+  from {
+    height: 0;
+  }
+}
+
+/* pequeno salto al pasar el mouse sobre el mensaje de exito */
+.estado.exito {
+  animation: aparecer 0.5s ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton,
+  .seccion-pae,
+  .metrica,
+  .tarjeta-info,
+  .tarjeta-noticia,
+  .plato,
+  .fila-reserva,
+  .fila-aviso-admin,
+  .fila-mensaje,
+  .grafico-barra {
+    animation: none;
+  }
 }
 
 /* ============================================================
