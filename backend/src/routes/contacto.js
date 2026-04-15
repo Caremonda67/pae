@@ -2,12 +2,13 @@
 
 import { Router } from "express";
 import { getSupabase } from "../config/supabase.js";
+import { requiereAdmin } from "../config/auth.js";
 
 const router = Router();
 
 // GET /api/contacto
-// lista los mensajes recibidos (para el panel de administrador)
-router.get("/", async (_req, res) => {
+// lista los mensajes recibidos (solo para el panel de administrador)
+router.get("/", requiereAdmin, async (_req, res) => {
   const { data, error } = await getSupabase()
     .from("contactos")
     .select("*")

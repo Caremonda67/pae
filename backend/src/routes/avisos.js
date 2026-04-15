@@ -4,11 +4,12 @@
 
 import { Router } from "express";
 import { getSupabase } from "../config/supabase.js";
+import { requiereAdmin } from "../config/auth.js";
 
 const router = Router();
 
 // GET /api/avisos
-// lista todos los avisos, los mas nuevos primero
+// lista todos los avisos, los mas nuevos primero (publico)
 router.get("/", async (_req, res) => {
   const { data, error } = await getSupabase()
     .from("avisos")
@@ -19,9 +20,9 @@ router.get("/", async (_req, res) => {
 });
 
 // POST /api/avisos
-// crea un aviso nuevo
+// crea un aviso nuevo (solo admin)
 // cuerpo esperado: { titulo, texto, fecha }
-router.post("/", async (req, res) => {
+router.post("/", requiereAdmin, async (req, res) => {
   const { titulo, texto, fecha } = req.body;
 
   if (!titulo || !texto) {
@@ -39,8 +40,8 @@ router.post("/", async (req, res) => {
 });
 
 // DELETE /api/avisos/:id
-// elimina un aviso
-router.delete("/:id", async (req, res) => {
+// elimina un aviso (solo admin)
+router.delete("/:id", requiereAdmin, async (req, res) => {
   const { error } = await getSupabase()
     .from("avisos")
     .delete()

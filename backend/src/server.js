@@ -13,6 +13,9 @@ import menusRouter from "./routes/menus.js";
 import contactoRouter from "./routes/contacto.js";
 import chatRouter from "./routes/chat.js";
 import avisosRouter from "./routes/avisos.js";
+import adminRouter from "./routes/admin.js";
+import beneficiariosRouter from "./routes/beneficiarios.js";
+import notificacionesRouter from "./routes/notificaciones.js";
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -34,6 +37,9 @@ app.use("/api/menus", menusRouter);
 app.use("/api/contacto", contactoRouter);
 app.use("/api/chat", chatRouter);
 app.use("/api/avisos", avisosRouter);
+app.use("/api/admin", adminRouter);
+app.use("/api/beneficiarios", beneficiariosRouter);
+app.use("/api/notificaciones", notificacionesRouter);
 
 // Middleware para rutas no encontradas (error 404)
 app.use((_req, res) => {
