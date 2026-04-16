@@ -1,8 +1,8 @@
 // pagina principal, sigue la estructura de la referencia:
 // hero, metricas, impacto, menu de la semana, avisos, galeria y cita
 
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
@@ -32,6 +32,10 @@ function Home() {
   // Avisos publicados por el administrador (vienen de la base)
   const [avisos, setAvisos] = useState<Aviso[]>([]);
   const [buscador, setBuscador] = useState("");
+  const [buscadorAbierto, setBuscadorAbierto] = useState(false);
+  // referencia al contenedor del buscador para detectar clic fuera
+  const buscadorRef = useRef<HTMLDivElement>(null);
+  const navegar = useNavigate();
 
   useEffect(() => {
     const cargarMenu = async () => {
@@ -60,6 +64,17 @@ function Home() {
     cargarAvisos();
   }, []);
 
+  // Cierra el desplegable cuando se hace clic fuera del buscador
+  useEffect(() => {
+    const alClicFuera = (e: MouseEvent) => {
+      if (buscadorRef.current && !buscadorRef.current.contains(e.target as Node)) {
+        setBuscadorAbierto(false);
+      }
+    };
+    document.addEventListener("mousedown", alClicFuera);
+    return () => document.removeEventListener("mousedown", alClicFuera);
+  }, []);
+
   // Filtra el menu segun lo que el usuario escriba en el buscador
   const menuFiltrado = menu.filter((item) => {
     const busqueda = buscador.trim().toLowerCase();
@@ -70,6 +85,31 @@ function Home() {
       item.descripcion.toLowerCase().includes(busqueda)
     );
   });
+
+  // Resultados en vivo para el desplegable: platos y avisos
+  const resultadosBusqueda = () => {
+    const busqueda = buscador.trim().toLowerCase();
+    if (!busqueda) return { platos: [], avisosResultado: [] };
+
+    const platos = menu.filter(
+      (item) =>
+        item.platillo.toLowerCase().includes(busqueda) ||
+        item.dia.toLowerCase().includes(busqueda) ||
+        item.descripcion.toLowerCase().includes(busqueda)
+    );
+
+    const avisosResultado = avisos.filter(
+      (aviso) =>
+        aviso.titulo.toLowerCase().includes(busqueda) ||
+        aviso.texto.toLowerCase().includes(busqueda)
+    );
+
+    return { platos, avisosResultado };
+  };
+
+  const { platos, avisosResultado } = resultadosBusqueda();
+  const hayResultados = platos.length > 0 || avisosResultado.length > 0;
+  const busquedaActiva = buscador.trim() !== "";
 
   return (
     <div className="home-pae">
@@ -83,15 +123,71 @@ function Home() {
             desarrollo de nuestros estudiantes.
           </p>
 
-          {/* Buscador que filtra el menu */}
-          <div className="buscador">
-            <span aria-hidden="true">🔍</span>
-            <input
-              type="search"
-              placeholder="Buscar platillo o día del menú..."
-              value={buscador}
-              onChange={(e) => setBuscador(e.target.value)}
-            />
+          {/* Buscador que filtra el menu y muestra resultados en vivo */}
+          <div className="buscador-contenedor" ref={buscadorRef}>
+            <div className="buscador">
+              <span aria-hidden="true">🔍</span>
+              <input
+                type="search"
+                placeholder="Buscar platillo, día o aviso..."
+                value={buscador}
+                onChange={(e) => {
+                  setBuscador(e.target.value);
+                  setBuscadorAbierto(true);
+                }}
+                onFocus={() => setBuscadorAbierto(true)}
+              />
+            </div>
+
+            {buscadorAbierto && busquedaActiva && (
+              <div className="buscador-resultados">
+                {platos.length > 0 && (
+                  <>
+                    <span className="buscador-titulo">🍽️ Platos del menú</span>
+                    {platos.map((plato) => (
+                      <button
+                        key={plato.id}
+                        type="button"
+                        className="buscador-resultado"
+                        onClick={() => {
+                          navegar("/menu");
+                          setBuscadorAbierto(false);
+                        }}
+                      >
+                        <strong>{plato.platillo}</strong>
+                        <small>{plato.dia}</small>
+                      </button>
+                    ))}
+                  </>
+                )}
+
+                {avisosResultado.length > 0 && (
+                  <>
+                    <span className="buscador-titulo">📢 Avisos</span>
+                    {avisosResultado.map((aviso) => (
+                      <button
+                        key={aviso.id}
+                        type="button"
+                        className="buscador-resultado"
+                        onClick={() => {
+                          navegar("/noticias");
+                          setBuscadorAbierto(false);
+                        }}
+                      >
+                        <strong>{aviso.titulo}</strong>
+                        <small>{aviso.texto}</small>
+                      </button>
+                    ))}
+                  </>
+                )}
+
+                {!hayResultados && (
+                  <span className="buscador-vacio">
+                    No se encontró nada para "{buscador}".
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="hero-acciones">

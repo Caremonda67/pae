@@ -286,6 +286,11 @@ h1 {
 }
 
 /* Buscador del hero (decorativo) */
+.buscador-contenedor {
+  position: relative;
+  max-width: 420px;
+}
+
 .buscador {
   display: flex;
   align-items: center;
@@ -294,7 +299,6 @@ h1 {
   border: 1.5px solid var(--borde);
   border-radius: 12px;
   padding: 0.55rem 0.9rem;
-  max-width: 420px;
 }
 
 .buscador input {
@@ -304,6 +308,72 @@ h1 {
   font-size: 0.95rem;
   background: transparent;
   color: var(--texto);
+}
+
+/* Desplegable con los resultados en vivo */
+.buscador-resultados {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  left: 0;
+  right: 0;
+  background-color: var(--blanco);
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.14);
+  padding: 0.5rem;
+  display: grid;
+  gap: 0.25rem;
+  z-index: 500;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.buscador-titulo {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--texto-suave);
+  padding: 0.3rem 0.5rem 0.1rem;
+}
+
+.buscador-resultado {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  text-align: left;
+  width: 100%;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  padding: 0.55rem 0.7rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.buscador-resultado:hover {
+  background-color: var(--verde-claro);
+}
+
+.buscador-resultado strong {
+  color: var(--verde-oscuro);
+  font-size: 0.92rem;
+}
+
+.buscador-resultado small {
+  color: var(--texto-suave);
+  font-size: 0.8rem;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.buscador-vacio {
+  padding: 0.6rem 0.7rem;
+  color: var(--texto-suave);
+  font-size: 0.9rem;
 }
 
 /* ============================================================
@@ -655,6 +725,20 @@ h1 {
 .formulario textarea:focus {
   outline: none;
   border-color: var(--verde);
+}
+
+/* campos que el usuario no puede cambiar (sede/turno del registro) */
+.formulario select:disabled {
+  background-color: var(--verde-suave);
+  border-color: var(--verde);
+  color: var(--verde-oscuro);
+  cursor: not-allowed;
+}
+
+.campo-fijo {
+  font-size: 0.78rem;
+  color: var(--verde);
+  font-weight: 600;
 }
 
 .formulario .boton {
@@ -1520,6 +1604,16 @@ h1 {
 
   .buscador {
     margin: 0 auto;
+  }
+
+  .buscador-contenedor {
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  .buscador-resultados {
+    left: 0;
+    right: 0;
   }
 
   .hero-emoticon {

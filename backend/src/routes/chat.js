@@ -28,6 +28,10 @@ function construirPromptSistema(contexto) {
     "Si te preguntan algo que no esté en esos datos, di que puedes consultarlo y",
     "sugiere hablar con el equipo del PAE por el formulario de contacto.",
     "",
+    `HOY ES: ${contexto.fechaHoy}. Cuando te pregunten por el menú de HOY,`,
+    "usa el platillo del día de HOY. Cuando digan 'hoy', 'mañana' o 'ayer',",
+    "interpreta el día correcto usando la fecha de HOY que te doy.",
+    "",
     "Información importante del programa:",
     "- El estudiante debe RESERVAR su comida para que la cocina prepare solo",
     "  la cantidad exacta y así evitar el desperdicio de alimentos.",
@@ -49,6 +53,19 @@ function construirPromptSistema(contexto) {
     "Si te preguntan por avisos, cuéntalos. Ayuda a reducir el desperdicio",
     "recordando reservar la comida.",
   ].join("\n");
+}
+
+// Fecha de hoy en español, en la zona horaria de Colombia
+// (ej: "viernes, 7 de agosto de 2026"). Usamos timeZone explicito
+// porque el servidor puede estar en UTC y desfasar el día.
+function fechaDeHoy() {
+  return new Intl.DateTimeFormat("es-CO", {
+    timeZone: "America/Bogota",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date());
 }
 
 // POST /api/chat
@@ -140,6 +157,7 @@ router.post("/", async (req, res) => {
     }
 
     const contexto = {
+      fechaHoy: fechaDeHoy(),
       menu: menuTexto,
       reservas: reservasTexto,
       reporte: reporteTexto,
