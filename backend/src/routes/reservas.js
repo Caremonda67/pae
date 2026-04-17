@@ -9,6 +9,43 @@ import { crearNotificacion } from "./notificaciones.js";
 
 const router = Router();
 
+// Valida que una fecha sea real (YYYY-MM-DD) y este dentro del rango
+// permitido (desde hoy hasta 60 dias). Devuelve un mensaje o null.
+// Esto protege la base: si llega un año con demasiados digitos o una
+// fecha imposible, se rechaza antes de guardar.
+function validarFecha(fecha) {
+  // Debe tener exactamente el formato YYYY-MM-DD
+  if (typeof fecha !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+    return "La fecha debe tener el formato año-mes-día (ej: 2026-08-10).";
+  }
+
+  // Verifica que sea una fecha real: 2026-02-31 no existe
+  const [año, mes, dia] = fecha.split("-").map(Number);
+  const fechaObj = new Date(año, mes - 1, dia);
+  if (
+    fechaObj.getFullYear() !== año ||
+    fechaObj.getMonth() !== mes - 1 ||
+    fechaObj.getDate() !== dia
+  ) {
+    return "Esa fecha no existe.";
+  }
+
+  // Rango permitido: desde hoy hasta 60 dias
+  const hoy = new Date();
+  const hoyTexto = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-${String(hoy.getDate()).padStart(2, "0")}`;
+  const max = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + 60);
+  const maxTexto = `${max.getFullYear()}-${String(max.getMonth() + 1).padStart(2, "0")}-${String(max.getDate()).padStart(2, "0")}`;
+
+  if (fecha < hoyTexto) {
+    return "La fecha no puede ser anterior a hoy.";
+  }
+  if (fecha > maxTexto) {
+    return "Solo se pueden reservar hasta 60 días antes de la fecha.";
+  }
+
+  return null;
+}
+
 // GET /api/reservas
 // Lista todas las reservas (solo admin, es informacion interna)
 router.get("/", requiereAdmin, async (_req, res) => {
@@ -114,6 +151,51 @@ router.get("/reporte", async (_req, res) => {
   });
 });
 
+// GET /api/reservas/plan?dias=7
+// Cuantas minutas hay que servir por fecha y por turno en los
+// proximos N dias. La cocina lo usa para saber con antelacion
+// cuanto preparar (las reservas se hacen dias antes).
+router.get("/plan", async (req, res) => {
+  const dias = Math.min(14, Math.max(1, Number(req.query.dias) || 7));
+  const hoy = new Date();
+  const fechas = [];
+  for (let i = 0; i < dias; i++) {
+    const f = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + i);
+    fechas.push(
+      `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, "0")}-${String(f.getDate()).padStart(2, "0")}`
+    );
+  }
+
+  const primera = fechas[0];
+  const ultima = fechas[fechas.length - 1];
+
+  const { data, error } = await getSupabase()
+    .from("reservas")
+    .select("fecha, turno")
+    .gte("fecha", primera)
+    .lte("fecha", ultima);
+
+  if (error) return res.status(500).json({ error: error.message });
+
+  // Agrupamos por fecha y turno
+  const porFecha = {};
+  for (const r of data) {
+    if (!porFecha[r.fecha]) porFecha[r.fecha] = {};
+    porFecha[r.fecha][r.turno] = (porFecha[r.fecha][r.turno] || 0) + 1;
+  }
+
+  // Armamos la respuesta solo con los dias que hay reservas
+  const plan = fechas
+    .map((fecha) => ({
+      fecha,
+      porTurno: porFecha[fecha] || {},
+      total: Object.values(porFecha[fecha] || {}).reduce((a, b) => a + b, 0),
+    }))
+    .filter((d) => d.total > 0);
+
+  res.json(plan);
+});
+
 // GET /api/reservas/diario?fecha=...
 // Lista de reservas de un dia concreto, para que la cocina sepa
 // cuantas minutas preparar por turno y sede (tabla diaria).
@@ -151,12 +233,10 @@ router.post("/", async (req, res) => {
     return res.status(400).json({ error: "Faltan datos obligatorios" });
   }
 
-  // La fecha no puede ser anterior a hoy
-  const hoy = new Date().toISOString().slice(0, 10);
-  if (fecha < hoy) {
-    return res
-      .status(400)
-      .json({ error: "La fecha no puede ser anterior a hoy" });
+  // La fecha debe ser real y estar dentro del rango permitido
+  const errorFecha = validarFecha(fecha);
+  if (errorFecha) {
+    return res.status(400).json({ error: errorFecha });
   }
 
   // El documento debe estar registrado como beneficiario del programa.
@@ -179,11 +259,15 @@ router.post("/", async (req, res) => {
   const nombreFinal = estudiante || beneficiario.nombre;
 
   // Evitar que el mismo documento reserve dos veces la misma fecha
+  // Y EL MISMO TURNO. Un estudiante puede comer en dos jornadas
+  // (Almuerzo y Refrigerio) el mismo dia, asi que solo se bloquea
+  // la reserva repetida de la misma fecha + turno.
   const { data: existente, error: errExistente } = await getSupabase()
     .from("reservas")
     .select("id")
     .eq("documento", documento)
     .eq("fecha", fecha)
+    .eq("turno", turno)
     .maybeSingle();
 
   if (errExistente) {
@@ -192,7 +276,7 @@ router.post("/", async (req, res) => {
   if (existente) {
     return res
       .status(400)
-      .json({ error: "Ya tienes una reserva para esa fecha" });
+      .json({ error: "Ya tienes una reserva para esa fecha y ese turno" });
   }
 
   const { data, error } = await getSupabase()

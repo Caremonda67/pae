@@ -10,6 +10,7 @@ const router = Router();
 
 // GET /api/menus
 // Lista todos los menus del programa con su valoracion promedio
+// y sus jornadas (una minuta puede servirse en varias jornadas)
 router.get("/", async (_req, res) => {
   const { data, error } = await getSupabase()
     .from("menus")
@@ -52,9 +53,11 @@ router.get("/", async (_req, res) => {
 
 // POST /api/menus
 // Crea un menu nuevo (solo admin)
-// Cuerpo esperado: { dia, platillo, descripcion, calorias }
+// Cuerpo esperado: { dia, platillo, descripcion, calorias, imagen, jornadas }
+//   - imagen: URL publica de la foto del plato (opcional)
+//   - jornadas: lista de jornadas, ej: ["Almuerzo", "Refrigerio"]
 router.post("/", requiereAdmin, async (req, res) => {
-  const { dia, platillo, descripcion, calorias } = req.body;
+  const { dia, platillo, descripcion, calorias, imagen, jornadas } = req.body;
 
   if (!dia || !platillo) {
     return res.status(400).json({ error: "Faltan datos obligatorios" });
@@ -62,12 +65,30 @@ router.post("/", requiereAdmin, async (req, res) => {
 
   const { data, error } = await getSupabase()
     .from("menus")
-    .insert([{ dia, platillo, descripcion, calorias }])
+    .insert([{
+      dia,
+      platillo,
+      descripcion,
+      calorias: calorias || null,
+      imagen: imagen || null,
+      jornadas: Array.isArray(jornadas) && jornadas.length > 0 ? jornadas : ["Almuerzo"],
+    }])
     .select()
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
   res.status(201).json(data);
+});
+
+// DELETE /api/menus/:id
+// Elimina un plato del menu (solo admin)
+router.delete("/:id", requiereAdmin, async (req, res) => {
+  const { error } = await getSupabase()
+    .from("menus")
+    .delete()
+    .eq("id", req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.status(204).end();
 });
 
 // POST /api/menus/:id/valorar
