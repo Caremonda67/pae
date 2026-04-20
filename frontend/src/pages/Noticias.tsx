@@ -11,6 +11,7 @@ interface Aviso {
   titulo: string;
   texto: string;
   fecha?: string;
+  imagen?: string;
 }
 
 function Noticias() {
@@ -50,6 +51,14 @@ function Noticias() {
           )}
           {avisos.map((aviso) => (
             <article key={aviso.id} className="tarjeta-noticia">
+              {aviso.imagen && (
+                <img
+                  className="noticia-imagen"
+                  src={aviso.imagen}
+                  alt={aviso.titulo}
+                  loading="lazy"
+                />
+              )}
               {aviso.fecha && (
                 <span className="noticia-fecha">{aviso.fecha}</span>
               )}
