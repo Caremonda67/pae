@@ -48,7 +48,10 @@ function Sidebar() {
             <span className="nav-icono">📰</span> Noticias
           </NavLink>
           <NavLink to="/reportes" onClick={cerrar}>
-            <span className="nav-icono">📊</span> Reportes
+            <span className="nav-icono">📋</span> Reportes
+          </NavLink>
+          <NavLink to="/estadisticas" onClick={cerrar}>
+            <span className="nav-icono">📊</span> Estadísticas
           </NavLink>
           <NavLink to="/contacto" onClick={cerrar}>
             <span className="nav-icono">✉️</span> Contacto
