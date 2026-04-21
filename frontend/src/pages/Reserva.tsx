@@ -16,6 +16,58 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
 const TURNOS = ["Almuerzo", "Refrigerio"];
 const SEDES = ["Sede A", "Sede B", "Sede C"];
 
+// Fecha de hoy en formato YYYY-MM-DD (zona horaria local de Colombia)
+function hoyLocal() {
+  const partes = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Bogota",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+  return partes;
+}
+
+// Cuantos dias hay que sumar a una fecha YYYY-MM-DD
+function sumarDias(fecha: string, dias: number) {
+  const [año, mes, dia] = fecha.split("-").map(Number);
+  const f = new Date(año, mes - 1, dia);
+  f.setDate(f.getDate() + dias);
+  return `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, "0")}-${String(f.getDate()).padStart(2, "0")}`;
+}
+
+// Valida una fecha YYYY-MM-DD. Devuelve un mensaje de error o null si es
+// correcta. Esto evita que se manden fechas imposibles (año con mas
+// digitos, mes 13, dia 40, fechas del pasado o demasiado lejanas).
+function validarFecha(fecha: string): string | null {
+  // Debe tener exactamente el formato YYYY-MM-DD
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+    return "La fecha no tiene el formato correcto (año-mes-día).";
+  }
+
+  // Verifica que sea una fecha real: 2026-02-31 no existe
+  const [año, mes, dia] = fecha.split("-").map(Number);
+  const fechaObj = new Date(año, mes - 1, dia);
+  if (
+    fechaObj.getFullYear() !== año ||
+    fechaObj.getMonth() !== mes - 1 ||
+    fechaObj.getDate() !== dia
+  ) {
+    return "Esa fecha no existe.";
+  }
+
+  // Rango permitido: desde hoy hasta 60 dias
+  const hoy = hoyLocal();
+  const max = sumarDias(hoy, 60);
+  if (fecha < hoy) {
+    return "La fecha no puede ser anterior a hoy.";
+  }
+  if (fecha > max) {
+    return "Solo se pueden reservar hasta 60 días antes de la fecha.";
+  }
+
+  return null;
+}
+
 interface MisReserva {
   id: number;
   estudiante: string;
@@ -111,6 +163,15 @@ function Reserva() {
     setError("");
     setExito("");
     setUltimaReserva(null);
+
+    // Validamos la fecha antes de mandarla: evita fechas con año
+    // con demasiados digitos o fechas imposibles que darian error luego
+    const errorFecha = validarFecha(formulario.fecha);
+    if (errorFecha) {
+      setError(errorFecha);
+      setEnviando(false);
+      return;
+    }
 
     try {
       const respuesta = await fetch(`${API_URL}/api/reservas`, {
@@ -274,11 +335,10 @@ function Reserva() {
             value={formulario.turno}
             onChange={cambiar}
             required
-            disabled={beneficiarioConfirmado}
           >
             <option value="">
               {beneficiarioConfirmado
-                ? "Definido por el registro"
+                ? "Tu turno (puedes cambiarlo)"
                 : "Selecciona el turno"}
             </option>
             {TURNOS.map((t) => (
@@ -288,7 +348,9 @@ function Reserva() {
             ))}
           </select>
           {beneficiarioConfirmado && (
-            <small className="campo-fijo">Tu turno ya está registrado</small>
+            <small className="campo-fijo">
+              Tu turno habitual ya se seleccionó, pero puedes cambiarlo.
+            </small>
           )}
         </label>
 
@@ -300,6 +362,8 @@ function Reserva() {
             value={formulario.fecha}
             onChange={cambiar}
             required
+            min={hoyLocal()}
+            max={sumarDias(hoyLocal(), 60)}
           />
         </label>
 
