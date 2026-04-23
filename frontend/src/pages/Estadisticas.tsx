@@ -19,10 +19,11 @@ interface DatosMes {
   porTurno: Record<string, { reservas: number; servidas: number }>;
   ranking: {
     id: number;
+    semana: number;
     dia: string;
     platillo: string;
     imagen?: string | null;
-    jornadas?: string[];
+    jornada?: string | null;
     valoracion: number | null;
     votos: number;
   }[];
@@ -214,10 +215,8 @@ function Estadisticas() {
                       {indice + 1}. {plato.platillo}
                     </strong>
                     <span className="fila-reserva-detalle">
-                      {plato.dia}
-                      {plato.jornadas && plato.jornadas.length > 0
-                        ? ` · ${plato.jornadas.join(", ")}`
-                        : ""}
+                      {plato.dia} · Semana {plato.semana}
+                      {plato.jornada ? ` · ${plato.jornada}` : ""}
                     </span>
                   </div>
                   <span className="favorito-estrellas">

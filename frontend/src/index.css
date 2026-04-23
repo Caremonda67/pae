@@ -525,6 +525,47 @@ h1 {
   font-size: 0.9rem;
 }
 
+/* Grupo de un dia dentro del menu de la semana */
+.grupo-menu-dia {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 1rem;
+  align-items: center;
+  background-color: var(--crema);
+  border-radius: 12px;
+  padding: 0.9rem 1.2rem;
+}
+
+.grupo-menu-dia .fila-dia {
+  align-self: center;
+}
+
+.grupo-menu-platos {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.fila-menu-jornada {
+  display: grid;
+  grid-template-columns: 100px 1.4fr 1.6fr;
+  gap: 0.8rem;
+  align-items: center;
+  padding: 0.35rem 0;
+  border-top: 1px dashed var(--borde);
+}
+
+.fila-menu-jornada:first-child {
+  border-top: none;
+}
+
+.fila-jornada {
+  color: var(--naranja);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
 /* Avisos */
 .avisos {
   display: grid;
@@ -786,6 +827,34 @@ h1 {
   display: grid;
   gap: 1rem;
   margin-bottom: 2rem;
+}
+
+/* Selector de semana del mes (menu rotativo) */
+.selector-semana {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.2rem;
+}
+
+.selector-semana button {
+  border: 1px solid var(--verde);
+  background-color: var(--blanco);
+  color: var(--verde);
+  font-weight: 600;
+  padding: 0.5rem 1.1rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.selector-semana button:hover {
+  background-color: var(--verde-suave);
+}
+
+.selector-semana button.activa {
+  background-color: var(--verde);
+  color: var(--blanco);
 }
 
 .plato {
@@ -1738,52 +1807,91 @@ h1 {
    ============================================================ */
 
 .comida-dia {
-  background-color: var(--verde-claro);
-  border-radius: var(--radio);
-  padding: 2rem;
+  background: linear-gradient(135deg, var(--verde-oscuro), var(--verde));
+  border-radius: 22px;
+  padding: 2.5rem;
+  margin-bottom: 1.8rem;
+  box-shadow: var(--sombra);
+}
+
+.comida-dia .seccion-titulo h2 {
+  color: var(--blanco);
+}
+
+.comida-dia-semana {
+  display: inline-block;
+  background-color: rgba(255, 255, 255, 0.2);
+  color: var(--blanco);
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 0.3rem 0.9rem;
+  border-radius: 999px;
+  white-space: nowrap;
 }
 
 .comida-dia-lista {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 1rem;
-  margin: 1.2rem 0;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.4rem;
+  margin: 1.5rem 0;
 }
 
 .comida-dia-tarjeta {
   background-color: var(--blanco);
-  border-radius: var(--radio);
+  border-radius: 16px;
   overflow: hidden;
-  box-shadow: var(--sombra);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
   display: flex;
   flex-direction: column;
 }
 
 .comida-dia-imagen {
   width: 100%;
-  height: 150px;
+  height: 240px;
   object-fit: cover;
 }
 
+.comida-dia-sin-foto {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--crema);
+  font-size: 4rem;
+}
+
 .comida-dia-info {
-  padding: 1rem;
+  padding: 1.3rem 1.4rem 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.comida-dia-jornada {
+  align-self: flex-start;
+  background-color: var(--verde-suave);
+  color: var(--verde-oscuro);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
 }
 
 .comida-dia-info h3 {
   color: var(--verde-oscuro);
-  margin-bottom: 0.3rem;
+  font-size: 1.5rem;
+  margin: 0;
 }
 
 .comida-dia-info p {
   color: var(--texto-suave);
   font-size: 0.95rem;
-  margin-bottom: 0.7rem;
+  margin: 0;
 }
 
-.comida-dia-detalles {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
+.comida-dia .boton-primario {
+  margin-top: 0.5rem;
 }
 
 .etiqueta-comida {
@@ -1846,6 +1954,30 @@ h1 {
   border-bottom: 2px solid var(--verde);
   padding-bottom: 0.4rem;
   margin-bottom: 0.8rem;
+}
+
+.menu-semana-admin {
+  background-color: var(--crema);
+  border-radius: 12px;
+  padding: 1rem 1.2rem;
+  margin-bottom: 1.2rem;
+}
+
+.menu-semana-admin > h3 {
+  color: var(--naranja);
+  text-transform: uppercase;
+  font-size: 0.9rem;
+  letter-spacing: 0.05em;
+  margin-bottom: 1rem;
+}
+
+.menu-semana-admin .menu-dia-admin h4 {
+  color: var(--verde-oscuro);
+  margin-bottom: 0.5rem;
+}
+
+.menu-semana-admin .menu-dia-admin {
+  margin-bottom: 1rem;
 }
 
 .jornadas-opciones {

@@ -1,5 +1,10 @@
 // pagina principal, sigue la estructura de la referencia:
-// hero, metricas, impacto, menu de la semana, avisos, galeria y cita
+// hero, comida del dia, metricas, impacto, menu de la semana, avisos,
+// galeria y cita
+//
+// Las metricas (estudiantes, instituciones, colaboradores) son REALES:
+// se cuentan desde la base. La comida del dia viene de /api/menus/hoy
+// que calcula la semana del mes y el dia actual.
 
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -8,33 +13,23 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
 interface MenuItem {
   id: number;
+  semana: number;
   dia: string;
+  jornada: string;
   platillo: string;
   descripcion: string;
   calorias?: number;
   imagen?: string;
-  jornadas?: string[];
+}
+
+// lo que devuelve /api/menus/hoy
+interface ComidaHoy {
+  semana: number;
+  dia: string;
+  platos: MenuItem[];
 }
 
 const diasOrden = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
-
-// Dia de la semana actual en la zona horaria de Colombia
-function diaDeHoy() {
-  const partes = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Bogota",
-    weekday: "short",
-  }).format(new Date());
-  const abreviaturas: Record<string, string> = {
-    Sun: "domingo",
-    Mon: "lunes",
-    Tue: "martes",
-    Wed: "miércoles",
-    Thu: "jueves",
-    Fri: "viernes",
-    Sat: "sábado",
-  };
-  return abreviaturas[partes] || "lunes";
-}
 
 // Nombre del dia con la primera letra en mayuscula
 function capitalizar(texto: string) {
@@ -67,10 +62,18 @@ interface FotoGaleria {
 }
 
 function Home() {
-  // Menu de la semana (se muestra una vista previa)
+  // Menu completo (se usa para buscar y para la galeria)
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [menuError, setMenuError] = useState("");
   const [menuCargando, setMenuCargando] = useState(true);
+  // Comida de hoy (semana del mes + dia actual, desde el backend)
+  const [comidaHoy, setComidaHoy] = useState<ComidaHoy | null>(null);
+  // Metricas reales de la base
+  const [metricas, setMetricas] = useState({
+    estudiantes: 0,
+    instituciones: 0,
+    colaboradores: 0,
+  });
   // Avisos publicados por el administrador (vienen de la base)
   const [avisos, setAvisos] = useState<Aviso[]>([]);
   // Fotos propias de la galeria (publicadas por el administrador)
@@ -94,6 +97,28 @@ function Home() {
       }
     };
     cargarMenu();
+
+    // Comida del dia de hoy (el backend calcula semana y dia)
+    const cargarComidaHoy = async () => {
+      try {
+        const respuesta = await fetch(`${API_URL}/api/menus/hoy`);
+        if (respuesta.ok) setComidaHoy(await respuesta.json());
+      } catch {
+        setComidaHoy(null);
+      }
+    };
+    cargarComidaHoy();
+
+    // Metricas reales: estudiantes, instituciones y colaboradores
+    const cargarMetricas = async () => {
+      try {
+        const respuesta = await fetch(`${API_URL}/api/metricas`);
+        if (respuesta.ok) setMetricas(await respuesta.json());
+      } catch {
+        // si falla se quedan en 0
+      }
+    };
+    cargarMetricas();
 
     // Tambien cargamos los avisos publicados
     const cargarAvisos = async () => {
@@ -167,11 +192,10 @@ function Home() {
   const hayResultados = platos.length > 0 || avisosResultado.length > 0;
   const busquedaActiva = buscador.trim() !== "";
 
-  // Comida de hoy: el dia de la semana actual en Colombia
-  const diaHoy = diaDeHoy();
-  const comidasDeHoy = menu.filter(
-    (item) => normalizar(item.dia) === normalizar(diaHoy)
-  );
+  // Menu de la semana actual: el de la semana del mes de hoy
+  const menuSemana = comidaHoy
+    ? menu.filter((item) => item.semana === comidaHoy.semana)
+    : [];
 
   // Galeria combinada: fotos propias del admin + platos con foto +
   // avisos con foto. Cada una con su titulo como pie de foto.
@@ -229,7 +253,9 @@ function Home() {
                         }}
                       >
                         <strong>{plato.platillo}</strong>
-                        <small>{plato.dia}</small>
+                        <small>
+                          {plato.dia} · {plato.jornada}
+                        </small>
                       </button>
                     ))}
                   </>
@@ -279,39 +305,39 @@ function Home() {
         </div>
       </section>
 
-      {/* ===== COMIDA DEL DIA ===== */}
-      {comidasDeHoy.length > 0 && (
-        <section className="seccion-pae comida-dia">
+      {/* ===== COMIDA DEL DIA (grande, con imagen) ===== */}
+      {comidaHoy && comidaHoy.platos.length > 0 && (
+        <section className="comida-dia">
           <div className="seccion-titulo">
-            <h2>🍽️ Comida de hoy · {capitalizar(diaHoy)}</h2>
+            <h2>🍽️ Comida de hoy · {capitalizar(comidaHoy.dia)}</h2>
+            <span className="comida-dia-semana">
+              Semana {comidaHoy.semana} del mes
+            </span>
           </div>
           <div className="comida-dia-lista">
-            {comidasDeHoy.map((plato) => (
+            {comidaHoy.platos.map((plato) => (
               <article key={plato.id} className="comida-dia-tarjeta">
-                {plato.imagen && (
+                {plato.imagen ? (
                   <img
                     className="comida-dia-imagen"
                     src={plato.imagen}
                     alt={plato.platillo}
                     loading="lazy"
                   />
+                ) : (
+                  <div className="comida-dia-imagen comida-dia-sin-foto">
+                    🍽️
+                  </div>
                 )}
                 <div className="comida-dia-info">
+                  <span className="comida-dia-jornada">{plato.jornada}</span>
                   <h3>{plato.platillo}</h3>
                   <p>{plato.descripcion}</p>
-                  <div className="comida-dia-detalles">
-                    {plato.calorias && (
-                      <span className="etiqueta-comida">
-                        🔥 {plato.calorias} kcal
-                      </span>
-                    )}
-                    {plato.jornadas &&
-                      plato.jornadas.map((jornada) => (
-                        <span key={jornada} className="etiqueta-comida">
-                          {jornada}
-                        </span>
-                      ))}
-                  </div>
+                  {plato.calorias && (
+                    <span className="etiqueta-comida">
+                      🔥 {plato.calorias} kcal
+                    </span>
+                  )}
                 </div>
               </article>
             ))}
@@ -322,22 +348,28 @@ function Home() {
         </section>
       )}
 
-      {/* ===== METRICAS ===== */}
+      {/* ===== METRICAS (reales, contadas desde la base) ===== */}
       <section className="metricas">
         <article className="metrica">
-          <span className="metrica-numero">1.254</span>
+          <span className="metrica-numero">
+            {metricas.estudiantes.toLocaleString("es-CO")}
+          </span>
           <span className="metrica-etiqueta">Estudiantes beneficiarios</span>
-          <span className="metrica-detalle">Este año</span>
+          <span className="metrica-detalle">Registrados en el programa</span>
         </article>
         <article className="metrica">
-          <span className="metrica-numero">23</span>
+          <span className="metrica-numero">
+            {metricas.instituciones.toLocaleString("es-CO")}
+          </span>
           <span className="metrica-etiqueta">Instituciones educativas</span>
           <span className="metrica-detalle">Cobertura actual</span>
         </article>
         <article className="metrica">
-          <span className="metrica-numero">125</span>
+          <span className="metrica-numero">
+            {metricas.colaboradores.toLocaleString("es-CO")}
+          </span>
           <span className="metrica-etiqueta">Colaboradores del PAE</span>
-          <span className="metrica-detalle">Comprometidos</span>
+          <span className="metrica-detalle">Equipo comprometido</span>
         </article>
       </section>
 
@@ -361,10 +393,13 @@ function Home() {
         </div>
       </section>
 
-      {/* ===== MENU DE LA SEMANA ===== */}
+      {/* ===== MENU DE LA SEMANA (semana actual del mes) ===== */}
       <section className="seccion-pae">
         <div className="seccion-titulo">
           <h2>Menú de esta semana</h2>
+          {comidaHoy && (
+            <span className="comida-dia-semana">Semana {comidaHoy.semana} del mes</span>
+          )}
           <Link to="/menu" className="enlace-ver">
             Ver completo →
           </Link>
@@ -384,22 +419,38 @@ function Home() {
           </div>
         )}
 
-        {!menuCargando && menu.length > 0 && (
+        {!menuCargando && menuSemana.length > 0 && (
           <div className="tabla-menu">
             {diasOrden
-              .map((dia) => menuFiltrado.find((item) => normalizar(item.dia) === normalizar(dia)))
-              .filter(Boolean)
-              .map((item) => (
-                <article key={item!.id} className="fila-menu">
-                  <span className="fila-dia">{item!.dia}</span>
-                  <span className="fila-platillo">{item!.platillo}</span>
-                  <span className="fila-descripcion">{item!.descripcion}</span>
-                </article>
+              .map((dia) => ({
+                dia,
+                platos: menuFiltrado.filter(
+                  (item) => item.semana === comidaHoy?.semana && normalizar(item.dia) === normalizar(dia)
+                ),
+              }))
+              .filter((grupo) => grupo.platos.length > 0)
+              .map((grupo) => (
+                <div key={grupo.dia} className="grupo-menu-dia">
+                  <span className="fila-dia">{grupo.dia}</span>
+                  <div className="grupo-menu-platos">
+                    {grupo.platos.map((item) => (
+                      <div key={item.id} className="fila-menu-jornada">
+                        <span className="fila-jornada">{item.jornada}</span>
+                        <span className="fila-platillo">{item.platillo}</span>
+                        <span className="fila-descripcion">{item.descripcion}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               ))}
             {buscador.trim() !== "" && menuFiltrado.length === 0 && (
               <p className="estado">No se encontró nada para "{buscador}".</p>
             )}
           </div>
+        )}
+
+        {!menuCargando && menu.length === 0 && (
+          <p className="estado">El menú aún no está publicado.</p>
         )}
       </section>
 

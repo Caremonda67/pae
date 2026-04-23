@@ -1,6 +1,8 @@
-﻿// rutas del menu semanal y valoraciones de platos
-// los estudiantes puntuan los platos (1 a 5 estrellas) y esa
-// retroalimentacion le sirve a la cocina para mejorar el menu
+﻿// rutas del menu del PAE y valoraciones de platos
+// el menu rota por semana del mes (1-4) y cada dia tiene una comida
+// diferente por jornada (Almuerzo y Refrigerio). Los estudiantes
+// puntuan los platos (1 a 5 estrellas) y esa retroalimentacion le
+// sirve a la cocina para mejorar el menu.
 
 import { Router } from "express";
 import { getSupabase } from "../config/supabase.js";
@@ -8,14 +10,39 @@ import { requiereAdmin } from "../config/auth.js";
 
 const router = Router();
 
+// Semana del mes (1-4): dias 1-7 son semana 1, 8-14 semana 2, etc.
+function semanaDelMes(fecha) {
+  return Math.min(4, Math.ceil(fecha.getDate() / 7));
+}
+
+// Dia de la semana en espanol (Lunes..Viernes). Los fines de semana
+// se devuelve "Lunes" (no hay servicio), asi la Home muestra el del lunes.
+function diaEnEspanol(fecha) {
+  const dias = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+  const nombre = dias[fecha.getDay()];
+  if (nombre === "Domingo" || nombre === "Sábado") return "Lunes";
+  return nombre;
+}
+
 // GET /api/menus
-// Lista todos los menus del programa con su valoracion promedio
-// y sus jornadas (una minuta puede servirse en varias jornadas)
-router.get("/", async (_req, res) => {
-  const { data, error } = await getSupabase()
+// Lista los menus con su valoracion promedio. Se puede filtrar por
+// semana (?semana=2) o por semana y dia (?semana=2&dia=Lunes).
+router.get("/", async (req, res) => {
+  let consulta = getSupabase()
     .from("menus")
     .select("*")
-    .order("dia", { ascending: true });
+    .order("semana", { ascending: true })
+    .order("dia", { ascending: true })
+    .order("jornada", { ascending: true });
+
+  if (req.query.semana) {
+    consulta = consulta.eq("semana", Number(req.query.semana));
+  }
+  if (req.query.dia) {
+    consulta = consulta.eq("dia", req.query.dia);
+  }
+
+  const { data, error } = await consulta;
   if (error) return res.status(500).json({ error: error.message });
 
   // Leemos las valoraciones guardadas y calculamos el promedio
@@ -51,27 +78,52 @@ router.get("/", async (_req, res) => {
   res.json(menusConValoracion);
 });
 
-// POST /api/menus
-// Crea un menu nuevo (solo admin)
-// Cuerpo esperado: { dia, platillo, descripcion, calorias, imagen, jornadas }
-//   - imagen: URL publica de la foto del plato (opcional)
-//   - jornadas: lista de jornadas, ej: ["Almuerzo", "Refrigerio"]
-router.post("/", requiereAdmin, async (req, res) => {
-  const { dia, platillo, descripcion, calorias, imagen, jornadas } = req.body;
+// GET /api/menus/hoy
+// La comida del dia actual (zona horaria de Colombia): todas las
+// jornadas de HOY de la semana del mes vigente. La usa la Home.
+// Devuelve: { semana, dia, platos: [{ jornada, platillo, ... }] }
+router.get("/hoy", async (_req, res) => {
+  const ahora = new Date();
+  // Hora de Colombia (UTC-5) para no fallar cerca de la medianoche
+  const colombia = new Date(ahora.getTime() - 5 * 60 * 60 * 1000);
+  const semana = semanaDelMes(colombia);
+  const dia = diaEnEspanol(colombia);
 
-  if (!dia || !platillo) {
+  const { data, error } = await getSupabase()
+    .from("menus")
+    .select("*")
+    .eq("semana", semana)
+    .eq("dia", dia)
+    .order("jornada", { ascending: true });
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ semana, dia, platos: data });
+});
+
+// POST /api/menus
+// Crea una comida del menu (solo admin)
+// Cuerpo esperado: { semana, dia, jornada, platillo, descripcion, calorias, imagen }
+//   - semana: 1 a 4 (semana del mes)
+//   - jornada: "Almuerzo" o "Refrigerio" (una comida DIFERENTE por jornada)
+router.post("/", requiereAdmin, async (req, res) => {
+  const { semana, dia, jornada, platillo, descripcion, calorias, imagen } = req.body;
+
+  if (!dia || !platillo || !jornada) {
     return res.status(400).json({ error: "Faltan datos obligatorios" });
   }
+
+  const semanaNum = Math.min(4, Math.max(1, Number(semana) || 1));
 
   const { data, error } = await getSupabase()
     .from("menus")
     .insert([{
+      semana: semanaNum,
       dia,
+      jornada,
       platillo,
       descripcion,
       calorias: calorias || null,
       imagen: imagen || null,
-      jornadas: Array.isArray(jornadas) && jornadas.length > 0 ? jornadas : ["Almuerzo"],
     }])
     .select()
     .single();
