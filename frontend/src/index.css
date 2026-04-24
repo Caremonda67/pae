@@ -1069,12 +1069,15 @@ h1 {
   border-radius: var(--radio);
   padding: 0.9rem 1.3rem;
   box-shadow: var(--sombra);
+  overflow: hidden;
 }
 
 .fila-reserva-detalle {
   display: block;
   font-size: 0.82rem;
   color: var(--texto-suave);
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .asistencia {
@@ -1942,7 +1945,15 @@ h1 {
   display: flex;
   align-items: center;
   gap: 0.8rem;
+  flex: 1 1 auto;
   min-width: 0;
+}
+
+.fila-menu-contenido > div {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .menu-dia-admin {

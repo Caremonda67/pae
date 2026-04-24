@@ -11,7 +11,7 @@
 // - notificaciones: confirmaciones de reserva enviadas
 // - mensajes: los que llegan por el formulario de contacto
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
@@ -239,7 +239,6 @@ function Admin() {
       }
       localStorage.setItem(TOKEN_KEY, datos.token);
       setAutenticado(true);
-      cargarDatos();
     } catch (err) {
       setErrorLogin(err instanceof Error ? err.message : "Error desconocido");
     } finally {
@@ -352,6 +351,14 @@ function Admin() {
       setCargando(false);
     }
   };
+
+  // Carga los datos apenas se abre el panel con una sesion ya guardada
+  // (por ejemplo al recargar la pagina). Sin esto la pantalla se ve
+  // vacia hasta que se vuelve a entrar con la clave.
+  useEffect(() => {
+    if (autenticado) cargarDatos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autenticado]);
 
   // Marca una reserva como asistida (o la desmarca)
   const marcarAsistencia = async (reserva: Reserva) => {

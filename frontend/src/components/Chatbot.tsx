@@ -43,11 +43,18 @@ function Chatbot() {
     setEscribiendo(true);
     setError("");
 
+    // Enviamos las ultimas conversaciones para que el bot tenga contexto
+    // y personalice sus respuestas (recuerda lo que ya se dijeron).
+    const historial = mensajes
+      .slice(-10)
+      .filter((m) => m.texto.trim() !== "")
+      .map((m) => ({ rol: m.rol, texto: m.texto }));
+
     try {
       const respuesta = await fetch(`${API_URL}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mensaje: contenido }),
+        body: JSON.stringify({ mensaje: contenido, historial }),
       });
 
       const datos = await respuesta.json().catch(() => null);
