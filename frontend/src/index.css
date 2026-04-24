@@ -858,9 +858,12 @@ h1 {
 }
 
 .plato {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "imagen imagen"
+    "info calorias";
+  gap: 0.2rem 1rem;
   background-color: var(--blanco);
   border: 1px solid var(--borde);
   border-left: 6px solid var(--verde);
@@ -888,6 +891,8 @@ h1 {
 }
 
 .plato-calorias {
+  grid-area: calorias;
+  justify-self: end;
   background-color: var(--verde-claro);
   color: var(--verde-oscuro);
   font-weight: 600;
@@ -1745,9 +1750,16 @@ h1 {
   }
 
   .plato {
-    flex-direction: column;
-    align-items: flex-start;
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "imagen"
+      "info"
+      "calorias";
     gap: 0.6rem;
+  }
+
+  .plato-calorias {
+    justify-self: start;
   }
 
   .formulario {
@@ -1912,10 +1924,17 @@ h1 {
    ============================================================ */
 
 .plato-imagen {
+  grid-area: imagen;
   width: 100%;
   height: 170px;
   object-fit: cover;
-  border-radius: var(--radio) var(--radio) 0 0;
+  border-radius: var(--radio);
+  display: block;
+}
+
+.plato > div {
+  grid-area: info;
+  min-width: 0;
 }
 
 .plato-jornadas {
