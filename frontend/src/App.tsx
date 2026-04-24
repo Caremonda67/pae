@@ -10,6 +10,7 @@ import Reserva from "./pages/Reserva";
 import Contacto from "./pages/Contacto";
 import Admin from "./pages/Admin";
 import Reportes from "./pages/Reportes";
+import Estadisticas from "./pages/Estadisticas";
 import NoEncontrado from "./pages/NoEncontrado";
 
 function App() {
@@ -27,6 +28,7 @@ function App() {
             <Route path="/reserva" element={<Reserva />} />
             <Route path="/contacto" element={<Contacto />} />
             <Route path="/reportes" element={<Reportes />} />
+            <Route path="/estadisticas" element={<Estadisticas />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="*" element={<NoEncontrado />} />
           </Routes>
