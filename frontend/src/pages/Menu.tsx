@@ -240,54 +240,60 @@ function Menu() {
             </p>
           )}
 
-          <div className="lista-menu">
+          <div className="menu-dias">
             {menuSemana.length === 0 && (
               <p className="estado">
                 Aún no hay platos publicados para la semana {semanaActiva}.
               </p>
             )}
-            {diasOrden
-              .map((dia) =>
-                menuSemana.filter((item) => normalizar(item.dia) === normalizar(dia))
-              )
-              .flat()
-              .map((item) => (
-                <article key={item.id} className="plato">
-                  {item.imagen && (
-                    <img
-                      className="plato-imagen"
-                      src={item.imagen}
-                      alt={item.platillo}
-                      loading="lazy"
-                    />
-                  )}
-                  <div>
-                    <span className="plato-dia">
-                      {item.dia} · Semana {item.semana}
-                    </span>
-                    <h3>{item.platillo}</h3>
-                    <p>{item.descripcion}</p>
-                    <div className="plato-jornadas">
-                      <span key={item.jornada} className="etiqueta-comida">
-                        {item.jornada}
-                      </span>
-                    </div>
-                    <div className="plato-valoracion">
-                      {dibujarEstrellas(item.valoracion)}
-                      {item.votos ? (
-                        <small> · {item.votos} voto{item.votos === 1 ? "" : "s"}</small>
-                      ) : null}
-                    </div>
-                    <div className="plato-calificar">
-                      <small>Califica este plato:</small>
-                      {estrellasCalificar(item.id)}
-                    </div>
+            {diasOrden.map((dia) => {
+              const platosDia = menuSemana.filter(
+                (item) => normalizar(item.dia) === normalizar(dia)
+              );
+              if (platosDia.length === 0) return null;
+              return (
+                <section key={dia} className="menu-dia">
+                  <h2 className="menu-dia-titulo">{dia}</h2>
+                  <div className="menu-dia-platos">
+                    {platosDia.map((item) => (
+                      <article key={item.id} className="plato">
+                        {item.imagen && (
+                          <img
+                            className="plato-imagen"
+                            src={item.imagen}
+                            alt={item.platillo}
+                            loading="lazy"
+                          />
+                        )}
+                        <div className="plato-cuerpo">
+                          <div className="plato-cabecera">
+                            <span className="etiqueta-comida">{item.jornada}</span>
+                            <span className="plato-dia">Semana {item.semana}</span>
+                          </div>
+                          <h3>{item.platillo}</h3>
+                          <p>{item.descripcion}</p>
+                          <div className="plato-pie">
+                            <div className="plato-valoracion">
+                              {dibujarEstrellas(item.valoracion)}
+                              {item.votos ? (
+                                <small> · {item.votos} voto{item.votos === 1 ? "" : "s"}</small>
+                              ) : null}
+                            </div>
+                            {item.calorias && (
+                              <span className="plato-calorias">{item.calorias} kcal</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="plato-calificar">
+                          <small>Califica este plato:</small>
+                          {estrellasCalificar(item.id)}
+                        </div>
+                      </article>
+                    ))}
                   </div>
-                  {item.calorias && (
-                    <span className="plato-calorias">{item.calorias} kcal</span>
-                  )}
-                </article>
-              ))}
+                </section>
+              );
+            })}
           </div>
         </>
       )}

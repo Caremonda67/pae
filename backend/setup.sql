@@ -275,27 +275,27 @@ select datos.semana, datos.dia, datos.jornada, datos.platillo, datos.descripcion
        datos.calorias, datos.imagen
 from (values
   -- Semana 1
-  (1, 'Lunes', 'Almuerzo', 'Arroz con pollo y ensalada', 'Arroz, pollo guisado, ensalada fresca y jugo natural.', 520, 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/39/Arroz-con-Pollo.jpg/500px-Arroz-con-Pollo.jpg'),
-  (1, 'Lunes', 'Refrigerio', 'Sandwich de queso y fruta', 'Sandwich integral con queso, manzana y agua.', 340, 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fb/Cheese_Sandwich_800w600h.jpg/500px-Cheese_Sandwich_800w600h.jpg'),
-  (1, 'Martes', 'Almuerzo', 'Sopa de verduras y pan', 'Sopa de verduras de temporada con pan integral.', 380, 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/72/Vegetable_soup_6.jpg/500px-Vegetable_soup_6.jpg'),
-  (1, 'Martes', 'Refrigerio', 'Yogurt con avena', 'Yogurt con avena y trozos de platano.', 320, 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7d/Oat_yogurt.jpg/500px-Oat_yogurt.jpg'),
-  (1, 'Miercoles', 'Almuerzo', 'Pasta con salsa de tomate', 'Pasta integral con salsa casera de tomate y queso.', 460, 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/Liat_Portal_for_Foodie_Disorder_-_Spaghetti_with_Tomato_Sauce.jpg/500px-Liat_Portal_for_Foodie_Disorder_-_Spaghetti_with_Tomato_Sauce.jpg'),
-  (1, 'Miercoles', 'Refrigerio', 'Empanada de carne y jugo', 'Empanada horneada de carne con jugo de naranja.', 380, 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5d/Empanada_colombiana.jpg/500px-Empanada_colombiana.jpg'),
-  (1, 'Jueves', 'Almuerzo', 'Pescado con arroz y platano', 'Pescado al horno, arroz blanco y platano asado.', 490, 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/Arroz_con_coco%2C_pescado_frito_y_patacones.jpg/500px-Arroz_con_coco%2C_pescado_frito_y_patacones.jpg'),
-  (1, 'Jueves', 'Refrigerio', 'Arepa con queso y chocolate', 'Arepa de maiz con queso y chocolate caliente.', 400, 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/75/Arepa_de_queso_by_jslander.png/500px-Arepa_de_queso_by_jslander.png'),
-  (1, 'Viernes', 'Almuerzo', 'Sancocho de gallina', 'Sancocho tradicional con yuca, platano y papa.', 550, 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/Sancocho_de_gallina_yopal.jpg/500px-Sancocho_de_gallina_yopal.jpg'),
-  (1, 'Viernes', 'Refrigerio', 'Galletas de avena y leche', 'Galletas de avena con un vaso de leche.', 300, 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/82/Oatmeal_cookies_on_a_plate.jpg/500px-Oatmeal_cookies_on_a_plate.jpg'),
+  (1, 'Lunes', 'Almuerzo', 'Arroz con pollo y ensalada', 'Arroz, pollo guisado, ensalada fresca y jugo natural.', 520, NULL),
+  (1, 'Lunes', 'Refrigerio', 'Sandwich de queso y fruta', 'Sandwich integral con queso, manzana y agua.', 340, NULL),
+  (1, 'Martes', 'Almuerzo', 'Sopa de verduras y pan', 'Sopa de verduras de temporada con pan integral.', 380, NULL),
+  (1, 'Martes', 'Refrigerio', 'Yogurt con avena', 'Yogurt con avena y trozos de platano.', 320, NULL),
+  (1, 'Miercoles', 'Almuerzo', 'Pasta con salsa de tomate', 'Pasta integral con salsa casera de tomate y queso.', 460, NULL),
+  (1, 'Miercoles', 'Refrigerio', 'Empanada de carne y jugo', 'Empanada horneada de carne con jugo de naranja.', 380, NULL),
+  (1, 'Jueves', 'Almuerzo', 'Pescado con arroz y platano', 'Pescado al horno, arroz blanco y platano asado.', 490, NULL),
+  (1, 'Jueves', 'Refrigerio', 'Arepa con queso y chocolate', 'Arepa de maiz con queso y chocolate caliente.', 400, NULL),
+  (1, 'Viernes', 'Almuerzo', 'Sancocho de gallina', 'Sancocho tradicional con yuca, platano y papa.', 550, NULL),
+  (1, 'Viernes', 'Refrigerio', 'Galletas de avena y leche', 'Galletas de avena con un vaso de leche.', 300, NULL),
   -- Semana 2
-  (2, 'Lunes', 'Almuerzo', 'Carne guisada con arroz', 'Carne guisada, arroz blanco, frijoles y ensalada.', 540, 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/Plato_de_arroz_con_carne_molida_guisada_y_calabaza_hervida%2C_servido_en_mesa_casera.jpg/500px-Plato_de_arroz_con_carne_molida_guisada_y_calabaza_hervida%2C_servido_en_mesa_casera.jpg'),
-  (2, 'Lunes', 'Refrigerio', 'Pan con huevo y mango', 'Pan con huevo y rodajas de mango.', 350, 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/39/Egg_bread_toast_MA17.jpg/500px-Egg_bread_toast_MA17.jpg'),
-  (2, 'Martes', 'Almuerzo', 'Arroz con pollo y frijol', 'Arroz con pollo, frijol caliente y platano.', 530, 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Arroz_con_pollo.jpg/500px-Arroz_con_pollo.jpg'),
-  (2, 'Martes', 'Refrigerio', 'Avena con pan', 'Avena caliente con pan de yuca.', 330, 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c9/Porridge.jpg/500px-Porridge.jpg'),
-  (2, 'Miercoles', 'Almuerzo', 'Pechuga a la plancha con verdura', 'Pechuga a la plancha con verduras salteadas y arroz.', 470, 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Pesto_Chicken_and_Grilled_Zucchini.jpg/500px-Pesto_Chicken_and_Grilled_Zucchini.jpg'),
-  (2, 'Miercoles', 'Refrigerio', 'Fruta con galleta', 'Porcion de fruta variada con galleta integral.', 260, 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Fruit_plate_1.jpg/500px-Fruit_plate_1.jpg'),
-  (2, 'Jueves', 'Almuerzo', 'Cazuela de frijoles', 'Cazuela de frijoles con arroz y aguacate.', 520, 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/70/Feijoada_%C3%A0_brasileira_-02.jpg/500px-Feijoada_%C3%A0_brasileira_-02.jpg'),
-  (2, 'Jueves', 'Refrigerio', 'Bocadillo con queso y agua', 'Bocadillo de guayaba con queso y agua.', 310, 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/65/Bocadillo_de_Guayaba_con_Queso_Campesino.png/500px-Bocadillo_de_Guayaba_con_Queso_Campesino.png'),
-  (2, 'Viernes', 'Almuerzo', 'Sudado de pollo con arroz', 'Sudado de pollo con papas, arroz y ensalada.', 500, 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/62/Jamoncitos_de_pollo_guisados_al_lim%C3%B3n.jpg/500px-Jamoncitos_de_pollo_guisados_al_lim%C3%B3n.jpg'),
-  (2, 'Viernes', 'Refrigerio', 'Sorbete de frutas y galleta', 'Sorbete de frutas naturales con galleta.', 290, 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/RaspberrySherbet.jpg/500px-RaspberrySherbet.jpg')
+  (2, 'Lunes', 'Almuerzo', 'Carne guisada con arroz', 'Carne guisada, arroz blanco, frijoles y ensalada.', 540, NULL),
+  (2, 'Lunes', 'Refrigerio', 'Pan con huevo y mango', 'Pan con huevo y rodajas de mango.', 350, NULL),
+  (2, 'Martes', 'Almuerzo', 'Arroz con pollo y frijol', 'Arroz con pollo, frijol caliente y platano.', 530, NULL),
+  (2, 'Martes', 'Refrigerio', 'Avena con pan', 'Avena caliente con pan de yuca.', 330, NULL),
+  (2, 'Miercoles', 'Almuerzo', 'Pechuga a la plancha con verdura', 'Pechuga a la plancha con verduras salteadas y arroz.', 470, NULL),
+  (2, 'Miercoles', 'Refrigerio', 'Fruta con galleta', 'Porcion de fruta variada con galleta integral.', 260, NULL),
+  (2, 'Jueves', 'Almuerzo', 'Cazuela de frijoles', 'Cazuela de frijoles con arroz y aguacate.', 520, NULL),
+  (2, 'Jueves', 'Refrigerio', 'Bocadillo con queso y agua', 'Bocadillo de guayaba con queso y agua.', 310, NULL),
+  (2, 'Viernes', 'Almuerzo', 'Sudado de pollo con arroz', 'Sudado de pollo con papas, arroz y ensalada.', 500, NULL),
+  (2, 'Viernes', 'Refrigerio', 'Sorbete de frutas y galleta', 'Sorbete de frutas naturales con galleta.', 290, NULL)
 ) as datos(semana, dia, jornada, platillo, descripcion, calorias, imagen)
 where not exists (select 1 from menus);
 
