@@ -1147,6 +1147,25 @@ h1 {
   color: var(--blanco);
 }
 
+.estado-reserva {
+  display: inline-block;
+  margin-top: 0.4rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.estado-reserva.completada {
+  background-color: var(--verde-claro);
+  color: var(--verde-oscuro);
+}
+
+.estado-reserva.pendiente {
+  background-color: var(--naranja-suave);
+  color: var(--naranja);
+}
+
 /* Pestañas del admin */
 .admin-pestanas {
   display: flex;
