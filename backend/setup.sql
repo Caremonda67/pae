@@ -145,6 +145,10 @@ create policy "menus_lectura_publica" on menus
 drop policy if exists "menus_escritura_admin" on menus;
 create policy "menus_escritura_admin" on menus
   for insert with check (true);
+-- Permite al admin eliminar platos del menu desde el panel
+drop policy if exists "menus_borrado_admin" on menus;
+create policy "menus_borrado_admin" on menus
+  for delete using (true);
 
 alter table reservas enable row level security;
 drop policy if exists "reservas_lectura" on reservas;
