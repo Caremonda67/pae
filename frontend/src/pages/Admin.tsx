@@ -61,6 +61,38 @@ interface Aviso {
   titulo: string;
   texto: string;
   fecha?: string;
+  imagen?: string;
+}
+
+// un plato del menu que llega del backend
+interface MenuItem {
+  id: number;
+  dia: string;
+  platillo: string;
+  descripcion: string;
+  calorias?: number;
+  imagen?: string;
+  jornadas?: string[];
+}
+
+// dia de la semana con su lista de platos (para el formulario)
+interface MenuDia {
+  dia: string;
+  platos: MenuItem[];
+}
+
+// plan diario de minutas a servir (ruta /api/reservas/plan)
+interface PlanDia {
+  fecha: string;
+  porTurno: Record<string, number>;
+  total: number;
+}
+
+// una foto de la galeria del programa
+interface FotoGaleria {
+  id: number;
+  titulo: string;
+  imagen: string;
 }
 
 interface Mensaje {
@@ -90,7 +122,7 @@ interface Notificacion {
 }
 
 // pestañas del panel
-type Pestana = "panel" | "beneficiarios" | "avisos" | "notificaciones" | "mensajes";
+type Pestana = "panel" | "beneficiarios" | "menu" | "avisos" | "galeria" | "notificaciones" | "mensajes";
 
 function Admin() {
   const [autenticado, setAutenticado] = useState(leerToken() !== "");
@@ -106,13 +138,36 @@ function Admin() {
   const [mensajes, setMensajes] = useState<Mensaje[]>([]);
   const [beneficiarios, setBeneficiarios] = useState<Beneficiario[]>([]);
   const [notificaciones, setNotificaciones] = useState<Notificacion[]>([]);
+  const [menu, setMenu] = useState<MenuDia[]>([]);
+  const [plan, setPlan] = useState<PlanDia[]>([]);
+  const [galeria, setGaleria] = useState<FotoGaleria[]>([]);
+
+  // formulario de foto de galeria
+  const [tituloGaleria, setTituloGaleria] = useState("");
+  const [imagenGaleria, setImagenGaleria] = useState("");
+  const [subiendoImagenGaleria, setSubiendoImagenGaleria] = useState(false);
+  const [galeriaError, setGaleriaError] = useState("");
+  const [galeriaExito, setGaleriaExito] = useState("");
 
   // formulario de nuevo aviso
   const [tituloAviso, setTituloAviso] = useState("");
   const [textoAviso, setTextoAviso] = useState("");
   const [fechaAviso, setFechaAviso] = useState("");
+  const [imagenAviso, setImagenAviso] = useState("");
+  const [subiendoImagenAviso, setSubiendoImagenAviso] = useState(false);
   const [avisoError, setAvisoError] = useState("");
   const [avisoExito, setAvisoExito] = useState("");
+
+  // formulario de nuevo plato del menu
+  const [diaMenu, setDiaMenu] = useState("Lunes");
+  const [platilloMenu, setPlatilloMenu] = useState("");
+  const [descripcionMenu, setDescripcionMenu] = useState("");
+  const [caloriasMenu, setCaloriasMenu] = useState("");
+  const [jornadasMenu, setJornadasMenu] = useState<string[]>(["Almuerzo"]);
+  const [imagenMenu, setImagenMenu] = useState("");
+  const [subiendoImagenMenu, setSubiendoImagenMenu] = useState(false);
+  const [menuError, setMenuError] = useState("");
+  const [menuExito, setMenuExito] = useState("");
 
   // formulario de nuevo beneficiario
   const [docBen, setDocBen] = useState("");
@@ -173,6 +228,9 @@ function Admin() {
         respMensajes,
         respBeneficiarios,
         respNotificaciones,
+        respMenu,
+        respPlan,
+        respGaleria,
       ] = await Promise.all([
         fetch(`${API_URL}/api/reservas/totales`),
         fetch(`${API_URL}/api/reservas`, { headers: cabeceras(token, false) }),
@@ -181,6 +239,9 @@ function Admin() {
         fetch(`${API_URL}/api/contacto`, { headers: cabeceras(token, false) }),
         fetch(`${API_URL}/api/beneficiarios`),
         fetch(`${API_URL}/api/notificaciones`, { headers: cabeceras(token, false) }),
+        fetch(`${API_URL}/api/menus`),
+        fetch(`${API_URL}/api/reservas/plan?dias=7`),
+        fetch(`${API_URL}/api/galeria`),
       ]);
 
       if (
@@ -190,7 +251,10 @@ function Admin() {
         !respAvisos.ok ||
         !respMensajes.ok ||
         !respBeneficiarios.ok ||
-        !respNotificaciones.ok
+        !respNotificaciones.ok ||
+        !respMenu.ok ||
+        !respPlan.ok ||
+        !respGaleria.ok
       ) {
         throw new Error("No se pudieron cargar los datos");
       }
@@ -202,6 +266,26 @@ function Admin() {
       setMensajes(await respMensajes.json());
       setBeneficiarios(await respBeneficiarios.json());
       setNotificaciones(await respNotificaciones.json());
+
+      // Agrupamos el menu por dia para mostrarlo en el panel
+      const menus = (await respMenu.json()) as MenuItem[];
+      const diasOrden = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
+      const normalizar = (t: string) =>
+        t
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "");
+      setMenu(
+        diasOrden
+          .map((dia) => ({
+            dia,
+            platos: menus.filter((m) => normalizar(m.dia) === normalizar(dia)),
+          }))
+          .filter((d) => d.platos.length > 0)
+      );
+
+      setPlan(await respPlan.json());
+      setGaleria(await respGaleria.json());
     } catch (err) {
       // si el token expiro o es invalido, pedimos login de nuevo
       if (err instanceof Error && err.message.includes("No se pudieron cargar")) {
@@ -229,7 +313,7 @@ function Admin() {
     }
   };
 
-  // Publica un aviso nuevo
+  // Publica un aviso nuevo (si hay imagen subida, la adjunta)
   const publicarAviso = async (e: React.FormEvent) => {
     e.preventDefault();
     setAvisoError("");
@@ -242,6 +326,7 @@ function Admin() {
           titulo: tituloAviso,
           texto: textoAviso,
           fecha: fechaAviso,
+          imagen: imagenAviso || null,
         }),
       });
       if (!respuesta.ok) {
@@ -251,6 +336,7 @@ function Admin() {
       setTituloAviso("");
       setTextoAviso("");
       setFechaAviso("");
+      setImagenAviso("");
       setAvisoExito("✅ Aviso publicado. Ya aparece en la página y el bot lo conoce.");
       cargarDatos();
     } catch (err) {
@@ -266,6 +352,133 @@ function Admin() {
         headers: cabeceras(leerToken(), false),
       });
       if (!respuesta.ok) throw new Error("No se pudo borrar");
+      cargarDatos();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error desconocido");
+    }
+  };
+
+  // Sube una imagen al servidor y devuelve la URL publica.
+  // Se usa tanto para las fotos del menu como para las de avisos.
+  const subirImagen = async (archivo: File, setter: (url: string) => void) => {
+    // Convierte la imagen a base64 para enviarla en el JSON
+    const aBase64 = (file: File) =>
+      new Promise<string>((resolve, reject) => {
+        const lector = new FileReader();
+        lector.onload = () => resolve(String(lector.result));
+        lector.onerror = () => reject(new Error("No se pudo leer la imagen"));
+        lector.readAsDataURL(file);
+      });
+
+    try {
+      const base64 = await aBase64(archivo);
+      const respuesta = await fetch(`${API_URL}/api/archivos/subir`, {
+        method: "POST",
+        headers: cabeceras(leerToken()),
+        body: JSON.stringify({ base64, nombre: archivo.name }),
+      });
+      if (!respuesta.ok) {
+        const datos = await respuesta.json().catch(() => null);
+        throw new Error(datos?.error || "No se pudo subir la imagen");
+      }
+      const datos = await respuesta.json();
+      setter(datos.url);
+      return datos.url as string;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error desconocido");
+      return "";
+    }
+  };
+
+  // Guarda un plato nuevo del menu
+  const registrarMenu = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMenuError("");
+    setMenuExito("");
+    try {
+      const respuesta = await fetch(`${API_URL}/api/menus`, {
+        method: "POST",
+        headers: cabeceras(leerToken()),
+        body: JSON.stringify({
+          dia: diaMenu,
+          platillo: platilloMenu,
+          descripcion: descripcionMenu,
+          calorias: caloriasMenu ? Number(caloriasMenu) : null,
+          jornadas: jornadasMenu,
+          imagen: imagenMenu || null,
+        }),
+      });
+      if (!respuesta.ok) {
+        const datos = await respuesta.json().catch(() => null);
+        throw new Error(datos?.error || "No se pudo guardar el plato");
+      }
+      setPlatilloMenu("");
+      setDescripcionMenu("");
+      setCaloriasMenu("");
+      setJornadasMenu(["Almuerzo"]);
+      setImagenMenu("");
+      setMenuExito("✅ Plato agregado al menú.");
+      cargarDatos();
+    } catch (err) {
+      setMenuError(err instanceof Error ? err.message : "Error desconocido");
+    }
+  };
+
+  // Borra un plato del menu
+  const borrarPlato = async (id: number) => {
+    try {
+      const respuesta = await fetch(`${API_URL}/api/menus/${id}`, {
+        method: "DELETE",
+        headers: cabeceras(leerToken(), false),
+      });
+      if (!respuesta.ok) throw new Error("No se pudo borrar el plato");
+      cargarDatos();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error desconocido");
+    }
+  };
+
+  // Marca o desmarca una jornada del formulario de menu
+  const alternarJornada = (jornada: string) => {
+    setJornadasMenu((actuales) =>
+      actuales.includes(jornada)
+        ? actuales.filter((j) => j !== jornada)
+        : [...actuales, jornada]
+    );
+  };
+
+  // Guarda una foto nueva en la galeria
+  const publicarFotoGaleria = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setGaleriaError("");
+    setGaleriaExito("");
+    try {
+      const respuesta = await fetch(`${API_URL}/api/galeria`, {
+        method: "POST",
+        headers: cabeceras(leerToken()),
+        body: JSON.stringify({ titulo: tituloGaleria, imagen: imagenGaleria }),
+      });
+      if (!respuesta.ok) {
+        const datos = await respuesta.json().catch(() => null);
+        throw new Error(datos?.error || "No se pudo guardar la foto");
+      }
+      setTituloGaleria("");
+      setImagenGaleria("");
+      setGaleriaExito("✅ Foto publicada en la galería de la página de inicio.");
+      cargarDatos();
+    } catch (err) {
+      setGaleriaError(err instanceof Error ? err.message : "Error desconocido");
+    }
+  };
+
+  // Borra una foto de la galeria
+  const borrarFotoGaleria = async (id: number) => {
+    try {
+      const respuesta = await fetch(`${API_URL}/api/galeria/${id}`, {
+        method: "DELETE",
+        headers: cabeceras(leerToken(), false),
+      });
+      if (!respuesta.ok) throw new Error("No se pudo borrar la foto");
       cargarDatos();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error desconocido");
@@ -370,10 +583,24 @@ function Admin() {
         </button>
         <button
           type="button"
+          className={pestana === "menu" ? "activa" : ""}
+          onClick={() => setPestana("menu")}
+        >
+          🍽️ Menú
+        </button>
+        <button
+          type="button"
           className={pestana === "avisos" ? "activa" : ""}
           onClick={() => setPestana("avisos")}
         >
           📢 Avisos
+        </button>
+        <button
+          type="button"
+          className={pestana === "galeria" ? "activa" : ""}
+          onClick={() => setPestana("galeria")}
+        >
+          🖼️ Galería
         </button>
         <button
           type="button"
@@ -438,6 +665,30 @@ function Admin() {
               </div>
             </div>
           )}
+
+          <h2 className="admin-subtitulo">Plan de las próximas 7 días</h2>
+          <p className="subtitulo">
+            Cuántas minutas hay que preparar por día y por turno (las reservas
+            se hacen con antelación).
+          </p>
+          {plan.length === 0 && (
+            <p className="estado">No hay reservas en los próximos 7 días.</p>
+          )}
+          <div className="lista-totales">
+            {plan.map((dia) => (
+              <article key={dia.fecha} className="total-fecha">
+                <span className="total-fecha-nombre">{dia.fecha}</span>
+                <span className="total-fecha-cantidad">
+                  {Object.entries(dia.porTurno)
+                    .map(([turno, cantidad]) => `${turno}: ${cantidad}`)
+                    .join(" · ")}
+                </span>
+                <span className="total-fecha-cantidad">
+                  {dia.total} minutas en total
+                </span>
+              </article>
+            ))}
+          </div>
 
           <h2 className="admin-subtitulo">Minutas a preparar por fecha</h2>
           <div className="lista-totales">
@@ -571,6 +822,140 @@ function Admin() {
         </>
       )}
 
+      {!cargando && !error && pestana === "menu" && (
+        <>
+          <h2 className="admin-subtitulo">Agregar plato al menú</h2>
+          <form className="formulario" onSubmit={registrarMenu}>
+            <div className="formulario-fila">
+              <label>
+                Día
+                <select value={diaMenu} onChange={(e) => setDiaMenu(e.target.value)}>
+                  <option>Lunes</option>
+                  <option>Martes</option>
+                  <option>Miércoles</option>
+                  <option>Jueves</option>
+                  <option>Viernes</option>
+                </select>
+              </label>
+              <label>
+                Calorías (opcional)
+                <input
+                  type="number"
+                  value={caloriasMenu}
+                  onChange={(e) => setCaloriasMenu(e.target.value)}
+                  placeholder="Ej: 650"
+                />
+              </label>
+            </div>
+            <label>
+              Platillo
+              <input
+                type="text"
+                value={platilloMenu}
+                onChange={(e) => setPlatilloMenu(e.target.value)}
+                required
+                placeholder="Ej: Arroz con pollo"
+              />
+            </label>
+            <label>
+              Descripción
+              <textarea
+                value={descripcionMenu}
+                onChange={(e) => setDescripcionMenu(e.target.value)}
+                required
+                rows={3}
+                placeholder="Describe los alimentos…"
+              />
+            </label>
+            <label>
+              Jornadas (puedes marcar varias)
+              <div className="jornadas-opciones">
+                {["Almuerzo", "Refrigerio"].map((jornada) => (
+                  <label key={jornada} className="jornada-check">
+                    <input
+                      type="checkbox"
+                      checked={jornadasMenu.includes(jornada)}
+                      onChange={() => alternarJornada(jornada)}
+                    />
+                    {jornada}
+                  </label>
+                ))}
+              </div>
+            </label>
+            <label>
+              Foto del plato (opcional)
+              <input
+                type="file"
+                accept="image/*"
+                onChange={async (e) => {
+                  const archivo = e.target.files?.[0];
+                  if (!archivo) return;
+                  setSubiendoImagenMenu(true);
+                  setMenuError("");
+                  await subirImagen(archivo, setImagenMenu);
+                  setSubiendoImagenMenu(false);
+                }}
+              />
+              {subiendoImagenMenu && <small className="campo-fijo">Subiendo imagen…</small>}
+              {imagenMenu && (
+                <small className="campo-fijo">✅ Imagen lista para guardar.</small>
+              )}
+            </label>
+            {menuError && <p className="estado error">⚠️ {menuError}</p>}
+            {menuExito && <p className="estado exito">{menuExito}</p>}
+            <button
+              type="submit"
+              className="boton boton-primario"
+              disabled={subiendoImagenMenu}
+            >
+              Guardar plato
+            </button>
+          </form>
+
+          <h2 className="admin-subtitulo">Menú actual</h2>
+          {menu.length === 0 && (
+            <p className="estado">El menú está vacío. Agrega los platos de la semana.</p>
+          )}
+          <div className="lista-reservas">
+            {menu.map((dia) => (
+              <div key={dia.dia} className="menu-dia-admin">
+                <h3>{dia.dia}</h3>
+                {dia.platos.map((plato) => (
+                  <article key={plato.id} className="fila-reserva">
+                    <div className="fila-menu-contenido">
+                      {plato.imagen && (
+                        <img
+                          className="miniatura-menu"
+                          src={plato.imagen}
+                          alt={plato.platillo}
+                        />
+                      )}
+                      <div>
+                        <strong>{plato.platillo}</strong>
+                        <span className="fila-reserva-detalle">
+                          {plato.descripcion}
+                          {plato.calorias ? ` · ${plato.calorias} kcal` : ""}
+                          {plato.jornadas && plato.jornadas.length > 0
+                            ? ` · ${plato.jornadas.join(", ")}`
+                            : ""}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="boton boton-secundario"
+                      onClick={() => borrarPlato(plato.id)}
+                    >
+                      Borrar
+                    </button>
+                  </article>
+                ))}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
       {!cargando && !error && pestana === "avisos" && (
         <>
           <h2 className="admin-subtitulo">Publicar aviso</h2>
@@ -604,9 +989,32 @@ function Admin() {
                 placeholder="Ej: Novedad, Recordatorio"
               />
             </label>
+            <label>
+              Imagen (opcional)
+              <input
+                type="file"
+                accept="image/*"
+                onChange={async (e) => {
+                  const archivo = e.target.files?.[0];
+                  if (!archivo) return;
+                  setSubiendoImagenAviso(true);
+                  setAvisoError("");
+                  await subirImagen(archivo, setImagenAviso);
+                  setSubiendoImagenAviso(false);
+                }}
+              />
+              {subiendoImagenAviso && <small className="campo-fijo">Subiendo imagen…</small>}
+              {imagenAviso && (
+                <small className="campo-fijo">✅ Imagen lista para publicar.</small>
+              )}
+            </label>
             {avisoError && <p className="estado error">⚠️ {avisoError}</p>}
             {avisoExito && <p className="estado exito">{avisoExito}</p>}
-            <button type="submit" className="boton boton-primario">
+            <button
+              type="submit"
+              className="boton boton-primario"
+              disabled={subiendoImagenAviso}
+            >
               Publicar aviso
             </button>
           </form>
@@ -616,12 +1024,21 @@ function Admin() {
           <div className="lista-avisos-admin">
             {avisos.map((aviso) => (
               <article key={aviso.id} className="fila-aviso-admin">
-                <div>
-                  <strong>{aviso.titulo}</strong>
-                  <span className="fila-reserva-detalle">
-                    {aviso.fecha ? `${aviso.fecha} · ` : ""}
-                    {aviso.texto}
-                  </span>
+                <div className="fila-menu-contenido">
+                  {aviso.imagen && (
+                    <img
+                      className="miniatura-menu"
+                      src={aviso.imagen}
+                      alt={aviso.titulo}
+                    />
+                  )}
+                  <div>
+                    <strong>{aviso.titulo}</strong>
+                    <span className="fila-reserva-detalle">
+                      {aviso.fecha ? `${aviso.fecha} · ` : ""}
+                      {aviso.texto}
+                    </span>
+                  </div>
                 </div>
                 <button
                   type="button"
@@ -630,6 +1047,79 @@ function Admin() {
                 >
                   Borrar
                 </button>
+              </article>
+            ))}
+          </div>
+        </>
+      )}
+
+      {!cargando && !error && pestana === "galeria" && (
+        <>
+          <h2 className="admin-subtitulo">Publicar foto en la galería</h2>
+          <p className="subtitulo">
+            Estas fotos aparecen en la página de inicio junto con las de los
+            platos y los avisos. Súbele el título y elige la imagen.
+          </p>
+          <form className="formulario" onSubmit={publicarFotoGaleria}>
+            <label>
+              Título
+              <input
+                type="text"
+                value={tituloGaleria}
+                onChange={(e) => setTituloGaleria(e.target.value)}
+                required
+                placeholder="Ej: Entrega de minutas, jornada deportiva"
+              />
+            </label>
+            <label>
+              Imagen
+              <input
+                type="file"
+                accept="image/*"
+                onChange={async (e) => {
+                  const archivo = e.target.files?.[0];
+                  if (!archivo) return;
+                  setSubiendoImagenGaleria(true);
+                  setGaleriaError("");
+                  await subirImagen(archivo, setImagenGaleria);
+                  setSubiendoImagenGaleria(false);
+                }}
+                required
+              />
+              {subiendoImagenGaleria && <small className="campo-fijo">Subiendo imagen…</small>}
+              {imagenGaleria && (
+                <small className="campo-fijo">✅ Imagen lista para publicar.</small>
+              )}
+            </label>
+            {galeriaError && <p className="estado error">⚠️ {galeriaError}</p>}
+            {galeriaExito && <p className="estado exito">{galeriaExito}</p>}
+            <button
+              type="submit"
+              className="boton boton-primario"
+              disabled={subiendoImagenGaleria}
+            >
+              Publicar foto
+            </button>
+          </form>
+
+          <h2 className="admin-subtitulo">Fotos publicadas ({galeria.length})</h2>
+          {galeria.length === 0 && (
+            <p className="estado">Aún no hay fotos en la galería.</p>
+          )}
+          <div className="galeria-admin">
+            {galeria.map((foto) => (
+              <article key={foto.id} className="fila-galeria-admin">
+                <img src={foto.imagen} alt={foto.titulo} />
+                <div className="fila-galeria-info">
+                  <strong>{foto.titulo}</strong>
+                  <button
+                    type="button"
+                    className="boton boton-secundario"
+                    onClick={() => borrarFotoGaleria(foto.id)}
+                  >
+                    Borrar
+                  </button>
+                </div>
               </article>
             ))}
           </div>
