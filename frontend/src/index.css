@@ -1166,6 +1166,13 @@ h1 {
   color: var(--naranja);
 }
 
+.horario-grado {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.78rem;
+  color: var(--texto-suave);
+}
+
 /* Pestañas del admin */
 .admin-pestanas {
   display: flex;

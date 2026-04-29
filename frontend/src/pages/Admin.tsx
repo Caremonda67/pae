@@ -12,7 +12,7 @@
 // - mensajes: los que llegan por el formulario de contacto
 
 import { useEffect, useState } from "react";
-import { estadoReserva } from "../config/horarios";
+import { estadoReserva, GRADOS, horarioGrado } from "../config/horarios";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
@@ -928,13 +928,23 @@ function Admin() {
                 </select>
               </label>
               <label>
-                Grado (opcional)
-                <input
-                  type="text"
+                Grado
+                <select
                   value={gradoBen}
                   onChange={(e) => setGradoBen(e.target.value)}
-                  placeholder="Ej: 5"
-                />
+                >
+                  <option value="">Sin grado</option>
+                  {GRADOS.map((grado) => (
+                    <option key={grado} value={grado}>
+                      {grado}
+                    </option>
+                  ))}
+                </select>
+                {gradoBen && horarioGrado(gradoBen) && (
+                  <span className="horario-grado">
+                    Refrigerio: {horarioGrado(gradoBen)}
+                  </span>
+                )}
               </label>
             </div>
             {benError && <p className="estado error">⚠️ {benError}</p>}
