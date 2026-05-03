@@ -86,7 +86,7 @@ router.get("/", async (req, res) => {
 
     const { data: menus, error: errMen } = await supabase
       .from("menus")
-      .select("id, dia, platillo, imagen, jornadas");
+      .select("id, semana, dia, jornada, platillo, imagen");
 
     if (errVal || errMen) {
       return res.status(500).json({ error: (errVal || errMen).message });
@@ -107,10 +107,11 @@ router.get("/", async (req, res) => {
         const promedio = votos > 0 ? Math.round((datos.suma / votos) * 10) / 10 : null;
         return {
           id: m.id,
+          semana: m.semana,
           dia: m.dia,
           platillo: m.platillo,
           imagen: m.imagen || null,
-          jornadas: m.jornadas || [],
+          jornada: m.jornada || null,
           valoracion: promedio,
           votos,
         };

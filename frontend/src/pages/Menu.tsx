@@ -1,8 +1,9 @@
 // pagina del menu semanal
-// los platos se cargan del backend con fetch y cada uno muestra
-// su valoracion en estrellas. El estudiante puede calificar su
-// plato con 1 a 5 estrellas y esa retroalimentacion ayuda a la
-// cocina a mejorar el menu.
+// el menu es rotativo: cada semana del mes (1 a 4) tiene su propio
+// plan de alimentacion y cada dia tiene una comida por jornada
+// (Almuerzo y Refrigerio). Los platos se cargan del backend con fetch.
+// El estudiante puede calificar cada plato con 1 a 5 estrellas y esa
+// retroalimentacion ayuda a la cocina a mejorar el menu.
 
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
@@ -13,12 +14,13 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
 // Tipado de un plato del menu
 interface MenuItem {
   id: number;
+  semana: number;
   dia: string;
+  jornada: string;
   platillo: string;
   descripcion: string;
   calorias?: number;
   imagen?: string;
-  jornadas?: string[];
   valoracion?: number | null;
   votos?: number;
 }
@@ -39,11 +41,19 @@ function normalizar(texto: string) {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
+// Semana del mes actual (igual que calcula el backend: ceil(dia/7), max 4)
+function semanaActualDelMes() {
+  const hoy = new Date();
+  return Math.min(4, Math.ceil(hoy.getDate() / 7));
+}
+
 const ESTRELLAS = [1, 2, 3, 4, 5];
 
 function Menu() {
   // menu: lista de platos cargados desde el backend
   const [menu, setMenu] = useState<MenuItem[]>([]);
+  // semanaActiva: semana del mes que se esta viendo (por defecto la actual)
+  const [semanaActiva, setSemanaActiva] = useState(semanaActualDelMes());
   // cargando: controla el estado de carga (requisito UX del proyecto)
   const [cargando, setCargando] = useState(true);
   // error: guarda el mensaje si algo sale mal
@@ -75,6 +85,9 @@ function Menu() {
     };
     cargarMenu();
   }, []);
+
+  // Platos de la semana que se esta viendo
+  const menuSemana = menu.filter((item) => item.semana === semanaActiva);
 
   // Recarga el menu para actualizar los promedios
   const recargarMenu = async () => {
@@ -178,8 +191,8 @@ function Menu() {
     <section className="menu-pagina">
       <h1>Menú semanal</h1>
       <p className="subtitulo">
-        Esto se servirá esta semana en el restaurante escolar. Reserva antes de
-        la fecha para asegurar tu minuta.
+        El menú rota cada semana del mes y cada día se sirve una comida por
+        jornada. Reserva antes de la fecha para asegurar tu minuta.
       </p>
 
       {/* Estado de carga */}
@@ -192,9 +205,23 @@ function Menu() {
         </p>
       )}
 
-      {/* Lista de platos ordenada por dia */}
+      {/* Lista de platos de la semana elegida */}
       {!cargando && !error && (
         <>
+          {/* Selector de semana del mes */}
+          <div className="selector-semana" role="group" aria-label="Semana del mes">
+            {[1, 2, 3, 4].map((semana) => (
+              <button
+                key={semana}
+                type="button"
+                className={semana === semanaActiva ? "activa" : ""}
+                onClick={() => setSemanaActiva(semana)}
+              >
+                Semana {semana}
+              </button>
+            ))}
+          </div>
+
           {/* Documento para poder valorar */}
           <label className="valorar-documento">
             Tu documento (para calificar platos)
@@ -214,11 +241,15 @@ function Menu() {
           )}
 
           <div className="lista-menu">
-            {menu.length === 0 && (
-              <p className="estado">Aún no hay platos publicados.</p>
+            {menuSemana.length === 0 && (
+              <p className="estado">
+                Aún no hay platos publicados para la semana {semanaActiva}.
+              </p>
             )}
             {diasOrden
-              .map((dia) => menu.filter((item) => normalizar(item.dia) === normalizar(dia)))
+              .map((dia) =>
+                menuSemana.filter((item) => normalizar(item.dia) === normalizar(dia))
+              )
               .flat()
               .map((item) => (
                 <article key={item.id} className="plato">
@@ -231,16 +262,15 @@ function Menu() {
                     />
                   )}
                   <div>
-                    <span className="plato-dia">{item.dia}</span>
+                    <span className="plato-dia">
+                      {item.dia} · Semana {item.semana}
+                    </span>
                     <h3>{item.platillo}</h3>
                     <p>{item.descripcion}</p>
                     <div className="plato-jornadas">
-                      {item.jornadas &&
-                        item.jornadas.map((jornada) => (
-                          <span key={jornada} className="etiqueta-comida">
-                            {jornada}
-                          </span>
-                        ))}
+                      <span key={item.jornada} className="etiqueta-comida">
+                        {item.jornada}
+                      </span>
                     </div>
                     <div className="plato-valoracion">
                       {dibujarEstrellas(item.valoracion)}

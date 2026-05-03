@@ -67,18 +67,36 @@ interface Aviso {
 // un plato del menu que llega del backend
 interface MenuItem {
   id: number;
+  semana: number;
   dia: string;
+  jornada: string;
   platillo: string;
   descripcion: string;
   calorias?: number;
   imagen?: string;
-  jornadas?: string[];
 }
 
-// dia de la semana con su lista de platos (para el formulario)
+// dia de la semana con su lista de platos
 interface MenuDia {
   dia: string;
   platos: MenuItem[];
+}
+
+// una semana del mes con sus dias (menu rotativo)
+interface MenuSemanaAdmin {
+  semana: number;
+  dias: MenuDia[];
+}
+
+interface Institucion {
+  id: number;
+  nombre: string;
+}
+
+interface Colaborador {
+  id: number;
+  nombre: string;
+  rol?: string | null;
 }
 
 // plan diario de minutas a servir (ruta /api/reservas/plan)
@@ -122,7 +140,16 @@ interface Notificacion {
 }
 
 // pestañas del panel
-type Pestana = "panel" | "beneficiarios" | "menu" | "avisos" | "galeria" | "notificaciones" | "mensajes";
+type Pestana =
+  | "panel"
+  | "beneficiarios"
+  | "menu"
+  | "avisos"
+  | "galeria"
+  | "instituciones"
+  | "colaboradores"
+  | "notificaciones"
+  | "mensajes";
 
 function Admin() {
   const [autenticado, setAutenticado] = useState(leerToken() !== "");
@@ -138,9 +165,22 @@ function Admin() {
   const [mensajes, setMensajes] = useState<Mensaje[]>([]);
   const [beneficiarios, setBeneficiarios] = useState<Beneficiario[]>([]);
   const [notificaciones, setNotificaciones] = useState<Notificacion[]>([]);
-  const [menu, setMenu] = useState<MenuDia[]>([]);
+  const [menu, setMenu] = useState<MenuSemanaAdmin[]>([]);
   const [plan, setPlan] = useState<PlanDia[]>([]);
   const [galeria, setGaleria] = useState<FotoGaleria[]>([]);
+  const [instituciones, setInstituciones] = useState<Institucion[]>([]);
+  const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
+
+  // formulario de institucion
+  const [nombreInst, setNombreInst] = useState("");
+  const [instError, setInstError] = useState("");
+  const [instExito, setInstExito] = useState("");
+
+  // formulario de colaborador
+  const [nombreCol, setNombreCol] = useState("");
+  const [rolCol, setRolCol] = useState("");
+  const [colError, setColError] = useState("");
+  const [colExito, setColExito] = useState("");
 
   // formulario de foto de galeria
   const [tituloGaleria, setTituloGaleria] = useState("");
@@ -159,11 +199,12 @@ function Admin() {
   const [avisoExito, setAvisoExito] = useState("");
 
   // formulario de nuevo plato del menu
+  const [semanaMenu, setSemanaMenu] = useState(1);
   const [diaMenu, setDiaMenu] = useState("Lunes");
+  const [jornadaMenu, setJornadaMenu] = useState("Almuerzo");
   const [platilloMenu, setPlatilloMenu] = useState("");
   const [descripcionMenu, setDescripcionMenu] = useState("");
   const [caloriasMenu, setCaloriasMenu] = useState("");
-  const [jornadasMenu, setJornadasMenu] = useState<string[]>(["Almuerzo"]);
   const [imagenMenu, setImagenMenu] = useState("");
   const [subiendoImagenMenu, setSubiendoImagenMenu] = useState(false);
   const [menuError, setMenuError] = useState("");
@@ -231,6 +272,8 @@ function Admin() {
         respMenu,
         respPlan,
         respGaleria,
+        respInstituciones,
+        respColaboradores,
       ] = await Promise.all([
         fetch(`${API_URL}/api/reservas/totales`),
         fetch(`${API_URL}/api/reservas`, { headers: cabeceras(token, false) }),
@@ -242,6 +285,8 @@ function Admin() {
         fetch(`${API_URL}/api/menus`),
         fetch(`${API_URL}/api/reservas/plan?dias=7`),
         fetch(`${API_URL}/api/galeria`),
+        fetch(`${API_URL}/api/instituciones`),
+        fetch(`${API_URL}/api/colaboradores`),
       ]);
 
       if (
@@ -254,7 +299,9 @@ function Admin() {
         !respNotificaciones.ok ||
         !respMenu.ok ||
         !respPlan.ok ||
-        !respGaleria.ok
+        !respGaleria.ok ||
+        !respInstituciones.ok ||
+        !respColaboradores.ok
       ) {
         throw new Error("No se pudieron cargar los datos");
       }
@@ -267,7 +314,7 @@ function Admin() {
       setBeneficiarios(await respBeneficiarios.json());
       setNotificaciones(await respNotificaciones.json());
 
-      // Agrupamos el menu por dia para mostrarlo en el panel
+      // Agrupamos el menu por semana del mes y luego por dia
       const menus = (await respMenu.json()) as MenuItem[];
       const diasOrden = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
       const normalizar = (t: string) =>
@@ -275,17 +322,25 @@ function Admin() {
           .toLowerCase()
           .normalize("NFD")
           .replace(/[\u0300-\u036f]/g, "");
+      const semanas = [...new Set(menus.map((m) => m.semana))].sort((a, b) => a - b);
       setMenu(
-        diasOrden
-          .map((dia) => ({
-            dia,
-            platos: menus.filter((m) => normalizar(m.dia) === normalizar(dia)),
-          }))
-          .filter((d) => d.platos.length > 0)
+        semanas.map((semana) => ({
+          semana,
+          dias: diasOrden
+            .map((dia) => ({
+              dia,
+              platos: menus.filter(
+                (m) => m.semana === semana && normalizar(m.dia) === normalizar(dia)
+              ),
+            }))
+            .filter((d) => d.platos.length > 0),
+        }))
       );
 
       setPlan(await respPlan.json());
       setGaleria(await respGaleria.json());
+      setInstituciones(await respInstituciones.json());
+      setColaboradores(await respColaboradores.json());
     } catch (err) {
       // si el token expiro o es invalido, pedimos login de nuevo
       if (err instanceof Error && err.message.includes("No se pudieron cargar")) {
@@ -400,11 +455,12 @@ function Admin() {
         method: "POST",
         headers: cabeceras(leerToken()),
         body: JSON.stringify({
+          semana: semanaMenu,
           dia: diaMenu,
+          jornada: jornadaMenu,
           platillo: platilloMenu,
           descripcion: descripcionMenu,
           calorias: caloriasMenu ? Number(caloriasMenu) : null,
-          jornadas: jornadasMenu,
           imagen: imagenMenu || null,
         }),
       });
@@ -415,7 +471,6 @@ function Admin() {
       setPlatilloMenu("");
       setDescripcionMenu("");
       setCaloriasMenu("");
-      setJornadasMenu(["Almuerzo"]);
       setImagenMenu("");
       setMenuExito("✅ Plato agregado al menú.");
       cargarDatos();
@@ -436,15 +491,6 @@ function Admin() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error desconocido");
     }
-  };
-
-  // Marca o desmarca una jornada del formulario de menu
-  const alternarJornada = (jornada: string) => {
-    setJornadasMenu((actuales) =>
-      actuales.includes(jornada)
-        ? actuales.filter((j) => j !== jornada)
-        : [...actuales, jornada]
-    );
   };
 
   // Guarda una foto nueva en la galeria
@@ -530,6 +576,81 @@ function Admin() {
     }
   };
 
+  // Registra una institucion nueva
+  const registrarInstitucion = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setInstError("");
+    setInstExito("");
+    try {
+      const respuesta = await fetch(`${API_URL}/api/instituciones`, {
+        method: "POST",
+        headers: cabeceras(leerToken()),
+        body: JSON.stringify({ nombre: nombreInst }),
+      });
+      if (!respuesta.ok) {
+        const datos = await respuesta.json().catch(() => null);
+        throw new Error(datos?.error || "No se pudo registrar la institución");
+      }
+      setNombreInst("");
+      setInstExito("✅ Institución registrada. Ya cuenta en la métrica de la página.");
+      cargarDatos();
+    } catch (err) {
+      setInstError(err instanceof Error ? err.message : "Error desconocido");
+    }
+  };
+
+  // Borra una institucion
+  const borrarInstitucion = async (id: number) => {
+    try {
+      const respuesta = await fetch(`${API_URL}/api/instituciones/${id}`, {
+        method: "DELETE",
+        headers: cabeceras(leerToken(), false),
+      });
+      if (!respuesta.ok) throw new Error("No se pudo borrar");
+      cargarDatos();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error desconocido");
+    }
+  };
+
+  // Registra un colaborador nuevo
+  const registrarColaborador = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setColError("");
+    setColExito("");
+    try {
+      const respuesta = await fetch(`${API_URL}/api/colaboradores`, {
+        method: "POST",
+        headers: cabeceras(leerToken()),
+        body: JSON.stringify({ nombre: nombreCol, rol: rolCol }),
+      });
+      if (!respuesta.ok) {
+        const datos = await respuesta.json().catch(() => null);
+        throw new Error(datos?.error || "No se pudo registrar el colaborador");
+      }
+      setNombreCol("");
+      setRolCol("");
+      setColExito("✅ Colaborador registrado. Ya cuenta en la métrica de la página.");
+      cargarDatos();
+    } catch (err) {
+      setColError(err instanceof Error ? err.message : "Error desconocido");
+    }
+  };
+
+  // Borra un colaborador
+  const borrarColaborador = async (id: number) => {
+    try {
+      const respuesta = await fetch(`${API_URL}/api/colaboradores/${id}`, {
+        method: "DELETE",
+        headers: cabeceras(leerToken(), false),
+      });
+      if (!respuesta.ok) throw new Error("No se pudo borrar");
+      cargarDatos();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error desconocido");
+    }
+  };
+
   // ---------- Pantalla de login ----------
   if (!autenticado) {
     return (
@@ -601,6 +722,20 @@ function Admin() {
           onClick={() => setPestana("galeria")}
         >
           🖼️ Galería
+        </button>
+        <button
+          type="button"
+          className={pestana === "instituciones" ? "activa" : ""}
+          onClick={() => setPestana("instituciones")}
+        >
+          🏫 Instituciones
+        </button>
+        <button
+          type="button"
+          className={pestana === "colaboradores" ? "activa" : ""}
+          onClick={() => setPestana("colaboradores")}
+        >
+          👥 Colaboradores
         </button>
         <button
           type="button"
@@ -828,6 +963,18 @@ function Admin() {
           <form className="formulario" onSubmit={registrarMenu}>
             <div className="formulario-fila">
               <label>
+                Semana del mes
+                <select
+                  value={semanaMenu}
+                  onChange={(e) => setSemanaMenu(Number(e.target.value))}
+                >
+                  <option value={1}>Semana 1</option>
+                  <option value={2}>Semana 2</option>
+                  <option value={3}>Semana 3</option>
+                  <option value={4}>Semana 4</option>
+                </select>
+              </label>
+              <label>
                 Día
                 <select value={diaMenu} onChange={(e) => setDiaMenu(e.target.value)}>
                   <option>Lunes</option>
@@ -835,6 +982,16 @@ function Admin() {
                   <option>Miércoles</option>
                   <option>Jueves</option>
                   <option>Viernes</option>
+                </select>
+              </label>
+              <label>
+                Jornada
+                <select
+                  value={jornadaMenu}
+                  onChange={(e) => setJornadaMenu(e.target.value)}
+                >
+                  <option>Almuerzo</option>
+                  <option>Refrigerio</option>
                 </select>
               </label>
               <label>
@@ -868,21 +1025,6 @@ function Admin() {
               />
             </label>
             <label>
-              Jornadas (puedes marcar varias)
-              <div className="jornadas-opciones">
-                {["Almuerzo", "Refrigerio"].map((jornada) => (
-                  <label key={jornada} className="jornada-check">
-                    <input
-                      type="checkbox"
-                      checked={jornadasMenu.includes(jornada)}
-                      onChange={() => alternarJornada(jornada)}
-                    />
-                    {jornada}
-                  </label>
-                ))}
-              </div>
-            </label>
-            <label>
               Foto del plato (opcional)
               <input
                 type="file"
@@ -912,43 +1054,46 @@ function Admin() {
             </button>
           </form>
 
-          <h2 className="admin-subtitulo">Menú actual</h2>
+          <h2 className="admin-subtitulo">Menú por semana</h2>
           {menu.length === 0 && (
             <p className="estado">El menú está vacío. Agrega los platos de la semana.</p>
           )}
           <div className="lista-reservas">
-            {menu.map((dia) => (
-              <div key={dia.dia} className="menu-dia-admin">
-                <h3>{dia.dia}</h3>
-                {dia.platos.map((plato) => (
-                  <article key={plato.id} className="fila-reserva">
-                    <div className="fila-menu-contenido">
-                      {plato.imagen && (
-                        <img
-                          className="miniatura-menu"
-                          src={plato.imagen}
-                          alt={plato.platillo}
-                        />
-                      )}
-                      <div>
-                        <strong>{plato.platillo}</strong>
-                        <span className="fila-reserva-detalle">
-                          {plato.descripcion}
-                          {plato.calorias ? ` · ${plato.calorias} kcal` : ""}
-                          {plato.jornadas && plato.jornadas.length > 0
-                            ? ` · ${plato.jornadas.join(", ")}`
-                            : ""}
-                        </span>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      className="boton boton-secundario"
-                      onClick={() => borrarPlato(plato.id)}
-                    >
-                      Borrar
-                    </button>
-                  </article>
+            {menu.map((semana) => (
+              <div key={semana.semana} className="menu-semana-admin">
+                <h3>Semana {semana.semana} del mes</h3>
+                {semana.dias.map((dia) => (
+                  <div key={dia.dia} className="menu-dia-admin">
+                    <h4>{dia.dia}</h4>
+                    {dia.platos.map((plato) => (
+                      <article key={plato.id} className="fila-reserva">
+                        <div className="fila-menu-contenido">
+                          {plato.imagen && (
+                            <img
+                              className="miniatura-menu"
+                              src={plato.imagen}
+                              alt={plato.platillo}
+                            />
+                          )}
+                          <div>
+                            <strong>{plato.platillo}</strong>
+                            <span className="fila-reserva-detalle">
+                              {plato.descripcion}
+                              {plato.calorias ? ` · ${plato.calorias} kcal` : ""}
+                              {plato.jornada ? ` · ${plato.jornada}` : ""}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className="boton boton-secundario"
+                          onClick={() => borrarPlato(plato.id)}
+                        >
+                          Borrar
+                        </button>
+                      </article>
+                    ))}
+                  </div>
                 ))}
               </div>
             ))}
@@ -1120,6 +1265,118 @@ function Admin() {
                     Borrar
                   </button>
                 </div>
+              </article>
+            ))}
+          </div>
+        </>
+      )}
+
+      {!cargando && !error && pestana === "instituciones" && (
+        <>
+          <h2 className="admin-subtitulo">Registrar institución</h2>
+          <p className="subtitulo">
+            Cada institución cuenta en la métrica de la página de inicio.
+          </p>
+          <form className="formulario" onSubmit={registrarInstitucion}>
+            <label>
+              Nombre de la institución
+              <input
+                type="text"
+                value={nombreInst}
+                onChange={(e) => setNombreInst(e.target.value)}
+                required
+                placeholder="Ej: IE San José"
+              />
+            </label>
+            {instError && <p className="estado error">⚠️ {instError}</p>}
+            {instExito && <p className="estado exito">{instExito}</p>}
+            <button type="submit" className="boton boton-primario">
+              Registrar institución
+            </button>
+          </form>
+
+          <h2 className="admin-subtitulo">
+            Instituciones registradas ({instituciones.length})
+          </h2>
+          {instituciones.length === 0 && (
+            <p className="estado">Aún no hay instituciones registradas.</p>
+          )}
+          <div className="lista-reservas">
+            {instituciones.map((inst) => (
+              <article key={inst.id} className="fila-reserva">
+                <div>
+                  <strong>{inst.nombre}</strong>
+                </div>
+                <button
+                  type="button"
+                  className="boton boton-secundario"
+                  onClick={() => borrarInstitucion(inst.id)}
+                >
+                  Borrar
+                </button>
+              </article>
+            ))}
+          </div>
+        </>
+      )}
+
+      {!cargando && !error && pestana === "colaboradores" && (
+        <>
+          <h2 className="admin-subtitulo">Registrar colaborador</h2>
+          <p className="subtitulo">
+            Cada colaborador cuenta en la métrica de la página de inicio.
+          </p>
+          <form className="formulario" onSubmit={registrarColaborador}>
+            <div className="formulario-fila">
+              <label>
+                Nombre completo
+                <input
+                  type="text"
+                  value={nombreCol}
+                  onChange={(e) => setNombreCol(e.target.value)}
+                  required
+                  placeholder="Nombre del colaborador"
+                />
+              </label>
+              <label>
+                Rol (opcional)
+                <input
+                  type="text"
+                  value={rolCol}
+                  onChange={(e) => setRolCol(e.target.value)}
+                  placeholder="Ej: Coordinador, Manipuladora"
+                />
+              </label>
+            </div>
+            {colError && <p className="estado error">⚠️ {colError}</p>}
+            {colExito && <p className="estado exito">{colExito}</p>}
+            <button type="submit" className="boton boton-primario">
+              Registrar colaborador
+            </button>
+          </form>
+
+          <h2 className="admin-subtitulo">
+            Colaboradores registrados ({colaboradores.length})
+          </h2>
+          {colaboradores.length === 0 && (
+            <p className="estado">Aún no hay colaboradores registrados.</p>
+          )}
+          <div className="lista-reservas">
+            {colaboradores.map((col) => (
+              <article key={col.id} className="fila-reserva">
+                <div>
+                  <strong>{col.nombre}</strong>
+                  <span className="fila-reserva-detalle">
+                    {col.rol || "Sin rol"}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="boton boton-secundario"
+                  onClick={() => borrarColaborador(col.id)}
+                >
+                  Borrar
+                </button>
               </article>
             ))}
           </div>

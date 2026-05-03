@@ -19,6 +19,9 @@ import notificacionesRouter from "./routes/notificaciones.js";
 import archivosRouter from "./routes/archivos.js";
 import estadisticasRouter from "./routes/estadisticas.js";
 import galeriaRouter from "./routes/galeria.js";
+import metricasRouter from "./routes/metricas.js";
+import institucionesRouter from "./routes/instituciones.js";
+import colaboradoresRouter from "./routes/colaboradores.js";
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -47,6 +50,9 @@ app.use("/api/notificaciones", notificacionesRouter);
 app.use("/api/archivos", archivosRouter);
 app.use("/api/estadisticas", estadisticasRouter);
 app.use("/api/galeria", galeriaRouter);
+app.use("/api/metricas", metricasRouter);
+app.use("/api/instituciones", institucionesRouter);
+app.use("/api/colaboradores", colaboradoresRouter);
 
 // Middleware para rutas no encontradas (error 404)
 app.use((_req, res) => {
