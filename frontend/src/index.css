@@ -793,6 +793,51 @@ h1 {
   font-weight: 600;
 }
 
+/* Barra de busqueda del panel de administrador */
+.buscador-admin {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: var(--blanco);
+  border: 1.5px solid #d3dbcf;
+  border-radius: 10px;
+  padding: 0.4rem 0.8rem;
+  margin-bottom: 1rem;
+  transition: border-color 0.2s;
+}
+
+.buscador-admin:focus-within {
+  border-color: var(--verde);
+}
+
+.buscador-admin-icono {
+  font-size: 0.95rem;
+  opacity: 0.6;
+}
+
+.buscador-admin input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 0.95rem;
+  font-family: inherit;
+  background-color: transparent;
+  color: var(--texto);
+}
+
+.buscador-admin-limpiar {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--texto-suave);
+  padding: 0.1rem 0.2rem;
+}
+
+.buscador-admin-limpiar:hover {
+  color: var(--texto);
+}
+
 .formulario .boton {
   justify-self: start;
 }
