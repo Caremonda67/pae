@@ -303,21 +303,31 @@ function Admin() {
         fetch(`${API_URL}/api/colaboradores`),
       ]);
 
-      if (
-        !respTotales.ok ||
-        !respReservas.ok ||
-        !respReporte.ok ||
-        !respAvisos.ok ||
-        !respMensajes.ok ||
-        !respBeneficiarios.ok ||
-        !respNotificaciones.ok ||
-        !respMenu.ok ||
-        !respPlan.ok ||
-        !respGaleria.ok ||
-        !respInstituciones.ok ||
-        !respColaboradores.ok
-      ) {
-        throw new Error("No se pudieron cargar los datos");
+      const respuestas: [string, Response][] = [
+        ["totales", respTotales],
+        ["reservas", respReservas],
+        ["reporte", respReporte],
+        ["avisos", respAvisos],
+        ["mensajes", respMensajes],
+        ["beneficiarios", respBeneficiarios],
+        ["notificaciones", respNotificaciones],
+        ["menu", respMenu],
+        ["plan", respPlan],
+        ["galeria", respGaleria],
+        ["instituciones", respInstituciones],
+        ["colaboradores", respColaboradores],
+      ];
+
+      const fallo = respuestas.find(([, r]) => !r.ok);
+
+      if (fallo) {
+        const [nombre, r] = fallo;
+        if (r.status === 401) {
+          // el token expiro o dejo de ser valido: volvemos al login
+          salir();
+          throw new Error("Tu sesión expiró. Vuelve a entrar con la clave.");
+        }
+        throw new Error(`No se pudieron cargar los datos (${nombre}: ${r.status})`);
       }
 
       setTotales(await respTotales.json());
