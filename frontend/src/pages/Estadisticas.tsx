@@ -5,6 +5,7 @@
 // - ranking de platos con su valoracion y el mas/menos gustado
 
 import { useEffect, useState } from "react";
+import { descargarCSV } from "../config/exportar";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
@@ -100,6 +101,48 @@ function Estadisticas() {
     };
   }, [mes]);
 
+  const exportarCSV = () => {
+    if (!datos) return;
+    const filas: (string | number)[][] = [
+      ["PAE - Estadísticas", nombreMes(datos.mes)],
+      ["Minutas reservadas", datos.totalReservas],
+      ["Minutas servidas", datos.minutasServidas],
+      ["Minutas sin asistir", datos.minutasDesperdiciadas],
+      ["Porcentaje de desperdicio", `${datos.porcentajeDesperdicio}%`],
+      [],
+      ["Desglose por día de la semana"],
+      ["Día", "Reservadas", "Servidas"],
+      ...Object.entries(datos.porDiaSemana).map(([dia, info]) => [
+        dia,
+        info.reservas,
+        info.servidas,
+      ]),
+      [],
+      ["Desglose por sede"],
+      ["Sede", "Reservadas", "Servidas"],
+      ...Object.entries(datos.porSede).map(([sede, info]) => [
+        sede,
+        info.reservas,
+        info.servidas,
+      ]),
+      [],
+      ["Desglose por turno"],
+      ["Turno", "Reservadas", "Servidas"],
+      ...Object.entries(datos.porTurno).map(([turno, info]) => [
+        turno,
+        info.reservas,
+        info.servidas,
+      ]),
+      [],
+      ["Ranking de platos"],
+      ["Plato", "Valoración", "Votos"],
+      ...datos.ranking
+        .filter((r) => r.valoracion !== null)
+        .map((plato) => [plato.platillo, plato.valoracion ?? "", plato.votos]),
+    ];
+    descargarCSV(filas, `estadisticas-${datos.mes}.csv`);
+  };
+
   return (
     <section className="estadisticas-pagina">
       <h1>📊 Estadísticas del PAE</h1>
@@ -117,6 +160,11 @@ function Estadisticas() {
             onChange={(e) => e.target.value && setMes(e.target.value)}
           />
         </label>
+        {datos && (
+          <button type="button" className="boton boton-secundario" onClick={exportarCSV}>
+            ⬇️ Exportar CSV
+          </button>
+        )}
       </div>
 
       {error && <p className="estado error">⚠️ {error}</p>}

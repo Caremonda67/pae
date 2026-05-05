@@ -5,6 +5,7 @@
 // CSV o imprimir/PDF. Todo con datos reales del backend.
 
 import { useEffect, useState } from "react";
+import { descargarCSV } from "../config/exportar";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
@@ -89,7 +90,7 @@ function Reportes() {
 
   // Descarga un CSV con el resumen de reservas por fecha
   const exportarCSV = () => {
-    const filas = [
+    const filas: (string | number)[][] = [
       ["Fecha", "Reservadas", "Asistieron"],
       ...Object.entries(totales)
         .sort((a, b) => (a[0] < b[0] ? -1 : 1))
@@ -106,19 +107,7 @@ function Reportes() {
         : []),
     ];
 
-    const texto = filas
-      .map((fila) =>
-        fila.map((celda) => `"${String(celda).replace(/"/g, '""')}"`).join(",")
-      )
-      .join("\n");
-
-    const blob = new Blob(["\uFEFF" + texto], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const enlace = document.createElement("a");
-    enlace.href = url;
-    enlace.download = "reporte-pae.csv";
-    enlace.click();
-    URL.revokeObjectURL(url);
+    descargarCSV(filas, "reporte-pae.csv");
   };
 
   // Imprime / guarda en PDF la tabla diaria de cocina
