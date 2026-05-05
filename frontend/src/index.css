@@ -829,6 +829,29 @@ h1 {
   margin-bottom: 2rem;
 }
 
+.menu-dias {
+  display: grid;
+  gap: 1.6rem;
+  margin-bottom: 2rem;
+}
+
+.menu-dia {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.menu-dia-titulo {
+  color: var(--verde-oscuro);
+  font-size: 1.15rem;
+  border-bottom: 2px solid var(--verde-suave);
+  padding-bottom: 0.4rem;
+}
+
+.menu-dia-platos {
+  display: grid;
+  gap: 0.8rem;
+}
+
 /* Selector de semana del mes (menu rotativo) */
 .selector-semana {
   display: flex;
@@ -858,9 +881,12 @@ h1 {
 }
 
 .plato {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    "imagen"
+    "cuerpo"
+    "calificar";
   background-color: var(--blanco);
   border: 1px solid var(--borde);
   border-left: 6px solid var(--verde);
@@ -872,7 +898,7 @@ h1 {
 .plato-dia {
   font-size: 0.82rem;
   font-weight: 700;
-  color: var(--naranja);
+  color: var(--texto-suave);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -885,6 +911,28 @@ h1 {
 .plato p {
   color: var(--texto-suave);
   font-size: 0.95rem;
+  margin: 0.3rem 0 0;
+}
+
+.plato-cuerpo {
+  grid-area: cuerpo;
+  min-width: 0;
+}
+
+.plato-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.plato-pie {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
 }
 
 .plato-calorias {
@@ -1069,12 +1117,15 @@ h1 {
   border-radius: var(--radio);
   padding: 0.9rem 1.3rem;
   box-shadow: var(--sombra);
+  overflow: hidden;
 }
 
 .fila-reserva-detalle {
   display: block;
   font-size: 0.82rem;
   color: var(--texto-suave);
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .asistencia {
@@ -1742,9 +1793,13 @@ h1 {
   }
 
   .plato {
+    padding: 1rem;
+  }
+
+  .plato-cabecera,
+  .plato-pie {
     flex-direction: column;
     align-items: flex-start;
-    gap: 0.6rem;
   }
 
   .formulario {
@@ -1909,17 +1964,12 @@ h1 {
    ============================================================ */
 
 .plato-imagen {
+  grid-area: imagen;
   width: 100%;
   height: 170px;
   object-fit: cover;
-  border-radius: var(--radio) var(--radio) 0 0;
-}
-
-.plato-jornadas {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  margin: 0.4rem 0;
+  border-radius: var(--radio);
+  display: block;
 }
 
 .noticia-imagen,
@@ -1942,7 +1992,15 @@ h1 {
   display: flex;
   align-items: center;
   gap: 0.8rem;
+  flex: 1 1 auto;
   min-width: 0;
+}
+
+.fila-menu-contenido > div {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .menu-dia-admin {
