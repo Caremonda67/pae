@@ -1,0 +1,20 @@
+{
+  "name": "PAE - Programa de Alimentación Escolar",
+  "short_name": "PAE",
+  "description": "Reserva tu minuta y ayuda a reducir el desperdicio de alimentos.",
+  "lang": "es",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2e9e6b",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

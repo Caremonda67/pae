@@ -9,6 +9,7 @@ function Sidebar() {
   const [abierto, setAbierto] = useState(false);
 
   const cerrar = () => setAbierto(false);
+  const toggle = () => setAbierto((a) => !a);
 
   return (
     <>
@@ -16,13 +17,15 @@ function Sidebar() {
       <button
         type="button"
         className="sidebar-boton"
-        onClick={() => setAbierto(!abierto)}
-        aria-label="Abrir menu"
+        onClick={toggle}
+        aria-label={abierto ? "Cerrar menú" : "Abrir menú"}
+        aria-expanded={abierto}
+        aria-controls="sidebar-nav"
       >
         {abierto ? "✕" : "☰"}
       </button>
 
-      <aside className={`sidebar ${abierto ? "abierto" : ""}`}>
+      <aside id="sidebar-nav" className={`sidebar ${abierto ? "abierto" : ""}`} role="navigation" aria-label="Navegación principal">
         <div className="sidebar-marca">
           <span className="sidebar-logo">🍽️</span>
           <div>

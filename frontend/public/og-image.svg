@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#154e38"/>
+  <rect y="420" width="1200" height="210" fill="#2e9e6b"/>
+  <text x="80" y="240" font-family="Arial, Helvetica, sans-serif" font-size="110" font-weight="bold" fill="#ffffff">PAE</text>
+  <text x="80" y="330" font-family="Arial, Helvetica, sans-serif" font-size="54" fill="#e3f2ed">Programa de Alimentación Escolar</text>
+  <text x="80" y="530" font-family="Arial, Helvetica, sans-serif" font-size="40" fill="#ffffff">Reserva tu minuta · Reduce el desperdicio</text>
+  <text x="80" y="590" font-family="Arial, Helvetica, sans-serif" font-size="28" fill="#e3f2ed">caremonda67.github.io/pae</text>
+</svg>
