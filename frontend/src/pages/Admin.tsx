@@ -688,18 +688,20 @@ function Admin() {
     return (
       <section className="admin-pagina">
         <h1>Panel de administrador</h1>
-        <form className="formulario" onSubmit={entrar}>
-          <label>
+        <form className="formulario" onSubmit={entrar} aria-label="Login de administrador">
+          <label htmlFor="clave-admin">
             Clave del panel
             <input
+              id="clave-admin"
               type="password"
               value={clave}
               onChange={(e) => setClave(e.target.value)}
               required
               placeholder="Ingresa la clave"
+              autoComplete="current-password"
             />
           </label>
-          {errorLogin && <p className="estado error">⚠️ {errorLogin}</p>}
+          {errorLogin && <p className="estado error" role="alert">⚠️ {errorLogin}</p>}
           <button type="submit" className="boton boton-primario" disabled={cargandoLogin}>
             {cargandoLogin ? "Verificando…" : "Ingresar"}
           </button>
@@ -719,73 +721,126 @@ function Admin() {
       </div>
 
       {/* Pestañas */}
-      <div className="admin-pestanas">
+      <div
+        className="admin-pestanas"
+        role="tablist"
+        aria-label="Secciones del panel de administrador"
+      >
         <button
           type="button"
+          role="tab"
+          id="tab-panel"
           className={pestana === "panel" ? "activa" : ""}
           onClick={() => setPestana("panel")}
+          aria-selected={pestana === "panel"}
+          aria-controls="panel-panel"
+          tabIndex={pestana === "panel" ? 0 : -1}
         >
           🍳 Panel de cocina
         </button>
         <button
           type="button"
+          role="tab"
+          id="tab-beneficiarios"
           className={pestana === "beneficiarios" ? "activa" : ""}
           onClick={() => setPestana("beneficiarios")}
+          aria-selected={pestana === "beneficiarios"}
+          aria-controls="panel-beneficiarios"
+          tabIndex={pestana === "beneficiarios" ? 0 : -1}
         >
           🎓 Beneficiarios
         </button>
         <button
           type="button"
+          role="tab"
+          id="tab-menu"
           className={pestana === "menu" ? "activa" : ""}
           onClick={() => setPestana("menu")}
+          aria-selected={pestana === "menu"}
+          aria-controls="panel-menu"
+          tabIndex={pestana === "menu" ? 0 : -1}
         >
           🍽️ Menú
         </button>
         <button
           type="button"
+          role="tab"
+          id="tab-avisos"
           className={pestana === "avisos" ? "activa" : ""}
           onClick={() => setPestana("avisos")}
+          aria-selected={pestana === "avisos"}
+          aria-controls="panel-avisos"
+          tabIndex={pestana === "avisos" ? 0 : -1}
         >
           📢 Avisos
         </button>
         <button
           type="button"
+          role="tab"
+          id="tab-galeria"
           className={pestana === "galeria" ? "activa" : ""}
           onClick={() => setPestana("galeria")}
+          aria-selected={pestana === "galeria"}
+          aria-controls="panel-galeria"
+          tabIndex={pestana === "galeria" ? 0 : -1}
         >
           🖼️ Galería
         </button>
         <button
           type="button"
+          role="tab"
+          id="tab-instituciones"
           className={pestana === "instituciones" ? "activa" : ""}
           onClick={() => setPestana("instituciones")}
+          aria-selected={pestana === "instituciones"}
+          aria-controls="panel-instituciones"
+          tabIndex={pestana === "instituciones" ? 0 : -1}
         >
           🏫 Instituciones
         </button>
         <button
           type="button"
+          role="tab"
+          id="tab-colaboradores"
           className={pestana === "colaboradores" ? "activa" : ""}
           onClick={() => setPestana("colaboradores")}
+          aria-selected={pestana === "colaboradores"}
+          aria-controls="panel-colaboradores"
+          tabIndex={pestana === "colaboradores" ? 0 : -1}
         >
           👥 Colaboradores
         </button>
         <button
           type="button"
+          role="tab"
+          id="tab-notificaciones"
           className={pestana === "notificaciones" ? "activa" : ""}
           onClick={() => setPestana("notificaciones")}
+          aria-selected={pestana === "notificaciones"}
+          aria-controls="panel-notificaciones"
+          tabIndex={pestana === "notificaciones" ? 0 : -1}
         >
           🔔 Notificaciones
         </button>
         <button
           type="button"
+          role="tab"
+          id="tab-mensajes"
           className={pestana === "mensajes" ? "activa" : ""}
           onClick={() => setPestana("mensajes")}
+          aria-selected={pestana === "mensajes"}
+          aria-controls="panel-mensajes"
+          tabIndex={pestana === "mensajes" ? 0 : -1}
         >
           ✉️ Mensajes ({mensajes.length})
         </button>
       </div>
 
-      {error && <p className="estado error">⚠️ {error}</p>}
+      {error && (
+        <p className="estado error" role="alert" aria-live="assertive">
+          ⚠️ {error}
+        </p>
+      )}
 
       {cargando && <p className="estado">Cargando…</p>}
 
@@ -910,6 +965,7 @@ function Admin() {
                       type="button"
                       className={`asistencia ${reserva.asistio ? "asistio" : ""}`}
                       onClick={() => marcarAsistencia(reserva)}
+                      aria-pressed={reserva.asistio}
                     >
                       {reserva.asistio ? "✓ Asistió" : "Marcar asistencia"}
                     </button>
@@ -924,47 +980,53 @@ function Admin() {
         <>
           <h2 className="admin-subtitulo">Registrar beneficiario</h2>
           <form className="formulario" onSubmit={registrarBeneficiario}>
-            <label>
+            <label htmlFor="doc-ben">
               Documento
               <input
+                id="doc-ben"
                 type="text"
                 value={docBen}
                 onChange={(e) => setDocBen(e.target.value)}
                 required
                 placeholder="Ej: 1234567890"
+                autoComplete="off"
               />
             </label>
-            <label>
+            <label htmlFor="nombre-ben">
               Nombre completo
               <input
+                id="nombre-ben"
                 type="text"
                 value={nombreBen}
                 onChange={(e) => setNombreBen(e.target.value)}
                 required
                 placeholder="Nombre del estudiante"
+                autoComplete="off"
               />
             </label>
             <div className="formulario-fila">
-              <label>
+              <label htmlFor="sede-ben">
                 Sede
-                <select value={sedeBen} onChange={(e) => setSedeBen(e.target.value)}>
+                <select id="sede-ben" value={sedeBen} onChange={(e) => setSedeBen(e.target.value)}>
                   <option>Sede A</option>
                   <option>Sede B</option>
                   <option>Sede C</option>
                 </select>
               </label>
-              <label>
+              <label htmlFor="turno-ben">
                 Turno
-                <select value={turnoBen} onChange={(e) => setTurnoBen(e.target.value)}>
+                <select id="turno-ben" value={turnoBen} onChange={(e) => setTurnoBen(e.target.value)}>
                   <option>Almuerzo</option>
                   <option>Refrigerio</option>
                 </select>
               </label>
-              <label>
+              <label htmlFor="grado-ben">
                 Grado
                 <select
+                  id="grado-ben"
                   value={gradoBen}
                   onChange={(e) => setGradoBen(e.target.value)}
+                  aria-describedby={gradoBen && horarioGrado(gradoBen) ? "horario-grado-ben" : undefined}
                 >
                   <option value="">Sin grado</option>
                   {GRADOS.map((grado) => (
@@ -974,14 +1036,14 @@ function Admin() {
                   ))}
                 </select>
                 {gradoBen && horarioGrado(gradoBen) && (
-                  <span className="horario-grado">
+                  <span id="horario-grado-ben" className="horario-grado">
                     Refrigerio: {horarioGrado(gradoBen)}
                   </span>
                 )}
               </label>
             </div>
-            {benError && <p className="estado error">⚠️ {benError}</p>}
-            {benExito && <p className="estado exito">{benExito}</p>}
+            {benError && <p className="estado error" role="alert">⚠️ {benError}</p>}
+            {benExito && <p className="estado exito" aria-live="polite">{benExito}</p>}
             <button type="submit" className="boton boton-primario">
               Registrar beneficiario
             </button>
@@ -1014,13 +1076,14 @@ function Admin() {
                     {b.grado ? ` · Grado ${b.grado}` : ""}
                   </span>
                 </div>
-                <button
-                  type="button"
-                  className="boton boton-secundario"
-                  onClick={() => borrarBeneficiario(b.id)}
-                >
-                  Borrar
-                </button>
+                 <button
+                   type="button"
+                   className="boton boton-secundario"
+                   onClick={() => borrarBeneficiario(b.id)}
+                   aria-label={`Borrar beneficiario ${b.nombre}`}
+                 >
+                   Borrar
+                 </button>
               </article>
             ))}
           </div>
@@ -1113,8 +1176,8 @@ function Admin() {
                 <small className="campo-fijo">✅ Imagen lista para guardar.</small>
               )}
             </label>
-            {menuError && <p className="estado error">⚠️ {menuError}</p>}
-            {menuExito && <p className="estado exito">{menuExito}</p>}
+            {menuError && <p className="estado error" role="alert">⚠️ {menuError}</p>}
+            {menuExito && <p className="estado exito" aria-live="polite">{menuExito}</p>}
             <button
               type="submit"
               className="boton boton-primario"
@@ -1166,13 +1229,14 @@ function Admin() {
                             </span>
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          className="boton boton-secundario"
-                          onClick={() => borrarPlato(plato.id)}
-                        >
-                          Borrar
-                        </button>
+                         <button
+                           type="button"
+                           className="boton boton-secundario"
+                           onClick={() => borrarPlato(plato.id)}
+                           aria-label={`Borrar plato ${plato.platillo}`}
+                         >
+                           Borrar
+                         </button>
                       </article>
                     ))}
                   </div>
@@ -1236,8 +1300,8 @@ function Admin() {
                 <small className="campo-fijo">✅ Imagen lista para publicar.</small>
               )}
             </label>
-            {avisoError && <p className="estado error">⚠️ {avisoError}</p>}
-            {avisoExito && <p className="estado exito">{avisoExito}</p>}
+            {avisoError && <p className="estado error" role="alert">⚠️ {avisoError}</p>}
+            {avisoExito && <p className="estado exito" aria-live="polite">{avisoExito}</p>}
             <button
               type="submit"
               className="boton boton-primario"
@@ -1283,6 +1347,7 @@ function Admin() {
                   type="button"
                   className="boton boton-secundario"
                   onClick={() => borrarAviso(aviso.id)}
+                  aria-label={`Borrar aviso ${aviso.titulo}`}
                 >
                   Borrar
                 </button>
@@ -1330,8 +1395,8 @@ function Admin() {
                 <small className="campo-fijo">✅ Imagen lista para publicar.</small>
               )}
             </label>
-            {galeriaError && <p className="estado error">⚠️ {galeriaError}</p>}
-            {galeriaExito && <p className="estado exito">{galeriaExito}</p>}
+            {galeriaError && <p className="estado error" role="alert">⚠️ {galeriaError}</p>}
+            {galeriaExito && <p className="estado exito" aria-live="polite">{galeriaExito}</p>}
             <button
               type="submit"
               className="boton boton-primario"
@@ -1365,6 +1430,7 @@ function Admin() {
                     type="button"
                     className="boton boton-secundario"
                     onClick={() => borrarFotoGaleria(foto.id)}
+                    aria-label={`Borrar foto ${foto.titulo}`}
                   >
                     Borrar
                   </button>
@@ -1392,8 +1458,8 @@ function Admin() {
                 placeholder="Ej: IE San José"
               />
             </label>
-            {instError && <p className="estado error">⚠️ {instError}</p>}
-            {instExito && <p className="estado exito">{instExito}</p>}
+            {instError && <p className="estado error" role="alert">⚠️ {instError}</p>}
+            {instExito && <p className="estado exito" aria-live="polite">{instExito}</p>}
             <button type="submit" className="boton boton-primario">
               Registrar institución
             </button>
@@ -1421,13 +1487,14 @@ function Admin() {
                 <div>
                   <strong>{inst.nombre}</strong>
                 </div>
-                <button
-                  type="button"
-                  className="boton boton-secundario"
-                  onClick={() => borrarInstitucion(inst.id)}
-                >
-                  Borrar
-                </button>
+                 <button
+                   type="button"
+                   className="boton boton-secundario"
+                   onClick={() => borrarInstitucion(inst.id)}
+                   aria-label={`Borrar institución ${inst.nombre}`}
+                 >
+                   Borrar
+                 </button>
               </article>
             ))}
           </div>
@@ -1462,8 +1529,8 @@ function Admin() {
                 />
               </label>
             </div>
-            {colError && <p className="estado error">⚠️ {colError}</p>}
-            {colExito && <p className="estado exito">{colExito}</p>}
+            {colError && <p className="estado error" role="alert">⚠️ {colError}</p>}
+            {colExito && <p className="estado exito" aria-live="polite">{colExito}</p>}
             <button type="submit" className="boton boton-primario">
               Registrar colaborador
             </button>
@@ -1495,13 +1562,14 @@ function Admin() {
                     {col.rol || "Sin rol"}
                   </span>
                 </div>
-                <button
-                  type="button"
-                  className="boton boton-secundario"
-                  onClick={() => borrarColaborador(col.id)}
-                >
-                  Borrar
-                </button>
+                 <button
+                   type="button"
+                   className="boton boton-secundario"
+                   onClick={() => borrarColaborador(col.id)}
+                   aria-label={`Borrar colaborador ${col.nombre}`}
+                 >
+                   Borrar
+                 </button>
               </article>
             ))}
           </div>

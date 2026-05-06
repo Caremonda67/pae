@@ -90,8 +90,8 @@ function Contacto() {
           />
         </label>
 
-        {error && <p className="estado error">⚠️ {error}</p>}
-        {exito && <p className="estado exito">{exito}</p>}
+        {error && <p className="estado error" role="alert">⚠️ {error}</p>}
+        {exito && <p className="estado exito" aria-live="polite">{exito}</p>}
 
         <button type="submit" className="boton boton-primario" disabled={enviando}>
           {enviando ? "Enviando…" : "Enviar mensaje"}

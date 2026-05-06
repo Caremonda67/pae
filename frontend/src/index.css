@@ -24,6 +24,75 @@
   box-sizing: border-box;
 }
 
+/* Saltar al contenido principal - accesibilidad */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--verde);
+  color: var(--blanco);
+  padding: 0.75rem 1.5rem;
+  border-radius: 0 0 10px 10px;
+  font-weight: 600;
+  text-decoration: none;
+  z-index: 1000;
+  transition: top 0.2s;
+}
+
+.skip-link:focus {
+  top: 0;
+}
+
+/* Elementos ocultos visualmente pero accesibles para lectores de pantalla */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Focus visible para navegación por teclado */
+:focus-visible {
+  outline: 3px solid var(--verde);
+  outline-offset: 2px;
+}
+
+/* Excepciones: inputs usan border-color, botones y enlaces usan outline */
+.boton:focus-visible,
+a:focus-visible,
+button:focus-visible,
+.sidebar-enlaces a:focus-visible,
+.admin-pestanas button:focus-visible,
+.selector-semana button:focus-visible,
+.estrella-boton:focus-visible,
+.chatbot-boton:focus-visible,
+.chatbot-input button:focus-visible,
+.buscador-admin-limpiar:focus-visible,
+.asistencia:focus-visible,
+.sidebar-boton:focus-visible,
+.sidebar-enlace-admin:focus-visible,
+.sidebar-boton-reserva:focus-visible {
+  outline: 3px solid var(--verde);
+  outline-offset: 2px;
+}
+
+/* Inputs y selects: ya usan border-color en :focus, respetamos :focus-visible */
+.formulario input:focus-visible,
+.formulario select:focus-visible,
+.formulario textarea:focus-visible,
+.valorar-documento input:focus-visible,
+.chatbot-input input:focus-visible,
+.buscador input:focus-visible {
+  outline: none;
+  border-color: var(--verde);
+}
+
 body {
   font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
   background-color: var(--crema);

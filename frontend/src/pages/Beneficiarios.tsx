@@ -67,7 +67,7 @@ function Beneficiarios() {
 
       {cargando && <p className="estado">Cargando datos…</p>}
       {error && (
-        <p className="estado error">
+        <p className="estado error" role="alert">
           ⚠️ {error}. Asegúrate de que el backend esté corriendo.
         </p>
       )}

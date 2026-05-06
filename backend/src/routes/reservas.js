@@ -335,9 +335,17 @@ router.delete("/mis/:id", async (req, res) => {
 // Actualiza el estado de una reserva (por ejemplo: asistio o no)
 // Solo administrador.
 router.put("/:id", requiereAdmin, async (req, res) => {
+  // Filtramos campos undefined/null y convertimos asistio a booleano
+  const body = {};
+  for (const [k, v] of Object.entries(req.body)) {
+    if (v !== undefined && v !== null) {
+      body[k] = v === "true" ? true : v === "false" ? false : v;
+    }
+  }
+
   const { data, error } = await getSupabase()
     .from("reservas")
-    .update(req.body)
+    .update(body)
     .eq("id", req.params.id)
     .select()
     .single();
