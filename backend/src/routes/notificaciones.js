@@ -19,7 +19,7 @@ const router = Router();
 
 // Crea una notificacion en la base y, si hay RESEND_API_KEY,
 // intenta enviar el correo. Usada al momento de reservar.
-export async function crearNotificacion({ tipo, destinatario, mensaje }) {
+export async function crearNotificacion({ tipo, destinatario, mensaje, mensajeHtml }) {
   const supabase = getSupabase();
 
   const fila = {
@@ -33,7 +33,7 @@ export async function crearNotificacion({ tipo, destinatario, mensaje }) {
   const smtpConfigurado = process.env.RESEND_API_KEY && process.env.RESEND_FROM;
 
   if (smtpConfigurado && destinatario) {
-    const enviado = await enviarEmail(destinatario, mensaje);
+    const enviado = await enviarEmail(destinatario, mensaje, mensajeHtml);
     fila.enviado = enviado;
   }
 
@@ -52,7 +52,7 @@ export async function crearNotificacion({ tipo, destinatario, mensaje }) {
 }
 
 // Envia un email con Resend (API por HTTP). Devuelve true si salio bien.
-async function enviarEmail(destinatario, mensaje) {
+async function enviarEmail(destinatario, mensaje, mensajeHtml) {
   try {
     const { Resend } = await import("resend");
 
@@ -63,6 +63,7 @@ async function enviarEmail(destinatario, mensaje) {
       to: destinatario,
       subject: "PAE · Confirmación de minuta",
       text: mensaje,
+      html: mensajeHtml || undefined,
     });
 
     if (error) {

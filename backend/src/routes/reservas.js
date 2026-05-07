@@ -287,11 +287,12 @@ router.post("/", async (req, res) => {
 
   if (error) return res.status(500).json({ error: error.message });
 
-  // Registramos una notificacion de confirmacion (email si hay SMTP)
+  // Registramos una notificacion de confirmacion (email si hay RESEND)
   crearNotificacion({
     tipo: "reserva",
     destinatario: req.body.correo || "",
-    mensaje: `Hola ${nombreFinal}, tu minuta quedó reservada para el ${fecha} (${turno} en ${sede}). ¡Te esperamos!`,
+    mensaje: armarMensajeEmail(nombreFinal, fecha, turno, sede),
+    mensajeHtml: armarMensajeEmailHtml(nombreFinal, fecha, turno, sede),
   });
 
   res.status(201).json(data);
@@ -361,5 +362,61 @@ router.delete("/:id", requiereAdmin, async (req, res) => {
   if (error) return res.status(500).json({ error: error.message });
   res.status(204).end();
 });
+
+// Formatea una fecha YYYY-MM-DD a algo legible: "sábado, 8 de agosto"
+export function fechalegible(fecha) {
+  const [año, mes, dia] = fecha.split("-").map(Number);
+  const f = new Date(año, mes - 1, dia);
+  return new Intl.DateTimeFormat("es-CO", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }).format(f);
+}
+
+// Version en texto plano del correo (para clientes de email simples)
+export function armarMensajeEmail(nombre, fecha, turno, sede) {
+  const fechaL = fechalegible(fecha);
+  return [
+    `¡Hola ${nombre}!`,
+    "",
+    "Tu minuta quedó reservada y la cocina ya te está esperando. 😊",
+    "",
+    `   📅 Fecha: ${fechaL}`,
+    `   🍽️  Turno: ${turno}`,
+    `   🏫 Sede: ${sede}`,
+    "",
+    "Recuerda asistir el día señalado: cada reserva que no se usa es comida que se desperdicia.",
+    "Si al final no puedes ir, cancela tu reserva desde la página para que otra persona pueda aprovecharla.",
+    "",
+    "¡Gracias por ayudarnos a reducir el desperdicio de alimentos!",
+    "— Equipo PAE",
+  ].join("\n");
+}
+
+// Version HTML del correo (bonita, con estructura)
+export function armarMensajeEmailHtml(nombre, fecha, turno, sede) {
+  const fechaL = fechalegible(fecha);
+  const fila = (etiqueta, valor) =>
+    `<tr><td style="padding:6px 0;color:#666;width:90px;">${etiqueta}</td><td style="padding:6px 0;font-weight:600;color:#1f2937;">${valor}</td></tr>`;
+  return `
+<div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
+  <div style="background:#2e9e6b;padding:20px 24px;">
+    <div style="font-size:28px;">🍽️</div>
+    <div style="color:#ffffff;font-size:18px;font-weight:bold;">PAE · Reserva confirmada</div>
+  </div>
+  <div style="padding:24px;">
+    <p style="color:#1f2937;font-size:15px;line-height:1.6;">¡Hola <strong>${nombre}</strong>! Tu minuta quedó reservada y la cocina ya te está esperando. 😊</p>
+    <table style="width:100%;margin:16px 0;border-collapse:collapse;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;padding:8px 16px;">
+      ${fila("📅 Fecha", fechaL)}
+      ${fila("🍽️ Turno", turno)}
+      ${fila("🏫 Sede", sede)}
+    </table>
+    <p style="color:#4b5563;font-size:14px;line-height:1.6;">Recuerda asistir el día señalado: cada reserva que no se usa es comida que se desperdicia. Si no puedes ir, cancela tu reserva desde la página para que otra persona pueda aprovecharla.</p>
+    <p style="color:#4b5563;font-size:14px;line-height:1.6;">¡Gracias por ayudarnos a reducir el desperdicio de alimentos!</p>
+    <p style="color:#9ca3af;font-size:12px;margin-top:16px;border-top:1px solid #e5e7eb;padding-top:12px;">— Equipo PAE</p>
+  </div>
+</div>`;
+}
 
 export default router;
