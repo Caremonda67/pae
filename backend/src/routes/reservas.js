@@ -243,7 +243,7 @@ router.post("/", async (req, res) => {
   // Asi la reserva solo la pueden hacer estudiantes matriculados.
   const { data: beneficiario, error: errBen } = await getSupabase()
     .from("beneficiarios")
-    .select("nombre, documento")
+    .select("nombre, documento, grado")
     .eq("documento", String(documento).trim())
     .maybeSingle();
 
@@ -281,7 +281,7 @@ router.post("/", async (req, res) => {
 
   const { data, error } = await getSupabase()
     .from("reservas")
-    .insert([{ estudiante: nombreFinal, documento, sede, turno, fecha }])
+    .insert([{ estudiante: nombreFinal, documento, sede, turno, fecha, grado: beneficiario.grado || null }])
     .select()
     .single();
 

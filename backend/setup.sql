@@ -42,11 +42,15 @@ create table if not exists reservas (
   turno text not null,
   fecha date not null,
   asistio boolean default false,
+  grado text,
   created_at timestamptz default now()
 );
 
 -- Si la tabla ya existia sin la columna de asistencia, se agrega aca
 alter table reservas add column if not exists asistio boolean default false;
+
+-- El grado se guarda en cada reserva para saber el horario de su turno
+alter table reservas add column if not exists grado text;
 
 -- 3. Tabla de contactos: mensajes del formulario de contacto
 create table if not exists contactos (
@@ -145,6 +149,10 @@ create policy "menus_lectura_publica" on menus
 drop policy if exists "menus_escritura_admin" on menus;
 create policy "menus_escritura_admin" on menus
   for insert with check (true);
+-- Permite al admin eliminar platos del menu desde el panel
+drop policy if exists "menus_borrado_admin" on menus;
+create policy "menus_borrado_admin" on menus
+  for delete using (true);
 
 alter table reservas enable row level security;
 drop policy if exists "reservas_lectura" on reservas;

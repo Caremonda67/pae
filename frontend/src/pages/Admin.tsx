@@ -12,6 +12,7 @@
 // - mensajes: los que llegan por el formulario de contacto
 
 import { useEffect, useState } from "react";
+import { estadoReserva } from "../config/horarios";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
@@ -40,6 +41,7 @@ interface Reserva {
   turno: string;
   fecha: string;
   asistio: boolean;
+  grado?: string | null;
 }
 
 interface TotalFecha {
@@ -857,23 +859,30 @@ function Admin() {
             {reservas
               .slice()
               .sort((a, b) => (a.fecha < b.fecha ? -1 : 1))
-              .map((reserva) => (
-                <article key={reserva.id} className="fila-reserva">
-                  <div>
-                    <strong>{reserva.estudiante}</strong>
-                    <span className="fila-reserva-detalle">
-                      {reserva.sede} · {reserva.turno} · {reserva.fecha}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    className={`asistencia ${reserva.asistio ? "asistio" : ""}`}
-                    onClick={() => marcarAsistencia(reserva)}
-                  >
-                    {reserva.asistio ? "✓ Asistió" : "Marcar asistencia"}
-                  </button>
-                </article>
-              ))}
+              .map((reserva) => {
+                const estado = estadoReserva(reserva);
+                return (
+                  <article key={reserva.id} className="fila-reserva">
+                    <div>
+                      <strong>{reserva.estudiante}</strong>
+                      <span className="fila-reserva-detalle">
+                        {reserva.sede} · {reserva.turno} · {reserva.fecha}
+                        {reserva.grado ? ` · Grado ${reserva.grado}` : ""}
+                      </span>
+                      <span className={`estado-reserva ${estado}`}>
+                        {estado === "completada" ? "✓ Completada" : "⏳ Pendiente"}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className={`asistencia ${reserva.asistio ? "asistio" : ""}`}
+                      onClick={() => marcarAsistencia(reserva)}
+                    >
+                      {reserva.asistio ? "✓ Asistió" : "Marcar asistencia"}
+                    </button>
+                  </article>
+                );
+              })}
           </div>
         </>
       )}
