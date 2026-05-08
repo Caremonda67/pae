@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Sidebar from "./components/Sidebar";
 import Chatbot from "./components/Chatbot";
+import InstalarApp from "./components/InstalarApp";
 import Home from "./pages/Home";
 import Sobre from "./pages/Sobre";
 import Menu from "./pages/Menu";
@@ -38,6 +39,7 @@ function App() {
         </main>
       </div>
       <Chatbot />
+      <InstalarApp />
     </BrowserRouter>
   );
 }
