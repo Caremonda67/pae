@@ -12,7 +12,9 @@
 // - mensajes: los que llegan por el formulario de contacto
 
 import { useEffect, useState } from "react";
-import { estadoReserva } from "../config/horarios";
+import Buscador from "../components/Buscador";
+import { coincide } from "../config/busqueda";
+import { estadoReserva, GRADOS, horarioGrado } from "../config/horarios";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
@@ -223,6 +225,17 @@ function Admin() {
 
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
+
+  // busquedas de cada pestana (se filtra en el navegador)
+  const [busquedaReservas, setBusquedaReservas] = useState("");
+  const [busquedaBeneficiarios, setBusquedaBeneficiarios] = useState("");
+  const [busquedaMenu, setBusquedaMenu] = useState("");
+  const [busquedaAvisos, setBusquedaAvisos] = useState("");
+  const [busquedaGaleria, setBusquedaGaleria] = useState("");
+  const [busquedaInstituciones, setBusquedaInstituciones] = useState("");
+  const [busquedaColaboradores, setBusquedaColaboradores] = useState("");
+  const [busquedaNotificaciones, setBusquedaNotificaciones] = useState("");
+  const [busquedaMensajes, setBusquedaMensajes] = useState("");
 
   // Pide el token al backend comparando la clave con ADMIN_CLAVE
   const entrar = async (e: React.FormEvent) => {
@@ -855,10 +868,20 @@ function Admin() {
           {reservas.length === 0 && (
             <p className="estado">Aún no hay reservas registradas.</p>
           )}
+          <Buscador
+            valor={busquedaReservas}
+            alCambiar={setBusquedaReservas}
+            placeholder="Buscar por estudiante, documento, sede, turno o fecha…"
+          />
           <div className="lista-reservas">
             {reservas
               .slice()
               .sort((a, b) => (a.fecha < b.fecha ? -1 : 1))
+              .filter((reserva) => {
+                if (!busquedaReservas.trim()) return true;
+                const texto = `${reserva.estudiante} ${reserva.documento} ${reserva.sede} ${reserva.turno} ${reserva.fecha} ${reserva.grado || ""}`;
+                return coincide(texto, busquedaReservas);
+              })
               .map((reserva) => {
                 const estado = estadoReserva(reserva);
                 return (
@@ -928,13 +951,23 @@ function Admin() {
                 </select>
               </label>
               <label>
-                Grado (opcional)
-                <input
-                  type="text"
+                Grado
+                <select
                   value={gradoBen}
                   onChange={(e) => setGradoBen(e.target.value)}
-                  placeholder="Ej: 5"
-                />
+                >
+                  <option value="">Sin grado</option>
+                  {GRADOS.map((grado) => (
+                    <option key={grado} value={grado}>
+                      {grado}
+                    </option>
+                  ))}
+                </select>
+                {gradoBen && horarioGrado(gradoBen) && (
+                  <span className="horario-grado">
+                    Refrigerio: {horarioGrado(gradoBen)}
+                  </span>
+                )}
               </label>
             </div>
             {benError && <p className="estado error">⚠️ {benError}</p>}
@@ -950,8 +983,19 @@ function Admin() {
           {beneficiarios.length === 0 && (
             <p className="estado">Aún no hay beneficiarios registrados.</p>
           )}
+          <Buscador
+            valor={busquedaBeneficiarios}
+            alCambiar={setBusquedaBeneficiarios}
+            placeholder="Buscar por nombre, documento, sede, turno o grado…"
+          />
           <div className="lista-reservas">
-            {beneficiarios.map((b) => (
+            {beneficiarios
+              .filter((b) => {
+                if (!busquedaBeneficiarios.trim()) return true;
+                const texto = `${b.nombre} ${b.documento} ${b.sede} ${b.turno} ${b.grado || ""}`;
+                return coincide(texto, busquedaBeneficiarios);
+              })
+              .map((b) => (
               <article key={b.id} className="fila-reserva">
                 <div>
                   <strong>{b.nombre}</strong>
@@ -1074,14 +1118,26 @@ function Admin() {
           {menu.length === 0 && (
             <p className="estado">El menú está vacío. Agrega los platos de la semana.</p>
           )}
+          <Buscador
+            valor={busquedaMenu}
+            alCambiar={setBusquedaMenu}
+            placeholder="Buscar por comida, descripción, día, jornada…"
+          />
           <div className="lista-reservas">
             {menu.map((semana) => (
               <div key={semana.semana} className="menu-semana-admin">
                 <h3>Semana {semana.semana} del mes</h3>
-                {semana.dias.map((dia) => (
-                  <div key={dia.dia} className="menu-dia-admin">
-                    <h4>{dia.dia}</h4>
-                    {dia.platos.map((plato) => (
+                {semana.dias.map((dia) => {
+                  const platosFiltrados = dia.platos.filter((plato) => {
+                    if (!busquedaMenu.trim()) return true;
+                    const texto = `${plato.platillo} ${plato.descripcion} ${plato.jornada || ""} ${plato.calorias || ""} ${dia.dia} semana ${semana.semana}`;
+                    return coincide(texto, busquedaMenu);
+                  });
+                  if (platosFiltrados.length === 0) return null;
+                  return (
+                    <div key={dia.dia} className="menu-dia-admin">
+                      <h4>{dia.dia}</h4>
+                      {platosFiltrados.map((plato) => (
                       <article key={plato.id} className="fila-reserva">
                         <div className="fila-menu-contenido">
                           {plato.imagen && (
@@ -1110,7 +1166,8 @@ function Admin() {
                       </article>
                     ))}
                   </div>
-                ))}
+                );
+                })}
               </div>
             ))}
           </div>
@@ -1182,8 +1239,19 @@ function Admin() {
 
           <h2 className="admin-subtitulo">Avisos publicados</h2>
           {avisos.length === 0 && <p className="estado">No hay avisos.</p>}
+          <Buscador
+            valor={busquedaAvisos}
+            alCambiar={setBusquedaAvisos}
+            placeholder="Buscar por título o texto…"
+          />
           <div className="lista-avisos-admin">
-            {avisos.map((aviso) => (
+            {avisos
+              .filter((aviso) => {
+                if (!busquedaAvisos.trim()) return true;
+                const texto = `${aviso.titulo} ${aviso.texto} ${aviso.fecha || ""}`;
+                return coincide(texto, busquedaAvisos);
+              })
+              .map((aviso) => (
               <article key={aviso.id} className="fila-aviso-admin">
                 <div className="fila-menu-contenido">
                   {aviso.imagen && (
@@ -1267,8 +1335,18 @@ function Admin() {
           {galeria.length === 0 && (
             <p className="estado">Aún no hay fotos en la galería.</p>
           )}
+          <Buscador
+            valor={busquedaGaleria}
+            alCambiar={setBusquedaGaleria}
+            placeholder="Buscar por título…"
+          />
           <div className="galeria-admin">
-            {galeria.map((foto) => (
+            {galeria
+              .filter((foto) => {
+                if (!busquedaGaleria.trim()) return true;
+                return coincide(foto.titulo, busquedaGaleria);
+              })
+              .map((foto) => (
               <article key={foto.id} className="fila-galeria-admin">
                 <img src={foto.imagen} alt={foto.titulo} />
                 <div className="fila-galeria-info">
@@ -1317,8 +1395,18 @@ function Admin() {
           {instituciones.length === 0 && (
             <p className="estado">Aún no hay instituciones registradas.</p>
           )}
+          <Buscador
+            valor={busquedaInstituciones}
+            alCambiar={setBusquedaInstituciones}
+            placeholder="Buscar por nombre…"
+          />
           <div className="lista-reservas">
-            {instituciones.map((inst) => (
+            {instituciones
+              .filter((inst) => {
+                if (!busquedaInstituciones.trim()) return true;
+                return coincide(inst.nombre, busquedaInstituciones);
+              })
+              .map((inst) => (
               <article key={inst.id} className="fila-reserva">
                 <div>
                   <strong>{inst.nombre}</strong>
@@ -1377,8 +1465,19 @@ function Admin() {
           {colaboradores.length === 0 && (
             <p className="estado">Aún no hay colaboradores registrados.</p>
           )}
+          <Buscador
+            valor={busquedaColaboradores}
+            alCambiar={setBusquedaColaboradores}
+            placeholder="Buscar por nombre o rol…"
+          />
           <div className="lista-reservas">
-            {colaboradores.map((col) => (
+            {colaboradores
+              .filter((col) => {
+                if (!busquedaColaboradores.trim()) return true;
+                const texto = `${col.nombre} ${col.rol || ""}`;
+                return coincide(texto, busquedaColaboradores);
+              })
+              .map((col) => (
               <article key={col.id} className="fila-reserva">
                 <div>
                   <strong>{col.nombre}</strong>
@@ -1408,8 +1507,19 @@ function Admin() {
             <p className="estado">Aún no hay notificaciones. Cuando un estudiante
               reserve, la confirmación aparece aquí.</p>
           )}
+          <Buscador
+            valor={busquedaNotificaciones}
+            alCambiar={setBusquedaNotificaciones}
+            placeholder="Buscar por tipo, destinatario o mensaje…"
+          />
           <div className="lista-mensajes">
-            {notificaciones.map((nota) => (
+            {notificaciones
+              .filter((nota) => {
+                if (!busquedaNotificaciones.trim()) return true;
+                const texto = `${nota.tipo} ${nota.destinatario || ""} ${nota.mensaje || ""}`;
+                return coincide(texto, busquedaNotificaciones);
+              })
+              .map((nota) => (
               <article key={nota.id} className="fila-mensaje">
                 <div>
                   <strong>{nota.tipo} {nota.enviado ? "· ✅ enviada" : "· ⏳ pendiente"}</strong>
@@ -1431,8 +1541,19 @@ function Admin() {
           {mensajes.length === 0 && (
             <p className="estado">Aún no hay mensajes de contacto.</p>
           )}
+          <Buscador
+            valor={busquedaMensajes}
+            alCambiar={setBusquedaMensajes}
+            placeholder="Buscar por nombre, correo o mensaje…"
+          />
           <div className="lista-mensajes">
-            {mensajes.map((mensaje) => (
+            {mensajes
+              .filter((mensaje) => {
+                if (!busquedaMensajes.trim()) return true;
+                const texto = `${mensaje.nombre} ${mensaje.correo} ${mensaje.mensaje}`;
+                return coincide(texto, busquedaMensajes);
+              })
+              .map((mensaje) => (
               <article key={mensaje.id} className="fila-mensaje">
                 <div>
                   <strong>{mensaje.nombre}</strong>
