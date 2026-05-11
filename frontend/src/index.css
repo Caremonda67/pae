@@ -622,6 +622,15 @@ h1 {
   align-items: center;
   padding: 0.35rem 0;
   border-top: 1px dashed var(--borde);
+  min-width: 0;
+}
+
+.fila-menu-jornada > span,
+.grupo-menu-dia > span,
+.grupo-menu-platos {
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .fila-menu-jornada:first-child {
@@ -689,6 +698,31 @@ h1 {
   color: var(--verde-oscuro);
   font-size: 0.9rem;
   text-align: center;
+}
+
+/* Estado vacio de la galeria */
+.galeria-vacia {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  text-align: center;
+  background-color: var(--blanco);
+  border: 2px dashed var(--borde);
+  border-radius: var(--radio);
+  padding: 2.5rem 1.5rem;
+  box-shadow: var(--sombra);
+}
+
+.galeria-vacia-icono {
+  font-size: 3rem;
+  line-height: 1;
+}
+
+.galeria-vacia-texto {
+  color: var(--texto-suave);
+  max-width: 320px;
 }
 
 /* Cita */
@@ -1989,6 +2023,12 @@ h1 {
   }
 
   .fila-menu {
+    grid-template-columns: 1fr;
+    gap: 0.2rem;
+  }
+
+  .grupo-menu-dia,
+  .fila-menu-jornada {
     grid-template-columns: 1fr;
     gap: 0.2rem;
   }
