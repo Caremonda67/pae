@@ -23,9 +23,9 @@ router.get("/", async (_req, res) => {
 
 // POST /api/galeria
 // Guarda una foto nueva (solo admin)
-// Cuerpo esperado: { titulo, imagen }
+// Cuerpo esperado: { titulo, imagen, descripcion }
 router.post("/", requiereAdmin, async (req, res) => {
-  const { titulo, imagen } = req.body;
+  const { titulo, imagen, descripcion } = req.body;
 
   if (!titulo || !imagen) {
     return res.status(400).json({ error: "Faltan el título o la imagen" });
@@ -33,7 +33,7 @@ router.post("/", requiereAdmin, async (req, res) => {
 
   const { data, error } = await getSupabase()
     .from("galeria")
-    .insert([{ titulo, imagen }])
+    .insert([{ titulo, imagen, descripcion: descripcion || null }])
     .select()
     .single();
 

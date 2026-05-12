@@ -698,6 +698,15 @@ h1 {
   color: var(--verde-oscuro);
   font-size: 0.9rem;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.galeria-item figcaption .galeria-descripcion {
+  font-weight: 400;
+  font-size: 0.82rem;
+  color: var(--texto-suave);
 }
 
 /* Estado vacio de la galeria */
@@ -2033,34 +2042,6 @@ h1 {
     gap: 0.2rem;
   }
 
-  /* Comida del dia: en movil una sola columna, centrado y sin desbordes */
-  .comida-dia {
-    padding: 1.5rem 1.2rem;
-    text-align: center;
-  }
-
-  .comida-dia .seccion-titulo {
-    align-items: center;
-  }
-
-  .comida-dia-lista {
-    grid-template-columns: 1fr;
-  }
-
-  .comida-dia-info {
-    align-items: center;
-  }
-
-  .comida-dia-info p,
-  .comida-dia-info h3 {
-    text-align: center;
-  }
-
-  .comida-dia .boton-primario {
-    display: block;
-    margin: 0 auto;
-  }
-
   .plato {
     padding: 1rem;
   }
@@ -2485,5 +2466,38 @@ img {
   .barra-fila {
     grid-template-columns: 1fr;
     gap: 0.3rem;
+  }
+}
+
+/* ============================================================
+   Comida del dia: en movil una sola columna, centrado y sin
+   desbordes. Va al final para ganarle a las reglas base.
+   ============================================================ */
+@media (max-width: 900px) {
+  .comida-dia {
+    padding: 1.5rem 1.2rem;
+    text-align: center;
+  }
+
+  .comida-dia .seccion-titulo {
+    align-items: center;
+  }
+
+  .comida-dia-lista {
+    grid-template-columns: 1fr;
+  }
+
+  .comida-dia-info {
+    align-items: center;
+  }
+
+  .comida-dia-info p,
+  .comida-dia-info h3 {
+    text-align: center;
+  }
+
+  .comida-dia .boton-primario {
+    display: block;
+    margin: 0 auto;
   }
 }

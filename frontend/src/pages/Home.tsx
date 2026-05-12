@@ -59,6 +59,7 @@ interface FotoGaleria {
   id: number;
   titulo: string;
   imagen: string;
+  descripcion?: string;
 }
 
 function Home() {
@@ -202,6 +203,7 @@ function Home() {
     id: `g-${f.id}`,
     titulo: f.titulo,
     imagen: f.imagen,
+    descripcion: f.descripcion,
   })).slice(0, 6);
 
   return (
@@ -498,7 +500,12 @@ function Home() {
             {fotosGaleria.map((foto) => (
               <figure key={foto.id} className="galeria-item">
                 <img src={foto.imagen} alt={foto.titulo} loading="lazy" />
-                <figcaption>{foto.titulo}</figcaption>
+                <figcaption>
+                  <span className="galeria-titulo">{foto.titulo}</span>
+                  {foto.descripcion && (
+                    <span className="galeria-descripcion">{foto.descripcion}</span>
+                  )}
+                </figcaption>
               </figure>
             ))}
           </div>

@@ -115,6 +115,7 @@ interface FotoGaleria {
   id: number;
   titulo: string;
   imagen: string;
+  descripcion?: string;
 }
 
 interface Mensaje {
@@ -188,6 +189,7 @@ function Admin() {
 
   // formulario de foto de galeria
   const [tituloGaleria, setTituloGaleria] = useState("");
+  const [descripcionGaleria, setDescripcionGaleria] = useState("");
   const [imagenGaleria, setImagenGaleria] = useState("");
   const [subiendoImagenGaleria, setSubiendoImagenGaleria] = useState(false);
   const [galeriaError, setGaleriaError] = useState("");
@@ -534,13 +536,18 @@ function Admin() {
       const respuesta = await fetch(`${API_URL}/api/galeria`, {
         method: "POST",
         headers: cabeceras(leerToken()),
-        body: JSON.stringify({ titulo: tituloGaleria, imagen: imagenGaleria }),
+        body: JSON.stringify({
+          titulo: tituloGaleria,
+          imagen: imagenGaleria,
+          descripcion: descripcionGaleria,
+        }),
       });
       if (!respuesta.ok) {
         const datos = await respuesta.json().catch(() => null);
         throw new Error(datos?.error || "No se pudo guardar la foto");
       }
       setTituloGaleria("");
+      setDescripcionGaleria("");
       setImagenGaleria("");
       setGaleriaExito("✅ Foto publicada en la galería de la página de inicio.");
       cargarDatos();
@@ -1376,6 +1383,15 @@ function Admin() {
               />
             </label>
             <label>
+              Descripción
+              <textarea
+                value={descripcionGaleria}
+                onChange={(e) => setDescripcionGaleria(e.target.value)}
+                rows={3}
+                placeholder="Ej: Estudiantes disfrutando el refrigerio de la semana"
+              />
+            </label>
+            <label>
               Imagen
               <input
                 type="file"
@@ -1419,13 +1435,17 @@ function Admin() {
             {galeria
               .filter((foto) => {
                 if (!busquedaGaleria.trim()) return true;
-                return coincide(foto.titulo, busquedaGaleria);
+                return (
+                  coincide(foto.titulo, busquedaGaleria) ||
+                  coincide(foto.descripcion || "", busquedaGaleria)
+                );
               })
               .map((foto) => (
               <article key={foto.id} className="fila-galeria-admin">
                 <img src={foto.imagen} alt={foto.titulo} />
                 <div className="fila-galeria-info">
                   <strong>{foto.titulo}</strong>
+                  {foto.descripcion && <small>{foto.descripcion}</small>}
                   <button
                     type="button"
                     className="boton boton-secundario"
