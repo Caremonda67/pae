@@ -482,7 +482,7 @@ function Home() {
       <section className="seccion-pae">
         <div className="seccion-titulo">
           <h2>Galería</h2>
-          <Link to="/noticias" className="enlace-ver">
+          <Link to="/galeria" className="enlace-ver">
             Ver más →
           </Link>
         </div>
