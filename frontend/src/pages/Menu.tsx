@@ -140,14 +140,17 @@ function Menu() {
   // Dibuja las estrellas (llenas o vacias segun el promedio)
   const dibujarEstrellas = (valoracion: number | null | undefined) => {
     const valor = valoracion ?? 0;
+    const redondeado = Math.round(valor);
     return (
       <span className="estrellas-mostrar">
-        {ESTRELLAS.map((n) => (
-          <span key={n} className={n <= Math.round(valor) ? "estrella-llena" : "estrella-vacia"}>
-            ★
-          </span>
-        ))}
-        {valor > 0 && <small> {valor.toFixed(1)}</small>}
+        <span aria-label={`${valor.toFixed(1)} de 5 estrellas`}>
+          {ESTRELLAS.map((n) => (
+            <span key={n} className={n <= redondeado ? "estrella-llena" : "estrella-vacia"}>
+              ★
+            </span>
+          ))}
+        </span>
+        {valor > 0 && <small> ({valor.toFixed(1)})</small>}
       </span>
     );
   };
@@ -165,6 +168,8 @@ function Menu() {
       <span
         className="estrellas-calificar"
         onMouseLeave={() => setPrevia(null)}
+        role="radiogroup"
+        aria-label={`Calificar plato con ${sombreadas} de 5 estrellas`}
       >
         {ESTRELLAS.map((n) => (
           <button
@@ -172,6 +177,7 @@ function Menu() {
             type="button"
             className={`estrella-boton ${n <= sombreadas ? "llena" : ""}`}
             title={`${n} estrella${n === 1 ? "" : "s"}`}
+            aria-label={`Calificar con ${n} estrella${n === 1 ? "" : "s"}`}
             disabled={valorando === platoId}
             onMouseEnter={() => setPrevia({ platoId, valor: n })}
             onClick={() => {
@@ -200,7 +206,7 @@ function Menu() {
 
       {/* Estado de error */}
       {error && (
-        <p className="estado error">
+        <p className="estado error" role="alert">
           ⚠️ {error}. Asegúrate de que el backend esté corriendo.
         </p>
       )}
@@ -216,6 +222,7 @@ function Menu() {
                 type="button"
                 className={semana === semanaActiva ? "activa" : ""}
                 onClick={() => setSemanaActiva(semana)}
+                aria-pressed={semana === semanaActiva}
               >
                 Semana {semana}
               </button>
@@ -234,7 +241,11 @@ function Menu() {
           </label>
 
           {mensaje && (
-            <p className={`estado ${mensaje.tipo}`}>
+            <p
+              className={`estado ${mensaje.tipo}`}
+              role={mensaje.tipo === "error" ? "alert" : "status"}
+              aria-live={mensaje.tipo === "error" ? "assertive" : "polite"}
+            >
               {mensaje.tipo === "exito" ? "✅ " : "⚠️ "}
               {mensaje.texto}
             </p>

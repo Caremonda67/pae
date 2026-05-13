@@ -78,14 +78,16 @@ function Chatbot() {
         type="button"
         className="chatbot-boton"
         onClick={() => setAbierto(!abierto)}
-        aria-label="Abrir chatbot"
+        aria-label={abierto ? "Cerrar chatbot" : "Abrir chatbot"}
+        aria-expanded={abierto}
+        aria-controls="chatbot-ventana"
       >
         {abierto ? "✕" : "💬"}
       </button>
 
       {/* Ventana del chat */}
       {abierto && (
-        <div className="chatbot-ventana">
+        <div id="chatbot-ventana" className="chatbot-ventana" role="dialog" aria-label="Chat con PAE Bot" aria-modal="true">
           <div className="chatbot-cabecera">
             <span className="chatbot-avatar" aria-hidden="true">
               🤖
@@ -96,7 +98,7 @@ function Chatbot() {
             </div>
           </div>
 
-          <div className="chatbot-mensajes">
+          <div className="chatbot-mensajes" aria-live="polite" aria-relevant="additions">
             {mensajes.map((mensaje, indice) => (
               <div key={indice} className={`chat-burbuja ${mensaje.rol}`}>
                 {mensaje.texto}
@@ -105,20 +107,27 @@ function Chatbot() {
 
             {escribiendo && (
               <div className="chat-burbuja bot">
-                <span className="chat-puntos">● ● ●</span>
+                <span className="chat-puntos" aria-label="Escribiendo">
+                  ● ● ●
+                </span>
               </div>
             )}
 
-            {error && <p className="chat-error">⚠️ {error}</p>}
+            {error && <p className="chat-error" role="alert">⚠️ {error}</p>}
           </div>
 
           <form className="chatbot-input" onSubmit={enviar}>
+            <label htmlFor="chat-mensaje" className="sr-only">
+              Escribe tu pregunta
+            </label>
             <input
+              id="chat-mensaje"
               type="text"
               value={texto}
               onChange={(e) => setTexto(e.target.value)}
               placeholder="Pregunta por el menú..."
               disabled={escribiendo}
+              aria-autocomplete="none"
             />
             <button type="submit" disabled={escribiendo} aria-label="Enviar">
               ➤

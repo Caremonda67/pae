@@ -42,7 +42,7 @@ function Noticias() {
       </p>
 
       {cargando && <p className="estado">Cargando avisos…</p>}
-      {error && <p className="estado error">⚠️ {error}</p>}
+      {error && <p className="estado error" role="alert">⚠️ {error}</p>}
 
       {!cargando && !error && (
         <div className="lista-noticias">

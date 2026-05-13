@@ -324,7 +324,7 @@ function Reserva() {
             ))}
           </select>
           {beneficiarioConfirmado && (
-            <small className="campo-fijo">Tu sede ya está registrada</small>
+            <small className="campo-fijo" aria-live="polite">Tu sede ya está registrada</small>
           )}
         </label>
 
@@ -375,8 +375,9 @@ function Reserva() {
           <a
             href={whatsappLink()}
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
             className="boton boton-whatsapp"
+            aria-label="Abrir WhatsApp para compartir la confirmación de la reserva"
           >
             💬 Compartir confirmación por WhatsApp
           </a>
