@@ -8,6 +8,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import Lightbox from "../components/Lightbox";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
@@ -79,7 +80,12 @@ function Home() {
   const [avisos, setAvisos] = useState<Aviso[]>([]);
   // Fotos propias de la galeria (publicadas por el administrador)
   const [galeria, setGaleria] = useState<FotoGaleria[]>([]);
-  const [buscador, setBuscador] = useState("");
+  // Foto abierta en grande (lightbox de la galeria)
+  const [fotoAbierta, setFotoAbierta] = useState<{
+    imagen: string;
+    titulo: string;
+    descripcion?: string;
+  } | null>(null);  const [buscador, setBuscador] = useState("");
   const [buscadorAbierto, setBuscadorAbierto] = useState(false);
   // referencia al contenedor del buscador para detectar clic fuera
   const buscadorRef = useRef<HTMLDivElement>(null);
@@ -498,7 +504,11 @@ function Home() {
         ) : (
           <div className="galeria">
             {fotosGaleria.map((foto) => (
-              <figure key={foto.id} className="galeria-item">
+              <figure
+                key={foto.id}
+                className="galeria-item"
+                onClick={() => setFotoAbierta(foto)}
+              >
                 <img src={foto.imagen} alt={foto.titulo} loading="lazy" />
                 <figcaption>
                   <span className="galeria-titulo">{foto.titulo}</span>
@@ -511,6 +521,15 @@ function Home() {
           </div>
         )}
       </section>
+
+      {fotoAbierta && (
+        <Lightbox
+          imagen={fotoAbierta.imagen}
+          titulo={fotoAbierta.titulo}
+          descripcion={fotoAbierta.descripcion}
+          alCerrar={() => setFotoAbierta(null)}
+        />
+      )}
 
       {/* ===== CITA ===== */}
       <section className="cita">

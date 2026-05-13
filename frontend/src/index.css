@@ -734,6 +734,81 @@ h1 {
   max-width: 320px;
 }
 
+/* Fotos de la galeria en grande (lightbox) */
+.galeria-item img {
+  cursor: zoom-in;
+}
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  background-color: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  cursor: zoom-out;
+}
+
+.lightbox-cerrar {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background-color: rgba(255, 255, 255, 0.15);
+  color: var(--blanco);
+  border: none;
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  z-index: 501;
+}
+
+.lightbox-cerrar:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.lightbox-contenido {
+  margin: 0;
+  max-width: min(92vw, 1000px);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  cursor: default;
+}
+
+.lightbox-contenido img {
+  max-width: 100%;
+  max-height: 78vh;
+  object-fit: contain;
+  border-radius: 12px;
+  display: block;
+  margin: 0 auto;
+  cursor: zoom-out;
+}
+
+.lightbox-contenido figcaption {
+  text-align: center;
+  color: var(--blanco);
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.lightbox-contenido .galeria-titulo {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.lightbox-contenido .galeria-descripcion {
+  font-weight: 400;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
 /* Cita */
 .cita {
   background-color: var(--verde-oscuro);
@@ -1832,6 +1907,16 @@ h1 {
   }
 }
 
+/* En escritorio la sidebar ocupa la izquierda: el boton se va abajo a la
+   derecha para no tapar el enlace de administrador de la sidebar */
+@media (min-width: 901px) {
+  .instalar-app {
+    left: auto;
+    right: 1.5rem;
+    align-items: flex-end;
+  }
+}
+
 /* ============================================================
    Skeletons (carga esqueletica) y animaciones
    ============================================================ */
@@ -2158,7 +2243,7 @@ h1 {
 
 .comida-dia-lista {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(460px, 1fr));
   gap: 1.4rem;
   margin: 1.5rem 0;
 }
@@ -2168,13 +2253,14 @@ h1 {
   border-radius: 16px;
   overflow: hidden;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: minmax(240px, 38%) 1fr;
+  min-width: 0;
 }
 
 .comida-dia-imagen {
   width: 100%;
-  aspect-ratio: 16 / 9;
+  height: 100%;
   object-fit: cover;
   object-position: center;
   display: block;
@@ -2186,6 +2272,7 @@ h1 {
   justify-content: center;
   background-color: var(--crema);
   font-size: 4rem;
+  height: 100%;
 }
 
 .comida-dia-info {
@@ -2193,6 +2280,8 @@ h1 {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
+  justify-content: center;
+  min-width: 0;
 }
 
 .comida-dia-jornada {
@@ -2487,8 +2576,24 @@ img {
     grid-template-columns: 1fr;
   }
 
+  .comida-dia-tarjeta {
+    grid-template-columns: 1fr;
+  }
+
+  .comida-dia-imagen {
+    aspect-ratio: 16 / 9;
+    height: auto;
+    width: 100%;
+  }
+
+  .comida-dia-sin-foto {
+    aspect-ratio: 16 / 9;
+    height: auto;
+  }
+
   .comida-dia-info {
     align-items: center;
+    justify-content: flex-start;
   }
 
   .comida-dia-info p,

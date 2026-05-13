@@ -5,6 +5,7 @@
 
 import { useEffect, useState } from "react";
 import Buscador from "../components/Buscador";
+import Lightbox from "../components/Lightbox";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
@@ -31,6 +32,7 @@ function Galeria() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
   const [busqueda, setBusqueda] = useState("");
+  const [fotoAbierta, setFotoAbierta] = useState<Foto | null>(null);
 
   useEffect(() => {
     const cargar = async () => {
@@ -84,7 +86,11 @@ function Galeria() {
         ) : (
           <div className="galeria">
             {filtradas.map((foto) => (
-              <figure key={foto.id} className="galeria-item">
+              <figure
+                key={foto.id}
+                className="galeria-item"
+                onClick={() => setFotoAbierta(foto)}
+              >
                 <img src={foto.imagen} alt={foto.titulo} loading="lazy" />
                 <figcaption>
                   <span className="galeria-titulo">{foto.titulo}</span>
@@ -96,6 +102,15 @@ function Galeria() {
             ))}
           </div>
         ))}
+
+      {fotoAbierta && (
+        <Lightbox
+          imagen={fotoAbierta.imagen}
+          titulo={fotoAbierta.titulo}
+          descripcion={fotoAbierta.descripcion}
+          alCerrar={() => setFotoAbierta(null)}
+        />
+      )}
     </section>
   );
 }
