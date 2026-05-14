@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
+import InstalarApp from "./InstalarApp";
 
 function Sidebar() {
   // abierto controla el menu en pantallas moviles
@@ -16,7 +17,7 @@ function Sidebar() {
       {/* Boton hamburguesa: solo visible en movil */}
       <button
         type="button"
-        className="sidebar-boton"
+        className={`sidebar-boton ${abierto ? "abierto" : ""}`}
         onClick={toggle}
         aria-label={abierto ? "Cerrar menú" : "Abrir menú"}
         aria-expanded={abierto}
@@ -71,6 +72,7 @@ function Sidebar() {
           <NavLink to="/admin" onClick={cerrar} className="sidebar-enlace-admin">
             ⚙️ Administrador
           </NavLink>
+          <InstalarApp />
         </div>
       </aside>
 

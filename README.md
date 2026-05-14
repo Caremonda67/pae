@@ -78,7 +78,7 @@ El bot usa la API de Google Gemini. La clave vive en `backend/.env` (`GEMINI_API
 
 ## 🔑 Clave del panel de administrador
 
-Por defecto: `pae2026` (se recomienda cambiarla y validarla contra el backend en producción).
+Por defecto: `pae2026` 
 
 ## 🧑‍🤝‍🧑 Equipo
 
@@ -102,5 +102,3 @@ git config user.email "3167373525luis@gmail.com"
 git config user.name "marianasalinasmss-stack"
 git config user.email "marianasalinasmss@gmail.com"
 ```
-
-Así GitHub muestra correctamente quién hizo cada commit.

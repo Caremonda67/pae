@@ -304,6 +304,7 @@ h1 {
   padding: 2.8rem;
   box-shadow: var(--sombra);
   border: 1px solid var(--borde);
+  margin-bottom: 1.8rem;
 }
 
 .hero-texto {
@@ -1852,40 +1853,43 @@ h1 {
    ============================================================ */
 
 .instalar-app {
-  position: fixed;
-  bottom: 1.5rem;
-  left: 1.5rem;
-  z-index: 400;
+  position: relative;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 0.5rem;
 }
 
 .instalar-boton {
-  background-color: var(--verde-oscuro);
+  display: block;
+  width: 100%;
+  text-align: center;
+  background-color: rgba(255, 255, 255, 0.15);
   color: var(--blanco);
-  border: none;
-  border-radius: 999px;
-  padding: 0.7rem 1.2rem;
-  font-size: 0.92rem;
+  border: 1.5px solid rgba(255, 255, 255, 0.4);
+  border-radius: 10px;
+  padding: 0.6rem;
+  font-size: 0.9rem;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 8px 24px rgba(27, 94, 32, 0.35);
-  transition: transform 0.15s;
+  transition: background-color 0.2s, transform 0.15s;
 }
 
 .instalar-boton:hover {
-  transform: translateY(-2px);
+  background-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
 }
 
 .instalar-ayuda {
+  position: absolute;
+  bottom: calc(100% + 0.5rem);
+  left: 0;
+  right: 0;
   background-color: var(--blanco);
   border: 1px solid var(--borde);
   border-radius: 14px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.16);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
   padding: 1rem 1.2rem;
-  max-width: 300px;
+  color: var(--texto);
+  z-index: 500;
 }
 
 .instalar-ayuda strong {
@@ -1898,23 +1902,11 @@ h1 {
   margin: 0 0 0.8rem 1.2rem;
   color: var(--texto-suave);
   font-size: 0.9rem;
+  padding-left: 0;
 }
 
-@media (max-width: 480px) {
-  .instalar-app {
-    bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
-    left: 1rem;
-  }
-}
-
-/* En escritorio la sidebar ocupa la izquierda: el boton se va abajo a la
-   derecha para no tapar el enlace de administrador de la sidebar */
-@media (min-width: 901px) {
-  .instalar-app {
-    left: auto;
-    right: 1.5rem;
-    align-items: flex-end;
-  }
+.instalar-ayuda li {
+  margin-bottom: 0.3rem;
 }
 
 /* ============================================================
@@ -2048,6 +2040,18 @@ h1 {
     font-size: 1.4rem;
     cursor: pointer;
     box-shadow: var(--sombra);
+    transition: left 0.25s, top 0.25s, background-color 0.25s;
+  }
+
+  /* Cuando el menu esta abierto el boton entra dentro de la sidebar
+     (arriba a la derecha) dejando su propio espacio y sin tapar nada */
+  .sidebar-boton.abierto {
+    left: calc(260px - 3.5rem);
+    background-color: var(--verde-oscuro);
+  }
+
+  .sidebar.abierto .sidebar-marca {
+    padding-right: 3.5rem;
   }
 
   .sidebar-fondo {
@@ -2221,8 +2225,9 @@ h1 {
 .comida-dia {
   background: linear-gradient(135deg, var(--verde-oscuro), var(--verde));
   border-radius: 22px;
-  padding: 2.5rem;
-  margin-bottom: 1.8rem;
+  padding: 2rem 2.5rem;
+  margin: 0 auto 1.8rem;
+  max-width: 1100px;
   box-shadow: var(--sombra);
 }
 
@@ -2243,8 +2248,8 @@ h1 {
 
 .comida-dia-lista {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(460px, 1fr));
-  gap: 1.4rem;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
   margin: 1.5rem 0;
 }
 
@@ -2254,13 +2259,23 @@ h1 {
   overflow: hidden;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
   display: grid;
-  grid-template-columns: minmax(240px, 38%) 1fr;
+  grid-template-columns: 1fr;
   min-width: 0;
+}
+
+.comida-dia-foto {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: zoom-in;
+  overflow: hidden;
 }
 
 .comida-dia-imagen {
   width: 100%;
-  height: 100%;
+  height: 300px;
   object-fit: cover;
   object-position: center;
   display: block;
@@ -2271,16 +2286,19 @@ h1 {
   align-items: center;
   justify-content: center;
   background-color: var(--crema);
-  font-size: 4rem;
-  height: 100%;
+  font-size: 3.5rem;
+  height: 300px;
+  width: 100%;
+  cursor: default;
 }
 
 .comida-dia-info {
-  padding: 1.3rem 1.4rem 1.4rem;
+  padding: 1.2rem 1.3rem 1.3rem;
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
-  justify-content: center;
+  gap: 0.45rem;
+  align-items: flex-start;
+  justify-content: flex-start;
   min-width: 0;
 }
 
@@ -2298,18 +2316,22 @@ h1 {
 
 .comida-dia-info h3 {
   color: var(--verde-oscuro);
-  font-size: 1.5rem;
+  font-size: 1.35rem;
   margin: 0;
 }
 
 .comida-dia-info p {
   color: var(--texto-suave);
-  font-size: 0.95rem;
+  font-size: 0.92rem;
+  line-height: 1.5;
   margin: 0;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
-.comida-dia .boton-primario {
-  margin-top: 0.5rem;
+.comida-dia-info .etiqueta-comida {
+  align-self: flex-start;
+  margin-top: auto;
 }
 
 .etiqueta-comida {
@@ -2599,10 +2621,5 @@ img {
   .comida-dia-info p,
   .comida-dia-info h3 {
     text-align: center;
-  }
-
-  .comida-dia .boton-primario {
-    display: block;
-    margin: 0 auto;
   }
 }
