@@ -14,6 +14,7 @@
 import { Router } from "express";
 import { getSupabase } from "../config/supabase.js";
 import { requiereAdmin } from "../config/auth.js";
+import { enviarEmail, correoConfigurado } from "../config/email.js";
 
 const router = Router();
 
@@ -30,10 +31,13 @@ export async function crearNotificacion({ tipo, destinatario, mensaje, mensajeHt
   };
 
   // 1. Intentamos enviar el email si hay API key configurada
-  const smtpConfigurado = process.env.RESEND_API_KEY && process.env.RESEND_FROM;
-
-  if (smtpConfigurado && destinatario) {
-    const enviado = await enviarEmail(destinatario, mensaje, mensajeHtml);
+  if (correoConfigurado() && destinatario) {
+    const enviado = await enviarEmail(
+      destinatario,
+      "PAE · Confirmación de minuta",
+      mensaje,
+      mensajeHtml
+    );
     fila.enviado = enviado;
   }
 
@@ -49,34 +53,6 @@ export async function crearNotificacion({ tipo, destinatario, mensaje, mensajeHt
     return null;
   }
   return data;
-}
-
-// Envia un email con Resend (API por HTTP). Devuelve true si salio bien.
-async function enviarEmail(destinatario, mensaje, mensajeHtml) {
-  try {
-    const { Resend } = await import("resend");
-
-    const resend = new Resend(process.env.RESEND_API_KEY);
-
-    const { error } = await resend.emails.send({
-      from: process.env.RESEND_FROM,
-      to: destinatario,
-      subject: "PAE · Confirmación de minuta",
-      text: mensaje,
-      html: mensajeHtml || undefined,
-    });
-
-    if (error) {
-      console.error("Resend rechazo el email:", error.message);
-      return false;
-    }
-
-    console.log("Email de notificacion enviado a", destinatario);
-    return true;
-  } catch (err) {
-    console.error("No se pudo enviar el email:", err.message);
-    return false;
-  }
 }
 
 // GET /api/notificaciones
