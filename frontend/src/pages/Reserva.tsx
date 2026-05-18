@@ -35,6 +35,16 @@ function sumarDias(fecha: string, dias: number) {
   return `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, "0")}-${String(f.getDate()).padStart(2, "0")}`;
 }
 
+// Formatea una fecha YYYY-MM-DD a algo legible: "sábado, 8 de agosto"
+function fechaLegible(fecha: string) {
+  const [año, mes, dia] = fecha.split("-").map(Number);
+  return new Intl.DateTimeFormat("es-CO", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }).format(new Date(año, mes - 1, dia));
+}
+
 // Valida una fecha YYYY-MM-DD. Devuelve un mensaje de error o null si es
 // correcta. Esto evita que se manden fechas imposibles (año con mas
 // digitos, mes 13, dia 40, fechas del pasado o demasiado lejanas).
@@ -246,8 +256,12 @@ function Reserva() {
   const whatsappLink = () => {
     if (!ultimaReserva) return "";
     const mensaje =
-      `Hola, soy ${ultimaReserva.estudiante} (Doc. ${ultimaReserva.documento}). ` +
-      `Confirmo mi minuta para el ${ultimaReserva.fecha} (${ultimaReserva.turno} en ${ultimaReserva.sede}). ¡Gracias!`;
+      `¡Hola! 👋 Soy ${ultimaReserva.estudiante} (Doc. ${ultimaReserva.documento}) ` +
+      `y quiero confirmar mi minuta del PAE.\n\n` +
+      `🍽️ Fecha: ${fechaLegible(ultimaReserva.fecha)}\n` +
+      `🍽️ Turno: ${ultimaReserva.turno}\n` +
+      `🏫 Sede: ${ultimaReserva.sede}\n\n` +
+      `¡Allí estaré para que no se desperdicie comida! 🙌`;
     return `https://wa.me/?text=${encodeURIComponent(mensaje)}`;
   };
 
