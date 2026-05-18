@@ -145,8 +145,9 @@ router.delete("/:id", requiereAdmin, async (req, res) => {
 
 // POST /api/menus/:id/valorar
 // Guarda la valoracion de un plato (1 a 5)
-// Cuerpo esperado: { puntos: 4 }
-// Un mismo documento no puede votar el mismo plato dos veces.
+// Cuerpo esperado: { puntos: 4, documento: "1234567890" }
+// El documento es obligatorio (solo beneficiarios votan) y un mismo
+// documento no puede votar el mismo plato dos veces.
 router.post("/:id/valorar", async (req, res) => {
   const menuId = req.params.id;
   const { puntos, documento } = req.body;
@@ -158,43 +159,48 @@ router.post("/:id/valorar", async (req, res) => {
       .json({ error: "La valoración debe ser un número entre 1 y 5" });
   }
 
+  // El documento es obligatorio: los votos anonimos inflan las estrellas
+  if (!documento) {
+    return res
+      .status(400)
+      .json({ error: "Debes ingresar tu documento para valorar" });
+  }
+
   // El documento debe estar registrado (solo beneficiarios votan)
-  if (documento) {
-    const { data: beneficiario } = await getSupabase()
-      .from("beneficiarios")
-      .select("id")
-      .eq("documento", String(documento).trim())
-      .maybeSingle();
+  const { data: beneficiario } = await getSupabase()
+    .from("beneficiarios")
+    .select("id")
+    .eq("documento", String(documento).trim())
+    .maybeSingle();
 
-    if (!beneficiario) {
-      return res.status(400).json({ error: "Documento no registrado" });
-    }
+  if (!beneficiario) {
+    return res.status(400).json({ error: "Documento no registrado" });
+  }
 
-    // Evitar votos repetidos del mismo documento en el mismo plato
-    const { data: yaVoto } = await getSupabase()
+  // Evitar votos repetidos del mismo documento en el mismo plato
+  const { data: yaVoto } = await getSupabase()
+    .from("valoraciones")
+    .select("id")
+    .eq("menu_id", menuId)
+    .eq("documento", String(documento).trim())
+    .maybeSingle();
+
+  if (yaVoto) {
+    // Si ya voto, actualizamos su puntaje en vez de crear otro
+    const { data, error } = await getSupabase()
       .from("valoraciones")
-      .select("id")
-      .eq("menu_id", menuId)
-      .eq("documento", String(documento).trim())
-      .maybeSingle();
+      .update({ puntos: puntosNum })
+      .eq("id", yaVoto.id)
+      .select()
+      .single();
 
-    if (yaVoto) {
-      // Si ya voto, actualizamos su puntaje en vez de crear otro
-      const { data, error } = await getSupabase()
-        .from("valoraciones")
-        .update({ puntos: puntosNum })
-        .eq("id", yaVoto.id)
-        .select()
-        .single();
-
-      if (error) return res.status(500).json({ error: error.message });
-      return res.json(data);
-    }
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json(data);
   }
 
   const { data, error } = await getSupabase()
     .from("valoraciones")
-    .insert([{ menu_id: menuId, puntos: puntosNum, documento: documento || null }])
+    .insert([{ menu_id: menuId, puntos: puntosNum, documento: String(documento).trim() }])
     .select()
     .single();
 
