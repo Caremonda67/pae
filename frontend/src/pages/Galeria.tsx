@@ -6,8 +6,7 @@
 import { useEffect, useState } from "react";
 import Buscador from "../components/Buscador";
 import Lightbox from "../components/Lightbox";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
+import { API_URL } from "../config/api";
 
 interface Foto {
   id: number;

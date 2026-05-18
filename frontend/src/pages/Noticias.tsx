@@ -3,8 +3,7 @@
 // vienen de la base de datos (antes eran datos fijos en el codigo)
 
 import { useEffect, useState } from "react";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
+import { API_URL } from "../config/api";
 
 interface Aviso {
   id: number;
