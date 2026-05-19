@@ -2,7 +2,7 @@
 // Se usa en la galeria (pagina y Home) para ver las fotos completas.
 // Cierra con el boton, la tecla Escape o tocando el fondo.
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 interface LightboxProps {
   imagen: string;
@@ -12,12 +12,24 @@ interface LightboxProps {
 }
 
 function Lightbox({ imagen, titulo, descripcion, alCerrar }: LightboxProps) {
+  const botonRef = useRef<HTMLButtonElement>(null);
+
   useEffect(() => {
+    // Guardamos el elemento que tenia el foco para devolverselo
+    // cuando se cierre el lightbox (accesibilidad con teclado).
+    const previo = document.activeElement as HTMLElement | null;
+
+    // Movemos el foco al boton de cerrar al abrir
+    botonRef.current?.focus();
+
     const alPulsarTecla = (e: KeyboardEvent) => {
       if (e.key === "Escape") alCerrar();
     };
     window.addEventListener("keydown", alPulsarTecla);
-    return () => window.removeEventListener("keydown", alPulsarTecla);
+    return () => {
+      window.removeEventListener("keydown", alPulsarTecla);
+      previo?.focus?.();
+    };
   }, [alCerrar]);
 
   return (
@@ -29,6 +41,7 @@ function Lightbox({ imagen, titulo, descripcion, alCerrar }: LightboxProps) {
       onClick={alCerrar}
     >
       <button
+        ref={botonRef}
         type="button"
         className="lightbox-cerrar"
         onClick={alCerrar}

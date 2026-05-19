@@ -1,16 +1,33 @@
 // barra lateral de navegacion, se copio el estilo de la referencia
 // en celular se esconde y sale con el boton de hamburguesa
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import InstalarApp from "./InstalarApp";
 
 function Sidebar() {
   // abierto controla el menu en pantallas moviles
   const [abierto, setAbierto] = useState(false);
+  // true cuando la pantalla es de movil (la sidebar se pliega)
+  const [esMovil, setEsMovil] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(max-width: 900px)").matches
+  );
+
+  // Escucha los cambios de tamaño de pantalla para saber si es movil
+  useEffect(() => {
+    const consulta = window.matchMedia("(max-width: 900px)");
+    const alCambiar = (e: MediaQueryListEvent) => setEsMovil(e.matches);
+    consulta.addEventListener("change", alCambiar);
+    return () => consulta.removeEventListener("change", alCambiar);
+  }, []);
 
   const cerrar = () => setAbierto(false);
   const toggle = () => setAbierto((a) => !a);
+
+  // En movil, cuando el menu esta cerrado lo sacamos del foco del
+  // teclado y de los lectores de pantalla (esta oculto fuera de la
+  // pantalla). En escritorio siempre es navegable.
+  const sinInteraccion = esMovil && !abierto;
 
   return (
     <>
@@ -26,7 +43,13 @@ function Sidebar() {
         {abierto ? "✕" : "☰"}
       </button>
 
-      <aside id="sidebar-nav" className={`sidebar ${abierto ? "abierto" : ""}`} role="navigation" aria-label="Navegación principal">
+      <aside
+        id="sidebar-nav"
+        className={`sidebar ${abierto ? "abierto" : ""}`}
+        role="navigation"
+        aria-label="Navegación principal"
+        inert={sinInteraccion || undefined}
+      >
         <div className="sidebar-marca">
           <span className="sidebar-logo">🍽️</span>
           <div>
