@@ -4,8 +4,9 @@
 // POST /api/admin/login
 // Cuerpo esperado: { clave: "..." }
 // Compara la clave con ADMIN_CLAVE (variable de entorno) y si
-// coincide devuelve un token firmado que el frontend guarda y
-// envia en cada peticion protegida (Authorization: Bearer ...).
+// coincide devuelve un token firmado con rol "admin" que el
+// frontend guarda y envia en cada peticion protegida
+// (Authorization: Bearer ...).
 // ============================================================
 
 import { Router } from "express";
@@ -40,7 +41,13 @@ router.post("/login", limiteLogin, (req, res) => {
     return res.status(401).json({ error: "Clave incorrecta" });
   }
 
-  res.json({ token: firmarToken("admin"), expiraEn: "12h" });
+  res.json({
+    token: firmarToken({ usuario: "admin", rol: "admin", nombre: "Administrador" }),
+    rol: "admin",
+    usuario: "admin",
+    nombre: "Administrador",
+    expiraEn: "12h",
+  });
 });
 
 export default router;
