@@ -10,14 +10,14 @@
 
 import { Router } from "express";
 import { getSupabase } from "../config/supabase.js";
-import { requiereAdmin } from "../config/auth.js";
+import { requiereRol } from "../config/auth.js";
 
 const router = Router();
 
 // POST /api/archivos/subir
 // Cuerpo esperado: { base64: "data:image/png;base64,....", nombre: "foto.png" }
 // Devuelve: { url: "https://....supabase.co/storage/v1/object/public/imagenes/...." }
-router.post("/subir", requiereAdmin, async (req, res) => {
+router.post("/subir", requiereRol("admin", "cocina", "coordinador", "profesor"), async (req, res) => {
   const { base64, nombre } = req.body || {};
 
   if (!base64 || !nombre) {

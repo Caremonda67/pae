@@ -11,7 +11,8 @@
 
 import { Router } from "express";
 import { getSupabase } from "../config/supabase.js";
-import { requiereAdmin } from "../config/auth.js";
+import { requiereRol } from "../config/auth.js";
+import { hashClave } from "../config/password.js";
 
 const router = Router();
 
@@ -49,10 +50,13 @@ router.get("/buscar", async (req, res) => {
 });
 
 // POST /api/beneficiarios
-// Registra un beneficiario nuevo (solo admin)
-// Cuerpo esperado: { documento, nombre, sede, turno, grado? }
-router.post("/", requiereAdmin, async (req, res) => {
-  const { documento, nombre, sede, turno, grado } = req.body;
+// Registra un beneficiario nuevo (admin o profesor).
+// Si llega un PIN, tambien se crea su cuenta de estudiante
+// (usuario = documento, rol = estudiante) para que pueda entrar
+// a reservar con documento + PIN.
+// Cuerpo esperado: { documento, nombre, sede, turno, grado?, pin? }
+router.post("/", requiereRol("admin", "profesor"), async (req, res) => {
+  const { documento, nombre, sede, turno, grado, pin } = req.body;
 
   if (!documento || !nombre || !sede || !turno) {
     return res.status(400).json({ error: "Faltan datos obligatorios" });
@@ -76,12 +80,36 @@ router.post("/", requiereAdmin, async (req, res) => {
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
+
+  // Si el admin/profesor da un PIN, creamos la cuenta de estudiante
+  if (pin && String(pin).trim()) {
+    const pinLimpio = String(pin).trim();
+    if (pinLimpio.length < 4) {
+      return res.status(400).json({
+        error: "El PIN debe tener al menos 4 caracteres",
+      });
+    }
+    const { error: errUsuario } = await getSupabase().from("usuarios").insert([
+      {
+        nombre,
+        usuario: String(documento).trim(),
+        clave_hash: hashClave(pinLimpio),
+        rol: "estudiante",
+      },
+    ]);
+    if (errUsuario) {
+      return res
+        .status(500)
+        .json({ error: `El beneficiario se guardó, pero no la cuenta: ${errUsuario.message}` });
+    }
+  }
+
   res.status(201).json(data);
 });
 
 // DELETE /api/beneficiarios/:id
 // Elimina un beneficiario (solo admin)
-router.delete("/:id", requiereAdmin, async (req, res) => {
+router.delete("/:id", requiereRol("admin"), async (req, res) => {
   const { error } = await getSupabase()
     .from("beneficiarios")
     .delete()

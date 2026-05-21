@@ -4,7 +4,7 @@
 
 import { Router } from "express";
 import { getSupabase } from "../config/supabase.js";
-import { requiereAdmin } from "../config/auth.js";
+import { requiereRol } from "../config/auth.js";
 
 const router = Router();
 
@@ -23,7 +23,7 @@ router.get("/", async (_req, res) => {
 // crea un aviso nuevo (solo admin)
 // cuerpo esperado: { titulo, texto, fecha, imagen }
 //   - imagen: URL publica de la foto (opcional)
-router.post("/", requiereAdmin, async (req, res) => {
+router.post("/", requiereRol("admin", "coordinador", "profesor"), async (req, res) => {
   const { titulo, texto, fecha, imagen } = req.body;
 
   if (!titulo || !texto) {
@@ -42,7 +42,7 @@ router.post("/", requiereAdmin, async (req, res) => {
 
 // DELETE /api/avisos/:id
 // elimina un aviso (solo admin)
-router.delete("/:id", requiereAdmin, async (req, res) => {
+router.delete("/:id", requiereRol("admin", "coordinador", "profesor"), async (req, res) => {
   const { error } = await getSupabase()
     .from("avisos")
     .delete()

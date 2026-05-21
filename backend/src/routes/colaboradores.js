@@ -4,7 +4,7 @@
 
 import { Router } from "express";
 import { getSupabase } from "../config/supabase.js";
-import { requiereAdmin } from "../config/auth.js";
+import { requiereRol } from "../config/auth.js";
 
 const router = Router();
 
@@ -23,7 +23,7 @@ router.get("/", async (_req, res) => {
 // POST /api/colaboradores
 // Registra un colaborador nuevo (solo admin)
 // Cuerpo esperado: { nombre, rol }
-router.post("/", requiereAdmin, async (req, res) => {
+router.post("/", requiereRol("admin", "coordinador"), async (req, res) => {
   const { nombre, rol } = req.body;
 
   if (!nombre || !nombre.trim()) {
@@ -42,7 +42,7 @@ router.post("/", requiereAdmin, async (req, res) => {
 
 // DELETE /api/colaboradores/:id
 // Quita un colaborador (solo admin)
-router.delete("/:id", requiereAdmin, async (req, res) => {
+router.delete("/:id", requiereRol("admin", "coordinador"), async (req, res) => {
   const { error } = await getSupabase()
     .from("colaboradores")
     .delete()

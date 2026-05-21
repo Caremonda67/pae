@@ -5,7 +5,7 @@
 
 import { Router } from "express";
 import { getSupabase } from "../config/supabase.js";
-import { requiereAdmin } from "../config/auth.js";
+import { requiereRol } from "../config/auth.js";
 
 const router = Router();
 
@@ -24,7 +24,7 @@ router.get("/", async (_req, res) => {
 // POST /api/galeria
 // Guarda una foto nueva (solo admin)
 // Cuerpo esperado: { titulo, imagen, descripcion }
-router.post("/", requiereAdmin, async (req, res) => {
+router.post("/", requiereRol("admin", "coordinador"), async (req, res) => {
   const { titulo, imagen, descripcion } = req.body;
 
   if (!titulo || !imagen) {
@@ -43,7 +43,7 @@ router.post("/", requiereAdmin, async (req, res) => {
 
 // DELETE /api/galeria/:id
 // Borra una foto (solo admin)
-router.delete("/:id", requiereAdmin, async (req, res) => {
+router.delete("/:id", requiereRol("admin", "coordinador"), async (req, res) => {
   const { error } = await getSupabase()
     .from("galeria")
     .delete()

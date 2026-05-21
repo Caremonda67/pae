@@ -4,7 +4,7 @@
 
 import { Router } from "express";
 import { getSupabase } from "../config/supabase.js";
-import { requiereAdmin } from "../config/auth.js";
+import { requiereRol } from "../config/auth.js";
 import { crearNotificacion } from "./notificaciones.js";
 import { limiteFormularios } from "../config/rateLimit.js";
 
@@ -54,8 +54,8 @@ export function validarFecha(fecha) {
 }
 
 // GET /api/reservas
-// Lista todas las reservas (solo admin, es informacion interna)
-router.get("/", requiereAdmin, async (_req, res) => {
+// Lista todas las reservas (equipo con rol: cocina, profesor, coordinador)
+router.get("/", requiereRol("admin", "cocina", "profesor", "coordinador"), async (_req, res) => {
   const { data, error } = await getSupabase()
     .from("reservas")
     .select("*")
@@ -357,8 +357,8 @@ router.delete("/mis/:id", async (req, res) => {
 
 // PUT /api/reservas/:id
 // Actualiza el estado de una reserva (por ejemplo: asistio o no)
-// Solo administrador.
-router.put("/:id", requiereAdmin, async (req, res) => {
+// Equipo con rol (admin, cocina, profesor).
+router.put("/:id", requiereRol("admin", "cocina", "profesor"), async (req, res) => {
   // Filtramos campos undefined/null y convertimos asistio a booleano
   const body = {};
   for (const [k, v] of Object.entries(req.body)) {
@@ -390,7 +390,7 @@ router.put("/:id", requiereAdmin, async (req, res) => {
 
 // DELETE /api/reservas/:id
 // Elimina una reserva (solo administrador)
-router.delete("/:id", requiereAdmin, async (req, res) => {
+router.delete("/:id", requiereRol("admin"), async (req, res) => {
   const { error } = await getSupabase().from("reservas").delete().eq("id", req.params.id);
   if (error) return res.status(500).json({ error: error.message });
   res.status(204).end();
