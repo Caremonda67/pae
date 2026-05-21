@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import InstalarApp from "./InstalarApp";
+import { leerSesion, ROLES_LABEL } from "../config/sesion";
 
 function Sidebar() {
   // abierto controla el menu en pantallas moviles
@@ -23,6 +24,13 @@ function Sidebar() {
 
   const cerrar = () => setAbierto(false);
   const toggle = () => setAbierto((a) => !a);
+
+  // Si hay una sesión activa (admin, cocina, etc.) mostramos el
+  // enlace al panel con el nombre del rol en lugar de "Administrador"
+  const sesion = leerSesion();
+  const etiquetaPanel = sesion
+    ? `⚙️ ${ROLES_LABEL[sesion.rol] || sesion.rol}`
+    : "⚙️ Administrador";
 
   // En movil, cuando el menu esta cerrado lo sacamos del foco del
   // teclado y de los lectores de pantalla (esta oculto fuera de la
@@ -93,7 +101,7 @@ function Sidebar() {
             🥗 Reservar comida
           </NavLink>
           <NavLink to="/admin" onClick={cerrar} className="sidebar-enlace-admin">
-            ⚙️ Administrador
+            {etiquetaPanel}
           </NavLink>
           <InstalarApp />
         </div>

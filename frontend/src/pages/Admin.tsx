@@ -1,37 +1,29 @@
 // panel de administrador
-// ahora el login es REAL: la clave se manda al backend, este la
-// compara con ADMIN_CLAVE y devuelve un token que el panel guarda
-// para llamar a las rutas protegidas. Ya no hay clave escrita en
-// el codigo del navegador.
+// ahora el login es REAL: el usuario manda su usuario + clave al
+// backend (/api/login), este los compara y devuelve un token con
+// el rol. El panel guarda la sesion compartida y muestra solo las
+// pestañas que le corresponden al rol que entro.
 //
-// Pestañas:
-// - panel de cocina: minutas por fecha, asistencia y desperdicio
-// - beneficiarios: registro de los estudiantes del programa
-// - avisos: publicar y borrar noticias
-// - notificaciones: confirmaciones de reserva enviadas
-// - mensajes: los que llegan por el formulario de contacto
+// Pestañas por rol:
+// - admin: todas (cocina, beneficiarios, menu, avisos, galeria,
+//   instituciones, colaboradores, notificaciones, mensajes, usuarios)
+// - cocina: panel de cocina y menú
+// - profesor: beneficiarios, avisos
+// - coordinador: avisos, galeria, instituciones, colaboradores,
+//   notificaciones, mensajes
+// - estudiante: no tiene panel (entra por Reserva)
 
 import { useEffect, useState } from "react";
 import Buscador from "../components/Buscador";
 import { coincide } from "../config/busqueda";
 import { estadoReserva, GRADOS, horarioGrado } from "../config/horarios";
 import { API_URL } from "../config/api";
-
-// token guardado entre sesiones (el navegador lo conserva)
-const TOKEN_KEY = "pae_admin_token";
-
-function leerToken(): string {
-  return localStorage.getItem(TOKEN_KEY) || "";
-}
-
-// cabeceras con el token del admin para rutas protegidas
-function cabeceras(token: string, cuerpo = true): Record<string, string> {
-  const headers: Record<string, string> = {
-    Authorization: `Bearer ${token}`,
-  };
-  if (cuerpo) headers["Content-Type"] = "application/json";
-  return headers;
-}
+import {
+  leerSesion,
+  guardarSesion,
+  cerrarSesion,
+  cabeceras,
+} from "../config/sesion";
 
 // una reserva que llega del backend
 interface Reserva {
@@ -143,6 +135,14 @@ interface Notificacion {
   created_at: string;
 }
 
+interface Usuario {
+  id: number;
+  nombre: string;
+  usuario: string;
+  rol: string;
+  activo: boolean;
+}
+
 // pestañas del panel
 type Pestana =
   | "panel"
@@ -153,10 +153,13 @@ type Pestana =
   | "instituciones"
   | "colaboradores"
   | "notificaciones"
-  | "mensajes";
+  | "mensajes"
+  | "usuarios";
 
 function Admin() {
-  const [autenticado, setAutenticado] = useState(leerToken() !== "");
+  const [autenticado, setAutenticado] = useState(leerSesion() !== null);
+  const [rol, setRol] = useState(leerSesion()?.rol || "");
+  const [usuario, setUsuario] = useState("");
   const [clave, setClave] = useState("");
   const [cargandoLogin, setCargandoLogin] = useState(false);
   const [errorLogin, setErrorLogin] = useState("");
@@ -174,6 +177,16 @@ function Admin() {
   const [galeria, setGaleria] = useState<FotoGaleria[]>([]);
   const [instituciones, setInstituciones] = useState<Institucion[]>([]);
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+
+  // formulario de usuario (cuenta del panel)
+  const [nombreUsu, setNombreUsu] = useState("");
+  const [usuarioUsu, setUsuarioUsu] = useState("");
+  const [rolUsu, setRolUsu] = useState("cocina");
+  const [claveUsu, setClaveUsu] = useState("");
+  const [usuError, setUsuError] = useState("");
+  const [usuExito, setUsuExito] = useState("");
+  const [busquedaUsuarios, setBusquedaUsuarios] = useState("");
 
   // formulario de institucion
   const [nombreInst, setNombreInst] = useState("");
@@ -238,22 +251,30 @@ function Admin() {
   const [busquedaNotificaciones, setBusquedaNotificaciones] = useState("");
   const [busquedaMensajes, setBusquedaMensajes] = useState("");
 
-  // Pide el token al backend comparando la clave con ADMIN_CLAVE
+  // Pide el token al backend con usuario + clave (/api/login)
+  // El backend devuelve el token y el rol, que guardamos en la
+  // sesion compartida para saber qué pestañas puede ver.
   const entrar = async (e: React.FormEvent) => {
     e.preventDefault();
     setCargandoLogin(true);
     setErrorLogin("");
     try {
-      const respuesta = await fetch(`${API_URL}/api/admin/login`, {
+      const respuesta = await fetch(`${API_URL}/api/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clave }),
+        body: JSON.stringify({ usuario, clave }),
       });
       const datos = await respuesta.json().catch(() => null);
       if (!respuesta.ok) {
-        throw new Error(datos?.error || "Clave incorrecta");
+        throw new Error(datos?.error || "Usuario o clave incorrectos");
       }
-      localStorage.setItem(TOKEN_KEY, datos.token);
+      guardarSesion({
+        token: datos.token,
+        rol: datos.rol,
+        usuario: datos.usuario,
+        nombre: datos.nombre,
+      });
+      setRol(datos.rol);
       setAutenticado(true);
     } catch (err) {
       setErrorLogin(err instanceof Error ? err.message : "Error desconocido");
@@ -264,8 +285,9 @@ function Admin() {
 
   // Cierra sesion (borra el token guardado)
   const salir = () => {
-    localStorage.removeItem(TOKEN_KEY);
+    cerrarSesion();
     setAutenticado(false);
+    setRol("");
     setClave("");
   };
 
@@ -274,7 +296,6 @@ function Admin() {
   const cargarDatos = async () => {
     setCargando(true);
     setError("");
-    const token = leerToken();
     try {
       const [
         respTotales,
@@ -291,12 +312,12 @@ function Admin() {
         respColaboradores,
       ] = await Promise.all([
         fetch(`${API_URL}/api/reservas/totales`),
-        fetch(`${API_URL}/api/reservas`, { headers: cabeceras(token, false) }),
+        fetch(`${API_URL}/api/reservas`, { headers: cabeceras(false) }),
         fetch(`${API_URL}/api/reservas/reporte`),
         fetch(`${API_URL}/api/avisos`),
-        fetch(`${API_URL}/api/contacto`, { headers: cabeceras(token, false) }),
+        fetch(`${API_URL}/api/contacto`, { headers: cabeceras(false) }),
         fetch(`${API_URL}/api/beneficiarios`),
-        fetch(`${API_URL}/api/notificaciones`, { headers: cabeceras(token, false) }),
+        fetch(`${API_URL}/api/notificaciones`, { headers: cabeceras(false) }),
         fetch(`${API_URL}/api/menus`),
         fetch(`${API_URL}/api/reservas/plan?dias=7`),
         fetch(`${API_URL}/api/galeria`),
@@ -366,6 +387,14 @@ function Admin() {
       setGaleria(await respGaleria.json());
       setInstituciones(await respInstituciones.json());
       setColaboradores(await respColaboradores.json());
+
+      // Solo el admin ve las cuentas de usuario del panel
+      if (leerSesion()?.rol === "admin") {
+        const respUsuarios = await fetch(`${API_URL}/api/usuarios`, {
+          headers: cabeceras(false),
+        });
+        if (respUsuarios.ok) setUsuarios(await respUsuarios.json());
+      }
     } catch (err) {
       // si el token expiro o es invalido, pedimos login de nuevo
       if (err instanceof Error && err.message.includes("No se pudieron cargar")) {
@@ -391,7 +420,7 @@ function Admin() {
     try {
       const respuesta = await fetch(`${API_URL}/api/reservas/${reserva.id}`, {
         method: "PUT",
-        headers: cabeceras(leerToken()),
+        headers: cabeceras(),
         body: JSON.stringify({ asistio: !reserva.asistio }),
       });
       if (!respuesta.ok) throw new Error("No se pudo actualizar");
@@ -409,7 +438,7 @@ function Admin() {
     try {
       const respuesta = await fetch(`${API_URL}/api/avisos`, {
         method: "POST",
-        headers: cabeceras(leerToken()),
+        headers: cabeceras(),
         body: JSON.stringify({
           titulo: tituloAviso,
           texto: textoAviso,
@@ -437,7 +466,7 @@ function Admin() {
     try {
       const respuesta = await fetch(`${API_URL}/api/avisos/${id}`, {
         method: "DELETE",
-        headers: cabeceras(leerToken(), false),
+        headers: cabeceras(false),
       });
       if (!respuesta.ok) throw new Error("No se pudo borrar");
       cargarDatos();
@@ -462,7 +491,7 @@ function Admin() {
       const base64 = await aBase64(archivo);
       const respuesta = await fetch(`${API_URL}/api/archivos/subir`, {
         method: "POST",
-        headers: cabeceras(leerToken()),
+        headers: cabeceras(),
         body: JSON.stringify({ base64, nombre: archivo.name }),
       });
       if (!respuesta.ok) {
@@ -486,7 +515,7 @@ function Admin() {
     try {
       const respuesta = await fetch(`${API_URL}/api/menus`, {
         method: "POST",
-        headers: cabeceras(leerToken()),
+        headers: cabeceras(),
         body: JSON.stringify({
           semana: semanaMenu,
           dia: diaMenu,
@@ -517,7 +546,7 @@ function Admin() {
     try {
       const respuesta = await fetch(`${API_URL}/api/menus/${id}`, {
         method: "DELETE",
-        headers: cabeceras(leerToken(), false),
+        headers: cabeceras(false),
       });
       if (!respuesta.ok) throw new Error("No se pudo borrar el plato");
       cargarDatos();
@@ -534,7 +563,7 @@ function Admin() {
     try {
       const respuesta = await fetch(`${API_URL}/api/galeria`, {
         method: "POST",
-        headers: cabeceras(leerToken()),
+        headers: cabeceras(),
         body: JSON.stringify({
           titulo: tituloGaleria,
           imagen: imagenGaleria,
@@ -560,7 +589,7 @@ function Admin() {
     try {
       const respuesta = await fetch(`${API_URL}/api/galeria/${id}`, {
         method: "DELETE",
-        headers: cabeceras(leerToken(), false),
+        headers: cabeceras(false),
       });
       if (!respuesta.ok) throw new Error("No se pudo borrar la foto");
       cargarDatos();
@@ -577,7 +606,7 @@ function Admin() {
     try {
       const respuesta = await fetch(`${API_URL}/api/beneficiarios`, {
         method: "POST",
-        headers: cabeceras(leerToken()),
+        headers: cabeceras(),
         body: JSON.stringify({
           documento: docBen,
           nombre: nombreBen,
@@ -605,7 +634,7 @@ function Admin() {
     try {
       const respuesta = await fetch(`${API_URL}/api/beneficiarios/${id}`, {
         method: "DELETE",
-        headers: cabeceras(leerToken(), false),
+        headers: cabeceras(false),
       });
       if (!respuesta.ok) throw new Error("No se pudo borrar");
       cargarDatos();
@@ -622,7 +651,7 @@ function Admin() {
     try {
       const respuesta = await fetch(`${API_URL}/api/instituciones`, {
         method: "POST",
-        headers: cabeceras(leerToken()),
+        headers: cabeceras(),
         body: JSON.stringify({ nombre: nombreInst }),
       });
       if (!respuesta.ok) {
@@ -642,7 +671,7 @@ function Admin() {
     try {
       const respuesta = await fetch(`${API_URL}/api/instituciones/${id}`, {
         method: "DELETE",
-        headers: cabeceras(leerToken(), false),
+        headers: cabeceras(false),
       });
       if (!respuesta.ok) throw new Error("No se pudo borrar");
       cargarDatos();
@@ -659,7 +688,7 @@ function Admin() {
     try {
       const respuesta = await fetch(`${API_URL}/api/colaboradores`, {
         method: "POST",
-        headers: cabeceras(leerToken()),
+        headers: cabeceras(),
         body: JSON.stringify({ nombre: nombreCol, rol: rolCol }),
       });
       if (!respuesta.ok) {
@@ -680,7 +709,66 @@ function Admin() {
     try {
       const respuesta = await fetch(`${API_URL}/api/colaboradores/${id}`, {
         method: "DELETE",
-        headers: cabeceras(leerToken(), false),
+        headers: cabeceras(false),
+      });
+      if (!respuesta.ok) throw new Error("No se pudo borrar");
+      cargarDatos();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error desconocido");
+    }
+  };
+
+  // Crea una cuenta de usuario del panel (solo admin)
+  const registrarUsuario = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setUsuError("");
+    setUsuExito("");
+    try {
+      const respuesta = await fetch(`${API_URL}/api/usuarios`, {
+        method: "POST",
+        headers: cabeceras(),
+        body: JSON.stringify({
+          nombre: nombreUsu,
+          usuario: usuarioUsu,
+          rol: rolUsu,
+          clave: claveUsu,
+        }),
+      });
+      const datos = await respuesta.json().catch(() => null);
+      if (!respuesta.ok) {
+        throw new Error(datos?.error || "No se pudo crear el usuario");
+      }
+      setNombreUsu("");
+      setUsuarioUsu("");
+      setClaveUsu("");
+      setUsuExito("✅ Cuenta creada. Ese usuario ya puede entrar al panel.");
+      cargarDatos();
+    } catch (err) {
+      setUsuError(err instanceof Error ? err.message : "Error desconocido");
+    }
+  };
+
+  // Activa o desactiva una cuenta (solo admin)
+  const alternarUsuario = async (usuario: Usuario) => {
+    try {
+      const respuesta = await fetch(`${API_URL}/api/usuarios/${usuario.id}`, {
+        method: "PUT",
+        headers: cabeceras(),
+        body: JSON.stringify({ activo: !usuario.activo }),
+      });
+      if (!respuesta.ok) throw new Error("No se pudo actualizar");
+      cargarDatos();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error desconocido");
+    }
+  };
+
+  // Borra una cuenta (solo admin)
+  const borrarUsuario = async (usuario: Usuario) => {
+    try {
+      const respuesta = await fetch(`${API_URL}/api/usuarios/${usuario.id}`, {
+        method: "DELETE",
+        headers: cabeceras(false),
       });
       if (!respuesta.ok) throw new Error("No se pudo borrar");
       cargarDatos();
@@ -694,16 +782,28 @@ function Admin() {
     return (
       <section className="admin-pagina">
         <h1>Panel de administrador</h1>
-        <form className="formulario" onSubmit={entrar} aria-label="Login de administrador">
+        <form className="formulario" onSubmit={entrar} aria-label="Login del panel">
+          <label htmlFor="usuario-admin">
+            Usuario
+            <input
+              id="usuario-admin"
+              type="text"
+              value={usuario}
+              onChange={(e) => setUsuario(e.target.value)}
+              required
+              placeholder="Tu usuario (o 'admin')"
+              autoComplete="username"
+            />
+          </label>
           <label htmlFor="clave-admin">
-            Clave del panel
+            Clave
             <input
               id="clave-admin"
               type="password"
               value={clave}
               onChange={(e) => setClave(e.target.value)}
               required
-              placeholder="Ingresa la clave"
+              placeholder="Tu clave (o la del panel)"
               autoComplete="current-password"
             />
           </label>
@@ -717,10 +817,56 @@ function Admin() {
   }
 
   // ---------- Panel de administrador ----------
+  // Pestañas que puede ver cada rol:
+  // admin ve todas, cocina solo su panel y el menú, profesor los
+  // beneficiarios y avisos, coordinador el contenido público.
+  const pestanasPorRol: Record<string, { id: Pestana; etiqueta: string }[]> = {
+    admin: [
+      { id: "panel", etiqueta: "🍳 Panel de cocina" },
+      { id: "beneficiarios", etiqueta: "🎓 Beneficiarios" },
+      { id: "menu", etiqueta: "🍽️ Menú" },
+      { id: "avisos", etiqueta: "📢 Avisos" },
+      { id: "galeria", etiqueta: "🖼️ Galería" },
+      { id: "instituciones", etiqueta: "🏫 Instituciones" },
+      { id: "colaboradores", etiqueta: "👥 Colaboradores" },
+      { id: "notificaciones", etiqueta: "🔔 Notificaciones" },
+      { id: "mensajes", etiqueta: `✉️ Mensajes (${mensajes.length})` },
+      { id: "usuarios", etiqueta: "🔐 Usuarios" },
+    ],
+    cocina: [
+      { id: "panel", etiqueta: "🍳 Panel de cocina" },
+      { id: "menu", etiqueta: "🍽️ Menú" },
+    ],
+    profesor: [
+      { id: "beneficiarios", etiqueta: "🎓 Beneficiarios" },
+      { id: "avisos", etiqueta: "📢 Avisos" },
+    ],
+    coordinador: [
+      { id: "avisos", etiqueta: "📢 Avisos" },
+      { id: "galeria", etiqueta: "🖼️ Galería" },
+      { id: "instituciones", etiqueta: "🏫 Instituciones" },
+      { id: "colaboradores", etiqueta: "👥 Colaboradores" },
+      { id: "notificaciones", etiqueta: "🔔 Notificaciones" },
+      { id: "mensajes", etiqueta: `✉️ Mensajes (${mensajes.length})` },
+    ],
+  };
+
+  const pestanasVisibles = pestanasPorRol[rol] || [];
+
+  // Si el rol no puede ver la pestaña elegida, volvemos a la primera
+  const pestanaActiva = pestanasVisibles.some((p) => p.id === pestana)
+    ? pestana
+    : pestanasVisibles[0]?.id || "panel";
+
   return (
     <section className="admin-pagina">
       <div className="admin-cabecera">
-        <h1>Panel de administrador</h1>
+        <h1>Panel {rol === "admin" ? "de administrador" : "del programa"}</h1>
+        {leerSesion()?.nombre && (
+          <p className="admin-bienvenida">
+            Sesión: {leerSesion()?.nombre} ({rol})
+          </p>
+        )}
         <button type="button" className="boton boton-secundario" onClick={salir}>
           Salir
         </button>
@@ -730,116 +876,23 @@ function Admin() {
       <div
         className="admin-pestanas"
         role="tablist"
-        aria-label="Secciones del panel de administrador"
+        aria-label="Secciones del panel"
       >
-        <button
-          type="button"
-          role="tab"
-          id="tab-panel"
-          className={pestana === "panel" ? "activa" : ""}
-          onClick={() => setPestana("panel")}
-          aria-selected={pestana === "panel"}
-          aria-controls="panel-panel"
-          tabIndex={pestana === "panel" ? 0 : -1}
-        >
-          🍳 Panel de cocina
-        </button>
-        <button
-          type="button"
-          role="tab"
-          id="tab-beneficiarios"
-          className={pestana === "beneficiarios" ? "activa" : ""}
-          onClick={() => setPestana("beneficiarios")}
-          aria-selected={pestana === "beneficiarios"}
-          aria-controls="panel-beneficiarios"
-          tabIndex={pestana === "beneficiarios" ? 0 : -1}
-        >
-          🎓 Beneficiarios
-        </button>
-        <button
-          type="button"
-          role="tab"
-          id="tab-menu"
-          className={pestana === "menu" ? "activa" : ""}
-          onClick={() => setPestana("menu")}
-          aria-selected={pestana === "menu"}
-          aria-controls="panel-menu"
-          tabIndex={pestana === "menu" ? 0 : -1}
-        >
-          🍽️ Menú
-        </button>
-        <button
-          type="button"
-          role="tab"
-          id="tab-avisos"
-          className={pestana === "avisos" ? "activa" : ""}
-          onClick={() => setPestana("avisos")}
-          aria-selected={pestana === "avisos"}
-          aria-controls="panel-avisos"
-          tabIndex={pestana === "avisos" ? 0 : -1}
-        >
-          📢 Avisos
-        </button>
-        <button
-          type="button"
-          role="tab"
-          id="tab-galeria"
-          className={pestana === "galeria" ? "activa" : ""}
-          onClick={() => setPestana("galeria")}
-          aria-selected={pestana === "galeria"}
-          aria-controls="panel-galeria"
-          tabIndex={pestana === "galeria" ? 0 : -1}
-        >
-          🖼️ Galería
-        </button>
-        <button
-          type="button"
-          role="tab"
-          id="tab-instituciones"
-          className={pestana === "instituciones" ? "activa" : ""}
-          onClick={() => setPestana("instituciones")}
-          aria-selected={pestana === "instituciones"}
-          aria-controls="panel-instituciones"
-          tabIndex={pestana === "instituciones" ? 0 : -1}
-        >
-          🏫 Instituciones
-        </button>
-        <button
-          type="button"
-          role="tab"
-          id="tab-colaboradores"
-          className={pestana === "colaboradores" ? "activa" : ""}
-          onClick={() => setPestana("colaboradores")}
-          aria-selected={pestana === "colaboradores"}
-          aria-controls="panel-colaboradores"
-          tabIndex={pestana === "colaboradores" ? 0 : -1}
-        >
-          👥 Colaboradores
-        </button>
-        <button
-          type="button"
-          role="tab"
-          id="tab-notificaciones"
-          className={pestana === "notificaciones" ? "activa" : ""}
-          onClick={() => setPestana("notificaciones")}
-          aria-selected={pestana === "notificaciones"}
-          aria-controls="panel-notificaciones"
-          tabIndex={pestana === "notificaciones" ? 0 : -1}
-        >
-          🔔 Notificaciones
-        </button>
-        <button
-          type="button"
-          role="tab"
-          id="tab-mensajes"
-          className={pestana === "mensajes" ? "activa" : ""}
-          onClick={() => setPestana("mensajes")}
-          aria-selected={pestana === "mensajes"}
-          aria-controls="panel-mensajes"
-          tabIndex={pestana === "mensajes" ? 0 : -1}
-        >
-          ✉️ Mensajes ({mensajes.length})
-        </button>
+        {pestanasVisibles.map(({ id, etiqueta }) => (
+          <button
+            type="button"
+            role="tab"
+            key={id}
+            id={`tab-${id}`}
+            className={pestanaActiva === id ? "activa" : ""}
+            onClick={() => setPestana(id)}
+            aria-selected={pestanaActiva === id}
+            aria-controls={`panel-${id}`}
+            tabIndex={pestanaActiva === id ? 0 : -1}
+          >
+            {etiqueta}
+          </button>
+        ))}
       </div>
 
       {error && (
@@ -850,7 +903,7 @@ function Admin() {
 
       {cargando && <p className="estado">Cargando…</p>}
 
-      {!cargando && !error && pestana === "panel" && (
+      {!cargando && !error && pestanaActiva === "panel" && (
         <div id="panel-panel" role="tabpanel" aria-labelledby="tab-panel">
           {reporte && (
             <div className="reporte">
@@ -982,7 +1035,7 @@ function Admin() {
         </div>
       )}
 
-      {!cargando && !error && pestana === "beneficiarios" && (
+      {!cargando && !error && pestanaActiva === "beneficiarios" && (
         <div id="panel-beneficiarios" role="tabpanel" aria-labelledby="tab-beneficiarios">
           <h2 className="admin-subtitulo">Registrar beneficiario</h2>
           <form className="formulario" onSubmit={registrarBeneficiario}>
@@ -1096,7 +1149,7 @@ function Admin() {
         </div>
       )}
 
-      {!cargando && !error && pestana === "menu" && (
+      {!cargando && !error && pestanaActiva === "menu" && (
         <div id="panel-menu" role="tabpanel" aria-labelledby="tab-menu">
           <h2 className="admin-subtitulo">Agregar plato al menú</h2>
           <form className="formulario" onSubmit={registrarMenu}>
@@ -1254,7 +1307,7 @@ function Admin() {
         </div>
       )}
 
-      {!cargando && !error && pestana === "avisos" && (
+      {!cargando && !error && pestanaActiva === "avisos" && (
         <div id="panel-avisos" role="tabpanel" aria-labelledby="tab-avisos">
           <h2 className="admin-subtitulo">Publicar aviso</h2>
           <form className="formulario" onSubmit={publicarAviso}>
@@ -1363,7 +1416,7 @@ function Admin() {
         </div>
       )}
 
-      {!cargando && !error && pestana === "galeria" && (
+      {!cargando && !error && pestanaActiva === "galeria" && (
         <div id="panel-galeria" role="tabpanel" aria-labelledby="tab-galeria">
           <h2 className="admin-subtitulo">Publicar foto en la galería</h2>
           <p className="subtitulo">
@@ -1460,7 +1513,7 @@ function Admin() {
         </div>
       )}
 
-      {!cargando && !error && pestana === "instituciones" && (
+      {!cargando && !error && pestanaActiva === "instituciones" && (
         <div id="panel-instituciones" role="tabpanel" aria-labelledby="tab-instituciones">
           <h2 className="admin-subtitulo">Registrar institución</h2>
           <p className="subtitulo">
@@ -1520,7 +1573,7 @@ function Admin() {
         </div>
       )}
 
-      {!cargando && !error && pestana === "colaboradores" && (
+      {!cargando && !error && pestanaActiva === "colaboradores" && (
         <div id="panel-colaboradores" role="tabpanel" aria-labelledby="tab-colaboradores">
           <h2 className="admin-subtitulo">Registrar colaborador</h2>
           <p className="subtitulo">
@@ -1595,7 +1648,7 @@ function Admin() {
         </div>
       )}
 
-      {!cargando && !error && pestana === "notificaciones" && (
+      {!cargando && !error && pestanaActiva === "notificaciones" && (
         <div id="panel-notificaciones" role="tabpanel" aria-labelledby="tab-notificaciones">
           <h2 className="admin-subtitulo">
             Confirmaciones de reserva ({notificaciones.length})
@@ -1632,7 +1685,7 @@ function Admin() {
         </div>
       )}
 
-      {!cargando && !error && pestana === "mensajes" && (
+      {!cargando && !error && pestanaActiva === "mensajes" && (
         <div id="panel-mensajes" role="tabpanel" aria-labelledby="tab-mensajes">
           <h2 className="admin-subtitulo">Mensajes de contacto</h2>
           {mensajes.length === 0 && (
@@ -1660,6 +1713,120 @@ function Admin() {
                 <span className="mensaje-fecha">
                   {mensaje.created_at ? mensaje.created_at.slice(0, 10) : ""}
                 </span>
+              </article>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!cargando && !error && pestanaActiva === "usuarios" && (
+        <div id="panel-usuarios" role="tabpanel" aria-labelledby="tab-usuarios">
+          <h2 className="admin-subtitulo">Crear cuenta de usuario</h2>
+          <p className="subtitulo">
+            Cada cuenta da acceso al panel con el rol que elijas. Para los
+            estudiantes la cuenta se crea automáticamente al registrarlos con
+            PIN en la pestaña Beneficiarios.
+          </p>
+          <form className="formulario" onSubmit={registrarUsuario}>
+            <label htmlFor="nombre-usu">
+              Nombre completo
+              <input
+                id="nombre-usu"
+                type="text"
+                value={nombreUsu}
+                onChange={(e) => setNombreUsu(e.target.value)}
+                required
+                placeholder="Nombre del usuario"
+                autoComplete="off"
+              />
+            </label>
+            <div className="formulario-fila">
+              <label htmlFor="usuario-usu">
+                Usuario
+                <input
+                  id="usuario-usu"
+                  type="text"
+                  value={usuarioUsu}
+                  onChange={(e) => setUsuarioUsu(e.target.value)}
+                  required
+                  placeholder="Con qué nombre entrará"
+                  autoComplete="off"
+                />
+              </label>
+              <label htmlFor="rol-usu">
+                Rol
+                <select id="rol-usu" value={rolUsu} onChange={(e) => setRolUsu(e.target.value)}>
+                  <option value="cocina">Cocina</option>
+                  <option value="profesor">Profesor</option>
+                  <option value="coordinador">Coordinador</option>
+                  <option value="admin">Administrador</option>
+                </select>
+              </label>
+            </div>
+            <label htmlFor="clave-usu">
+              Clave
+              <input
+                id="clave-usu"
+                type="text"
+                value={claveUsu}
+                onChange={(e) => setClaveUsu(e.target.value)}
+                required
+                minLength={4}
+                placeholder="Mínimo 4 caracteres"
+                autoComplete="new-password"
+              />
+            </label>
+            {usuError && <p className="estado error" role="alert">⚠️ {usuError}</p>}
+            {usuExito && <p className="estado exito" aria-live="polite">{usuExito}</p>}
+            <button type="submit" className="boton boton-primario">
+              Crear usuario
+            </button>
+          </form>
+
+          <h2 className="admin-subtitulo">
+            Cuentas creadas ({usuarios.length})
+          </h2>
+          {usuarios.length === 0 && (
+            <p className="estado">Aún no hay cuentas creadas. Crea la primera arriba.</p>
+          )}
+          <Buscador
+            valor={busquedaUsuarios}
+            alCambiar={setBusquedaUsuarios}
+            placeholder="Buscar por nombre, usuario o rol…"
+          />
+          <div className="lista-reservas">
+            {usuarios
+              .filter((u) => {
+                if (!busquedaUsuarios.trim()) return true;
+                const texto = `${u.nombre} ${u.usuario} ${u.rol}`;
+                return coincide(texto, busquedaUsuarios);
+              })
+              .map((u) => (
+              <article key={u.id} className="fila-reserva">
+                <div>
+                  <strong>{u.nombre}</strong>
+                  <span className="fila-reserva-detalle">
+                    {u.usuario} · {u.rol} · {u.activo ? "activo" : "desactivado"}
+                  </span>
+                </div>
+                <div className="formulario-fila">
+                  <button
+                    type="button"
+                    className="boton boton-secundario"
+                    onClick={() => alternarUsuario(u)}
+                    aria-label={`${u.activo ? "Desactivar" : "Activar"} cuenta de ${u.nombre}`}
+                  >
+                    {u.activo ? "Desactivar" : "Activar"}
+                  </button>
+                  <button
+                    type="button"
+                    className="boton boton-secundario"
+                    onClick={() => borrarUsuario(u)}
+                    aria-label={`Borrar cuenta de ${u.nombre}`}
+                  >
+                    Borrar
+                  </button>
+                </div>
               </article>
             ))}
           </div>
