@@ -217,6 +217,34 @@ router.get("/diario", async (req, res) => {
   res.json({ fecha, reservas: data });
 });
 
+// GET /api/reservas/panel?fecha=...
+// Panel compacto de cocina: cuantas minutas preparar para la fecha
+// indicada, agrupado por jornada (Almuerzo/Refrigerio) y por sede.
+// Devuelve: { fecha, porJornada: { Almuerzo: n, Refrigerio: n },
+//             porSede: { "Sede A": n, ... }, total }
+router.get("/panel", requiereRol("admin", "cocina"), async (req, res) => {
+  const fecha = req.query.fecha || new Date().toISOString().slice(0, 10);
+  const { data, error } = await getSupabase()
+    .from("reservas")
+    .select("turno, sede")
+    .eq("fecha", fecha);
+
+  if (error) return res.status(500).json({ error: error.message });
+
+  const porJornada = { Almuerzo: 0, Refrigerio: 0 };
+  const porSede = {};
+  let total = 0;
+  for (const reserva of data) {
+    const turno = reserva.turno || "Otro";
+    porJornada[turno] = (porJornada[turno] || 0) + 1;
+    const sede = reserva.sede || "Sin sede";
+    porSede[sede] = (porSede[sede] || 0) + 1;
+    total += 1;
+  }
+
+  res.json({ fecha, porJornada, porSede, total });
+});
+
 // GET /api/reservas/:id
 // Busca una reserva por su id
 router.get("/:id", async (req, res) => {

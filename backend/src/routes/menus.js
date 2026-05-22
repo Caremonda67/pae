@@ -81,11 +81,22 @@ router.get("/", async (req, res) => {
 // GET /api/menus/hoy
 // La comida del dia actual (zona horaria de Colombia): todas las
 // jornadas de HOY de la semana del mes vigente. La usa la Home.
-// Devuelve: { semana, dia, platos: [{ jornada, platillo, ... }] }
-router.get("/hoy", async (_req, res) => {
-  const ahora = new Date();
-  // Hora de Colombia (UTC-5) para no fallar cerca de la medianoche
-  const colombia = new Date(ahora.getTime() - 5 * 60 * 60 * 1000);
+// Tambien acepta ?fecha=YYYY-MM-DD para consultar un dia concreto
+// (lo usa el panel de cocina). Devuelve:
+// { semana, dia, platos: [{ jornada, platillo, ... }] }
+router.get("/hoy", async (req, res) => {
+  let colombia;
+  if (req.query.fecha) {
+    const [año, mes, dia] = String(req.query.fecha).split("-").map(Number);
+    if (!año || !mes || !dia) {
+      return res.status(400).json({ error: "Fecha no válida" });
+    }
+    colombia = new Date(año, mes - 1, dia, 12, 0, 0);
+  } else {
+    const ahora = new Date();
+    // Hora de Colombia (UTC-5) para no fallar cerca de la medianoche
+    colombia = new Date(ahora.getTime() - 5 * 60 * 60 * 1000);
+  }
   const semana = semanaDelMes(colombia);
   const dia = diaEnEspanol(colombia);
 
