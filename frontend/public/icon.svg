@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="110" fill="#2e9e6b"/>
+  <rect width="512" height="512" rx="110" fill="url(#grado)" opacity="0.25"/>
+  <defs>
+    <linearGradient id="grado" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#1b5e20"/>
+    </linearGradient>
+  </defs>
+  <!-- Plato -->
+  <circle cx="256" cy="290" r="150" fill="#ffffff"/>
+  <circle cx="256" cy="290" r="120" fill="none" stroke="#e0e7dd" stroke-width="6"/>
+  <circle cx="256" cy="290" r="78" fill="none" stroke="#e0e7dd" stroke-width="6"/>
+  <!-- Tenedor -->
+  <g stroke="#2e9e6b" stroke-width="22" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M256 90 v78"/>
+    <path d="M256 110 c-18 0 -30 -12 -30 -26 v-8 c14 0 26 12 26 26 z"/>
+    <path d="M256 110 c18 0 30 -12 30 -26 v-8 c-14 0 -26 12 -26 26 z"/>
+  </g>
+</svg>
