@@ -13,7 +13,7 @@ const router = Router();
 // permitido (desde hoy hasta 60 dias). Devuelve un mensaje o null.
 // Esto protege la base: si llega un año con demasiados digitos o una
 // fecha imposible, se rechaza antes de guardar.
-function validarFecha(fecha) {
+export function validarFecha(fecha) {
   // Debe tener exactamente el formato YYYY-MM-DD
   if (typeof fecha !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
     return "La fecha debe tener el formato año-mes-día (ej: 2026-08-10).";
@@ -41,6 +41,12 @@ function validarFecha(fecha) {
   }
   if (fecha > maxTexto) {
     return "Solo se pueden reservar hasta 60 días antes de la fecha.";
+  }
+
+  // No hay servicio de alimentacion los fines de semana
+  const diaSemana = fechaObj.getDay();
+  if (diaSemana === 0 || diaSemana === 6) {
+    return "Los sábados y domingos no hay servicio de alimentación. Elige un día entre lunes y viernes.";
   }
 
   return null;

@@ -197,17 +197,12 @@ function Home() {
     ? menu.filter((item) => item.semana === comidaHoy.semana)
     : [];
 
-  // Galeria combinada: fotos propias del admin + platos con foto +
-  // avisos con foto. Cada una con su titulo como pie de foto.
-  const fotosGaleria = [
-    ...galeria.map((f) => ({ id: `g-${f.id}`, titulo: f.titulo, imagen: f.imagen })),
-    ...menu
-      .filter((item) => item.imagen)
-      .map((item) => ({ id: `m-${item.id}`, titulo: item.platillo, imagen: item.imagen! })),
-    ...avisos
-      .filter((a) => a.imagen)
-      .map((a) => ({ id: `a-${a.id}`, titulo: a.titulo, imagen: a.imagen! })),
-  ].slice(0, 6);
+  // Galeria: solo las fotos propias subidas por el admin (tabla galeria)
+  const fotosGaleria = galeria.map((f) => ({
+    id: `g-${f.id}`,
+    titulo: f.titulo,
+    imagen: f.imagen,
+  })).slice(0, 6);
 
   return (
     <div className="home-pae">
@@ -487,14 +482,17 @@ function Home() {
       <section className="seccion-pae">
         <div className="seccion-titulo">
           <h2>Galería</h2>
-          <Link to="/noticias" className="enlace-ver">
+          <Link to="/galeria" className="enlace-ver">
             Ver más →
           </Link>
         </div>
         {fotosGaleria.length === 0 ? (
-          <p className="estado">
-            Aún no hay fotos. El equipo sube imágenes del menú y del programa.
-          </p>
+          <div className="galeria-vacia">
+            <span className="galeria-vacia-icono" aria-hidden="true">🖼️</span>
+            <p className="galeria-vacia-texto">
+              La galería está vacía. El equipo subirá fotos del programa muy pronto.
+            </p>
+          </div>
         ) : (
           <div className="galeria">
             {fotosGaleria.map((foto) => (

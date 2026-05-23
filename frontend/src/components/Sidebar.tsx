@@ -50,6 +50,9 @@ function Sidebar() {
           <NavLink to="/noticias" onClick={cerrar}>
             <span className="nav-icono">📰</span> Noticias
           </NavLink>
+          <NavLink to="/galeria" onClick={cerrar}>
+            <span className="nav-icono">🖼️</span> Galería
+          </NavLink>
           <NavLink to="/reportes" onClick={cerrar}>
             <span className="nav-icono">📋</span> Reportes
           </NavLink>
