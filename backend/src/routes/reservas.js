@@ -206,7 +206,8 @@ router.get("/plan", async (req, res) => {
 // GET /api/reservas/diario?fecha=...
 // Lista de reservas de un dia concreto, para que la cocina sepa
 // cuantas minutas preparar por turno y sede (tabla diaria).
-router.get("/diario", async (req, res) => {
+// Expone datos personales (nombre, documento), por eso requiere rol.
+router.get("/diario", requiereRol("admin", "cocina", "profesor", "coordinador"), async (req, res) => {
   const fecha = req.query.fecha || new Date().toISOString().slice(0, 10);
   const { data, error } = await getSupabase()
     .from("reservas")
