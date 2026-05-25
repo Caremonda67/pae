@@ -8,6 +8,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import Lightbox from "../components/Lightbox";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
@@ -59,6 +60,7 @@ interface FotoGaleria {
   id: number;
   titulo: string;
   imagen: string;
+  descripcion?: string;
 }
 
 function Home() {
@@ -78,7 +80,14 @@ function Home() {
   const [avisos, setAvisos] = useState<Aviso[]>([]);
   // Fotos propias de la galeria (publicadas por el administrador)
   const [galeria, setGaleria] = useState<FotoGaleria[]>([]);
-  const [buscador, setBuscador] = useState("");
+  // Foto abierta en grande (lightbox de la galeria)
+  const [fotoAbierta, setFotoAbierta] = useState<{
+    imagen: string;
+    titulo: string;
+    descripcion?: string;
+  } | null>(null);
+  // Plato de la comida del dia abierto en grande (lightbox)
+  const [platoAbierto, setPlatoAbierto] = useState<MenuItem | null>(null);  const [buscador, setBuscador] = useState("");
   const [buscadorAbierto, setBuscadorAbierto] = useState(false);
   // referencia al contenedor del buscador para detectar clic fuera
   const buscadorRef = useRef<HTMLDivElement>(null);
@@ -202,6 +211,7 @@ function Home() {
     id: `g-${f.id}`,
     titulo: f.titulo,
     imagen: f.imagen,
+    descripcion: f.descripcion,
   })).slice(0, 6);
 
   return (
@@ -312,18 +322,30 @@ function Home() {
           <div className="comida-dia-lista">
             {comidaHoy.platos.map((plato) => (
               <article key={plato.id} className="comida-dia-tarjeta">
-                {plato.imagen ? (
-                  <img
-                    className="comida-dia-imagen"
-                    src={plato.imagen}
-                    alt={plato.platillo}
-                    loading="lazy"
-                  />
-                ) : (
-                  <div className="comida-dia-imagen comida-dia-sin-foto">
-                    🍽️
-                  </div>
-                )}
+                <button
+                  type="button"
+                  className="comida-dia-foto"
+                  onClick={() => setPlatoAbierto(plato)}
+                  aria-label={`Ver foto de ${plato.platillo}`}
+                >
+                  {plato.imagen ? (
+                    <img
+                      className="comida-dia-imagen"
+                      src={plato.imagen}
+                      alt={plato.platillo}
+                      loading="lazy"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src =
+                          "data:image/svg+xml;utf8," +
+                          encodeURIComponent(
+                            `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 250"><rect width="400" height="250" fill="#f1f5ef"/><text x="200" y="140" font-size="80" text-anchor="middle">🍽️</text></svg>`
+                          );
+                      }}
+                    />
+                  ) : (
+                    <span className="comida-dia-sin-foto">🍽️</span>
+                  )}
+                </button>
                 <div className="comida-dia-info">
                   <span className="comida-dia-jornada">{plato.jornada}</span>
                   <h3>{plato.platillo}</h3>
@@ -337,9 +359,6 @@ function Home() {
               </article>
             ))}
           </div>
-          <Link to="/reserva" className="boton boton-primario">
-            Reservar mi comida
-          </Link>
         </section>
       )}
 
@@ -496,14 +515,41 @@ function Home() {
         ) : (
           <div className="galeria">
             {fotosGaleria.map((foto) => (
-              <figure key={foto.id} className="galeria-item">
+              <figure
+                key={foto.id}
+                className="galeria-item"
+                onClick={() => setFotoAbierta(foto)}
+              >
                 <img src={foto.imagen} alt={foto.titulo} loading="lazy" />
-                <figcaption>{foto.titulo}</figcaption>
+                <figcaption>
+                  <span className="galeria-titulo">{foto.titulo}</span>
+                  {foto.descripcion && (
+                    <span className="galeria-descripcion">{foto.descripcion}</span>
+                  )}
+                </figcaption>
               </figure>
             ))}
           </div>
         )}
       </section>
+
+      {fotoAbierta && (
+        <Lightbox
+          imagen={fotoAbierta.imagen}
+          titulo={fotoAbierta.titulo}
+          descripcion={fotoAbierta.descripcion}
+          alCerrar={() => setFotoAbierta(null)}
+        />
+      )}
+
+      {platoAbierto && platoAbierto.imagen && (
+        <Lightbox
+          imagen={platoAbierto.imagen}
+          titulo={platoAbierto.platillo}
+          descripcion={platoAbierto.descripcion}
+          alCerrar={() => setPlatoAbierto(null)}
+        />
+      )}
 
       {/* ===== CITA ===== */}
       <section className="cita">
