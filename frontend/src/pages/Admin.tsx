@@ -16,7 +16,7 @@
 import { useEffect, useState } from "react";
 import Buscador from "../components/Buscador";
 import { coincide } from "../config/busqueda";
-import { estadoReserva, GRADOS, horarioGrado } from "../config/horarios";
+import { GRADOS, horarioGrado } from "../config/horarios";
 import { API_URL } from "../config/api";
 import {
   leerSesion,
@@ -25,32 +25,7 @@ import {
   cabeceras,
 } from "../config/sesion";
 
-// una reserva que llega del backend
-interface Reserva {
-  id: number;
-  estudiante: string;
-  documento: string;
-  sede: string;
-  turno: string;
-  fecha: string;
-  asistio: boolean;
-  grado?: string | null;
-}
-
-interface TotalFecha {
-  reservas: number;
-  asistieron: number;
-}
-
-interface Reporte {
-  totalReservas: number;
-  minutasServidas: number;
-  minutasDesperdiciadas: number;
-  porcentajeDesperdicio: number;
-  porSede: Record<string, { reservas: number; asistieron: number }>;
-  porTurno: Record<string, { reservas: number; asistieron: number }>;
-}
-
+// un aviso que se muestra en la home
 interface Aviso {
   id: number;
   titulo: string;
@@ -69,6 +44,14 @@ interface MenuItem {
   descripcion: string;
   calorias?: number;
   imagen?: string;
+}
+
+// resumen del panel compacto de cocina (ruta /api/reservas/panel)
+interface PanelCocina {
+  fecha: string;
+  porJornada: Record<string, number>;
+  porSede: Record<string, number>;
+  total: number;
 }
 
 // dia de la semana con su lista de platos
@@ -92,13 +75,6 @@ interface Colaborador {
   id: number;
   nombre: string;
   rol?: string | null;
-}
-
-// plan diario de minutas a servir (ruta /api/reservas/plan)
-interface PlanDia {
-  fecha: string;
-  porTurno: Record<string, number>;
-  total: number;
 }
 
 // una foto de la galeria del programa
@@ -156,6 +132,12 @@ type Pestana =
   | "mensajes"
   | "usuarios";
 
+// Fecha de hoy en formato YYYY-MM-DD (hora local del navegador)
+function hoyLocal() {
+  const ahora = new Date();
+  return `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, "0")}-${String(ahora.getDate()).padStart(2, "0")}`;
+}
+
 function Admin() {
   const [autenticado, setAutenticado] = useState(leerSesion() !== null);
   const [rol, setRol] = useState(leerSesion()?.rol || "");
@@ -165,19 +147,21 @@ function Admin() {
   const [errorLogin, setErrorLogin] = useState("");
   const [pestana, setPestana] = useState<Pestana>("panel");
 
-  const [totales, setTotales] = useState<Record<string, TotalFecha>>({});
-  const [reservas, setReservas] = useState<Reserva[]>([]);
-  const [reporte, setReporte] = useState<Reporte | null>(null);
   const [avisos, setAvisos] = useState<Aviso[]>([]);
   const [mensajes, setMensajes] = useState<Mensaje[]>([]);
   const [beneficiarios, setBeneficiarios] = useState<Beneficiario[]>([]);
   const [notificaciones, setNotificaciones] = useState<Notificacion[]>([]);
   const [menu, setMenu] = useState<MenuSemanaAdmin[]>([]);
-  const [plan, setPlan] = useState<PlanDia[]>([]);
   const [galeria, setGaleria] = useState<FotoGaleria[]>([]);
   const [instituciones, setInstituciones] = useState<Institucion[]>([]);
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+
+  // panel compacto de cocina
+  const [fechaPanel, setFechaPanel] = useState(() => hoyLocal());
+  const [panelDia, setPanelDia] = useState<PanelCocina | null>(null);
+  const [menuDia, setMenuDia] = useState<MenuItem[]>([]);
+  const [panelCargando, setPanelCargando] = useState(false);
 
   // formulario de usuario (cuenta del panel)
   const [nombreUsu, setNombreUsu] = useState("");
@@ -192,12 +176,6 @@ function Admin() {
   const [nombreInst, setNombreInst] = useState("");
   const [instError, setInstError] = useState("");
   const [instExito, setInstExito] = useState("");
-
-  // formulario de colaborador
-  const [nombreCol, setNombreCol] = useState("");
-  const [rolCol, setRolCol] = useState("");
-  const [colError, setColError] = useState("");
-  const [colExito, setColExito] = useState("");
 
   // formulario de foto de galeria
   const [tituloGaleria, setTituloGaleria] = useState("");
@@ -241,7 +219,6 @@ function Admin() {
   const [error, setError] = useState("");
 
   // busquedas de cada pestana (se filtra en el navegador)
-  const [busquedaReservas, setBusquedaReservas] = useState("");
   const [busquedaBeneficiarios, setBusquedaBeneficiarios] = useState("");
   const [busquedaMenu, setBusquedaMenu] = useState("");
   const [busquedaAvisos, setBusquedaAvisos] = useState("");
@@ -291,50 +268,38 @@ function Admin() {
     setClave("");
   };
 
-  // Carga todo: totales, reservas, reporte, avisos, mensajes,
-  // beneficiarios y notificaciones (las protegidas usan el token)
+  // Carga todo: panel de cocina, avisos, mensajes, beneficiarios,
+  // notificaciones y lo demás (las protegidas usan el token)
   const cargarDatos = async () => {
     setCargando(true);
     setError("");
     try {
       const [
-        respTotales,
-        respReservas,
-        respReporte,
         respAvisos,
         respMensajes,
         respBeneficiarios,
         respNotificaciones,
         respMenu,
-        respPlan,
         respGaleria,
         respInstituciones,
         respColaboradores,
       ] = await Promise.all([
-        fetch(`${API_URL}/api/reservas/totales`),
-        fetch(`${API_URL}/api/reservas`, { headers: cabeceras(false) }),
-        fetch(`${API_URL}/api/reservas/reporte`),
         fetch(`${API_URL}/api/avisos`),
         fetch(`${API_URL}/api/contacto`, { headers: cabeceras(false) }),
         fetch(`${API_URL}/api/beneficiarios`),
         fetch(`${API_URL}/api/notificaciones`, { headers: cabeceras(false) }),
         fetch(`${API_URL}/api/menus`),
-        fetch(`${API_URL}/api/reservas/plan?dias=7`),
         fetch(`${API_URL}/api/galeria`),
         fetch(`${API_URL}/api/instituciones`),
         fetch(`${API_URL}/api/colaboradores`),
       ]);
 
       const respuestas: [string, Response][] = [
-        ["totales", respTotales],
-        ["reservas", respReservas],
-        ["reporte", respReporte],
         ["avisos", respAvisos],
         ["mensajes", respMensajes],
         ["beneficiarios", respBeneficiarios],
         ["notificaciones", respNotificaciones],
         ["menu", respMenu],
-        ["plan", respPlan],
         ["galeria", respGaleria],
         ["instituciones", respInstituciones],
         ["colaboradores", respColaboradores],
@@ -352,9 +317,6 @@ function Admin() {
         throw new Error(`No se pudieron cargar los datos (${nombre}: ${r.status})`);
       }
 
-      setTotales(await respTotales.json());
-      setReservas(await respReservas.json());
-      setReporte(await respReporte.json());
       setAvisos(await respAvisos.json());
       setMensajes(await respMensajes.json());
       setBeneficiarios(await respBeneficiarios.json());
@@ -383,7 +345,6 @@ function Admin() {
         }))
       );
 
-      setPlan(await respPlan.json());
       setGaleria(await respGaleria.json());
       setInstituciones(await respInstituciones.json());
       setColaboradores(await respColaboradores.json());
@@ -415,20 +376,33 @@ function Admin() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autenticado]);
 
-  // Marca una reserva como asistida (o la desmarca)
-  const marcarAsistencia = async (reserva: Reserva) => {
+  // Carga el panel compacto de cocina para la fecha elegida:
+  // cuantas minutas por jornada y por sede + el menu del dia.
+  const cargarPanel = async (fecha: string) => {
+    setPanelCargando(true);
     try {
-      const respuesta = await fetch(`${API_URL}/api/reservas/${reserva.id}`, {
-        method: "PUT",
-        headers: cabeceras(),
-        body: JSON.stringify({ asistio: !reserva.asistio }),
-      });
-      if (!respuesta.ok) throw new Error("No se pudo actualizar");
-      cargarDatos();
+      const [respPanel, respMenu] = await Promise.all([
+        fetch(`${API_URL}/api/reservas/panel?fecha=${fecha}`, {
+          headers: cabeceras(false),
+        }),
+        fetch(`${API_URL}/api/menus/hoy?fecha=${fecha}`),
+      ]);
+      if (!respPanel.ok) throw new Error("No se pudo cargar el panel");
+      setPanelDia(await respPanel.json());
+      const menu = (await respMenu.json()) as { platos?: MenuItem[] };
+      setMenuDia(menu.platos || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error desconocido");
+    } finally {
+      setPanelCargando(false);
     }
   };
+
+  // Carga el panel cada vez que cambia la fecha o al entrar
+  useEffect(() => {
+    if (autenticado) cargarPanel(fechaPanel);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autenticado, fechaPanel]);
 
   // Publica un aviso nuevo (si hay imagen subida, la adjunta)
   const publicarAviso = async (e: React.FormEvent) => {
@@ -680,44 +654,6 @@ function Admin() {
     }
   };
 
-  // Registra un colaborador nuevo
-  const registrarColaborador = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setColError("");
-    setColExito("");
-    try {
-      const respuesta = await fetch(`${API_URL}/api/colaboradores`, {
-        method: "POST",
-        headers: cabeceras(),
-        body: JSON.stringify({ nombre: nombreCol, rol: rolCol }),
-      });
-      if (!respuesta.ok) {
-        const datos = await respuesta.json().catch(() => null);
-        throw new Error(datos?.error || "No se pudo registrar el colaborador");
-      }
-      setNombreCol("");
-      setRolCol("");
-      setColExito("✅ Colaborador registrado. Ya cuenta en la métrica de la página.");
-      cargarDatos();
-    } catch (err) {
-      setColError(err instanceof Error ? err.message : "Error desconocido");
-    }
-  };
-
-  // Borra un colaborador
-  const borrarColaborador = async (id: number) => {
-    try {
-      const respuesta = await fetch(`${API_URL}/api/colaboradores/${id}`, {
-        method: "DELETE",
-        headers: cabeceras(false),
-      });
-      if (!respuesta.ok) throw new Error("No se pudo borrar");
-      cargarDatos();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Error desconocido");
-    }
-  };
-
   // Crea una cuenta de usuario del panel (solo admin)
   const registrarUsuario = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -905,133 +841,78 @@ function Admin() {
 
       {!cargando && !error && pestanaActiva === "panel" && (
         <div id="panel-panel" role="tabpanel" aria-labelledby="tab-panel">
-          {reporte && (
-            <div className="reporte">
-              <h2>Reporte de desperdicio</h2>
+          {/* Selector de fecha para ver cuantas minutas preparar */}
+          <div className="panel-fecha">
+            <label htmlFor="fecha-panel">Fecha</label>
+            <input
+              id="fecha-panel"
+              type="date"
+              value={fechaPanel}
+              onChange={(e) => setFechaPanel(e.target.value)}
+            />
+          </div>
+
+          {panelCargando && <p className="estado">Cargando panel…</p>}
+
+          {!panelCargando && panelDia && (
+            <>
+              {/* Total por jornada: lo que hay que preparar hoy */}
+              <h2 className="admin-subtitulo">Minutas a preparar</h2>
               <div className="reporte-cajas">
                 <div className="reporte-caja">
-                  <span className="reporte-numero">{reporte.totalReservas}</span>
-                  <span className="reporte-etiqueta">Minutas reservadas</span>
+                  <span className="reporte-numero">{panelDia.porJornada.Almuerzo || 0}</span>
+                  <span className="reporte-etiqueta">Almuerzos</span>
                 </div>
                 <div className="reporte-caja">
-                  <span className="reporte-numero">{reporte.minutasServidas}</span>
-                  <span className="reporte-etiqueta">Minutas servidas</span>
+                  <span className="reporte-numero">{panelDia.porJornada.Refrigerio || 0}</span>
+                  <span className="reporte-etiqueta">Refrigerios</span>
                 </div>
-                <div className="reporte-caja desperdicio">
-                  <span className="reporte-numero">
-                    {reporte.minutasDesperdiciadas}
-                  </span>
-                  <span className="reporte-etiqueta">Sin asistir ({reporte.porcentajeDesperdicio}%)</span>
+                <div className="reporte-caja">
+                  <span className="reporte-numero">{panelDia.total}</span>
+                  <span className="reporte-etiqueta">Total del día</span>
                 </div>
               </div>
 
-              {/* Desglose por sede y turno */}
-              <h3 className="reporte-subtitulo">Desglose por sede</h3>
-              <div className="reporte-desglose">
-                {Object.entries(reporte.porSede || {}).map(([sede, info]) => (
-                  <div key={sede} className="reporte-caja">
-                    <span className="reporte-numero">{info.reservas}</span>
-                    <span className="reporte-etiqueta">{sede} · {info.asistieron} asistieron</span>
+              {/* Desglose por sede: cuantas raciones va a cada sede */}
+              {Object.keys(panelDia.porSede || {}).length > 0 && (
+                <>
+                  <h3 className="reporte-subtitulo">Por sede</h3>
+                  <div className="reporte-desglose">
+                    {Object.entries(panelDia.porSede || {}).map(([sede, cantidad]) => (
+                      <div key={sede} className="reporte-caja">
+                        <span className="reporte-numero">{cantidad}</span>
+                        <span className="reporte-etiqueta">{sede}</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-              <h3 className="reporte-subtitulo">Desglose por turno</h3>
-              <div className="reporte-desglose">
-                {Object.entries(reporte.porTurno || {}).map(([turno, info]) => (
-                  <div key={turno} className="reporte-caja">
-                    <span className="reporte-numero">{info.reservas}</span>
-                    <span className="reporte-etiqueta">{turno} · {info.asistieron} asistieron</span>
+                </>
+              )}
+
+              {/* Menu del dia: lo que toca cocinar */}
+              {menuDia.length > 0 && (
+                <>
+                  <h2 className="admin-subtitulo">Menú del día</h2>
+                  <div className="lista-totales">
+                    {menuDia.map((plato) => (
+                      <article key={plato.id} className="total-fecha">
+                        <span className="total-fecha-nombre">{plato.jornada}</span>
+                        <span className="total-fecha-cantidad">
+                          {plato.platillo}
+                        </span>
+                      </article>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
+                </>
+              )}
 
-          <h2 className="admin-subtitulo">Plan de las próximas 7 días</h2>
-          <p className="subtitulo">
-            Cuántas minutas hay que preparar por día y por turno (las reservas
-            se hacen con antelación).
-          </p>
-          {plan.length === 0 && (
-            <p className="estado">No hay reservas en los próximos 7 días.</p>
+              {panelDia.total === 0 && (
+                <p className="estado">
+                  No hay reservas para esa fecha. Revisa que la fecha sea hábil
+                  (lunes a viernes) y que los estudiantes hayan reservado.
+                </p>
+              )}
+            </>
           )}
-          <div className="lista-totales">
-            {plan.map((dia) => (
-              <article key={dia.fecha} className="total-fecha">
-                <span className="total-fecha-nombre">{dia.fecha}</span>
-                <span className="total-fecha-cantidad">
-                  {Object.entries(dia.porTurno)
-                    .map(([turno, cantidad]) => `${turno}: ${cantidad}`)
-                    .join(" · ")}
-                </span>
-                <span className="total-fecha-cantidad">
-                  {dia.total} minutas en total
-                </span>
-              </article>
-            ))}
-          </div>
-
-          <h2 className="admin-subtitulo">Minutas a preparar por fecha</h2>
-          <div className="lista-totales">
-            {Object.keys(totales).length === 0 && (
-              <p className="estado">Aún no hay reservas registradas.</p>
-            )}
-            {Object.entries(totales)
-              .sort((a, b) => (a[0] < b[0] ? -1 : 1))
-              .map(([fecha, total]) => (
-                <article key={fecha} className="total-fecha">
-                  <span className="total-fecha-nombre">{fecha}</span>
-                  <span className="total-fecha-cantidad">
-                    {total.reservas} minutas · {total.asistieron} asistieron
-                  </span>
-                </article>
-              ))}
-          </div>
-
-          <h2 className="admin-subtitulo">Reservas</h2>
-          {reservas.length === 0 && (
-            <p className="estado">Aún no hay reservas registradas.</p>
-          )}
-          <Buscador
-            valor={busquedaReservas}
-            alCambiar={setBusquedaReservas}
-            placeholder="Buscar por estudiante, documento, sede, turno o fecha…"
-          />
-          <div className="lista-reservas">
-            {reservas
-              .slice()
-              .sort((a, b) => (a.fecha < b.fecha ? -1 : 1))
-              .filter((reserva) => {
-                if (!busquedaReservas.trim()) return true;
-                const texto = `${reserva.estudiante} ${reserva.documento} ${reserva.sede} ${reserva.turno} ${reserva.fecha} ${reserva.grado || ""}`;
-                return coincide(texto, busquedaReservas);
-              })
-              .map((reserva) => {
-                const estado = estadoReserva(reserva);
-                return (
-                  <article key={reserva.id} className="fila-reserva">
-                    <div>
-                      <strong>{reserva.estudiante}</strong>
-                      <span className="fila-reserva-detalle">
-                        {reserva.sede} · {reserva.turno} · {reserva.fecha}
-                        {reserva.grado ? ` · Grado ${reserva.grado}` : ""}
-                      </span>
-                      <span className={`estado-reserva ${estado}`}>
-                        {estado === "completada" ? "✓ Completada" : "⏳ Pendiente"}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      className={`asistencia ${reserva.asistio ? "asistio" : ""}`}
-                      onClick={() => marcarAsistencia(reserva)}
-                      aria-pressed={reserva.asistio}
-                    >
-                      {reserva.asistio ? "✓ Asistió" : "Marcar asistencia"}
-                    </button>
-                  </article>
-                );
-              })}
-          </div>
         </div>
       )}
 
@@ -1575,42 +1456,12 @@ function Admin() {
 
       {!cargando && !error && pestanaActiva === "colaboradores" && (
         <div id="panel-colaboradores" role="tabpanel" aria-labelledby="tab-colaboradores">
-          <h2 className="admin-subtitulo">Registrar colaborador</h2>
-          <p className="subtitulo">
-            Cada colaborador cuenta en la métrica de la página de inicio.
-          </p>
-          <form className="formulario" onSubmit={registrarColaborador}>
-            <div className="formulario-fila">
-              <label>
-                Nombre completo
-                <input
-                  type="text"
-                  value={nombreCol}
-                  onChange={(e) => setNombreCol(e.target.value)}
-                  required
-                  placeholder="Nombre del colaborador"
-                />
-              </label>
-              <label>
-                Rol (opcional)
-                <input
-                  type="text"
-                  value={rolCol}
-                  onChange={(e) => setRolCol(e.target.value)}
-                  placeholder="Ej: Coordinador, Manipuladora"
-                />
-              </label>
-            </div>
-            {colError && <p className="estado error" role="alert">⚠️ {colError}</p>}
-            {colExito && <p className="estado exito" aria-live="polite">{colExito}</p>}
-            <button type="submit" className="boton boton-primario">
-              Registrar colaborador
-            </button>
-          </form>
-
           <h2 className="admin-subtitulo">
             Colaboradores registrados ({colaboradores.length})
           </h2>
+          <p className="subtitulo">
+            Cada colaborador cuenta en la métrica de la página de inicio.
+          </p>
           {colaboradores.length === 0 && (
             <p className="estado">Aún no hay colaboradores registrados.</p>
           )}
@@ -1634,14 +1485,6 @@ function Admin() {
                     {col.rol || "Sin rol"}
                   </span>
                 </div>
-                 <button
-                   type="button"
-                   className="boton boton-secundario"
-                   onClick={() => borrarColaborador(col.id)}
-                   aria-label={`Borrar colaborador ${col.nombre}`}
-                 >
-                   Borrar
-                 </button>
               </article>
             ))}
           </div>
