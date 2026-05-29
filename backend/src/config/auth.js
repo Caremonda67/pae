@@ -13,16 +13,24 @@
 
 import crypto from "node:crypto";
 
-// Clave del panel. Esta en el .env (backend/.env o Render) y
-// NO se sube a github. Por defecto queda la misma del proyecto.
-const ADMIN_CLAVE = process.env.ADMIN_CLAVE || "pae2026";
+// Clave del panel. Debe estar en el .env (backend/.env o Render).
+// NO se sube a github. Si no se define, el login se bloquea
+// (ninguna clave es valida) en lugar de usar una clave conocida.
+const ADMIN_CLAVE = process.env.ADMIN_CLAVE || null;
 
-// Secreto con el que se firman los tokens. Mientras no se
-// defina uno propio usamos la clave del admin.
-const SECRETO = process.env.ADMIN_SECRET || ADMIN_CLAVE;
+// Secreto con el que se firman los tokens. Mientras no se defina
+// uno propio se usa la clave del admin. Si tampoco hay clave, se
+// usa un valor aleatorio: nadie podra firmar tokens validos.
+const SECRETO =
+  process.env.ADMIN_SECRET || ADMIN_CLAVE || crypto.randomBytes(32).toString("hex");
 
 // Cuanto dura el token (12 horas, tiempo de una jornada escolar)
 const EXPIRACION_MS = 12 * 60 * 60 * 1000;
+
+// ¿Esta configurada la clave del panel?
+export function adminConfigurado() {
+  return Boolean(ADMIN_CLAVE);
+}
 
 // Genera un token firmado: <payload-base64url>.<firma>
 export function firmarToken(usuario = "admin") {

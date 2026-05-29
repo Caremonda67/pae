@@ -137,126 +137,89 @@ create table if not exists colaboradores (
 
 -- ============================================================
 -- 4. Politicas de acceso (RLS)
--- Sin estas politicas la app no puede leer/escribir.
--- RLS activo + politicas = la app publica lee menus y guarda
--- reservas/contactos.
+-- ============================================================
+-- IMPORTANTE: el frontend NUNCA habla directo con Supabase, todo
+-- pasa por la API del backend. Por eso RLS se usa para proteger
+-- los datos si alguien llega con el anon key:
 --
--- IMPORTANTE: antes de cada create policy se borra la que ya
--- exista ("drop policy if exists"), asi este script se puede
--- correr cuantas veces se quiera sin dar error.
+--   * Publico (anon): SOLO lectura de lo que se muestra en la web
+--     (menus, avisos, galeria, valoraciones). Nada de borrar.
+--   * Privado: reservas, beneficiarios, contactos, notificaciones
+--     NO se pueden leer con el anon key. El backend accede con la
+--     SUPABASE_SERVICE_ROLE_KEY, que ignora RLS y ya valida por su
+--     cuenta quien puede hacer cada operacion.
+--
+-- La escritura (crear/actualizar/borrar) queda en manos del backend.
+-- Antes de cada create policy se borra la que ya exista, asi este
+-- script se puede correr cuantas veces se quiera sin dar error.
 -- ============================================================
 
+-- menus: cualquiera puede ver el menu publicado
 alter table menus enable row level security;
 drop policy if exists "menus_lectura_publica" on menus;
 create policy "menus_lectura_publica" on menus
   for select using (true);
-drop policy if exists "menus_escritura_admin" on menus;
-create policy "menus_escritura_admin" on menus
-  for insert with check (true);
--- Permite al admin eliminar platos del menu desde el panel
-drop policy if exists "menus_borrado_admin" on menus;
-create policy "menus_borrado_admin" on menus
-  for delete using (true);
 
+-- reservas: datos personales, no se leen con el anon key
 alter table reservas enable row level security;
-drop policy if exists "reservas_lectura" on reservas;
-create policy "reservas_lectura" on reservas
-  for select using (true);
-drop policy if exists "reservas_creacion" on reservas;
-create policy "reservas_creacion" on reservas
-  for insert with check (true);
--- Permite limpiar datos de prueba desde la API (proyecto educativo)
-drop policy if exists "reservas_borrado" on reservas;
-create policy "reservas_borrado" on reservas
-  for delete using (true);
+drop policy if exists "reservas_lectura_publica" on reservas;
+create policy "reservas_lectura_publica" on reservas
+  for select using (false);
 
+-- contactos: datos personales, no se leen con el anon key
 alter table contactos enable row level security;
-drop policy if exists "contactos_lectura" on contactos;
-create policy "contactos_lectura" on contactos
-  for select using (true);
-drop policy if exists "contactos_creacion" on contactos;
-create policy "contactos_creacion" on contactos
-  for insert with check (true);
+drop policy if exists "contactos_lectura_publica" on contactos;
+create policy "contactos_lectura_publica" on contactos
+  for select using (false);
 
+-- avisos: cualquiera puede ver las noticias
 alter table avisos enable row level security;
-drop policy if exists "avisos_lectura" on avisos;
-create policy "avisos_lectura" on avisos
+drop policy if exists "avisos_lectura_publica" on avisos;
+create policy "avisos_lectura_publica" on avisos
   for select using (true);
-drop policy if exists "avisos_creacion" on avisos;
-create policy "avisos_creacion" on avisos
-  for insert with check (true);
-drop policy if exists "avisos_borrado" on avisos;
-create policy "avisos_borrado" on avisos
-  for delete using (true);
 
+-- beneficiarios: datos personales, no se leen con el anon key
 alter table beneficiarios enable row level security;
-drop policy if exists "beneficiarios_lectura" on beneficiarios;
-create policy "beneficiarios_lectura" on beneficiarios
-  for select using (true);
-drop policy if exists "beneficiarios_creacion" on beneficiarios;
-create policy "beneficiarios_creacion" on beneficiarios
-  for insert with check (true);
-drop policy if exists "beneficiarios_borrado" on beneficiarios;
-create policy "beneficiarios_borrado" on beneficiarios
-  for delete using (true);
+drop policy if exists "beneficiarios_lectura_publica" on beneficiarios;
+create policy "beneficiarios_lectura_publica" on beneficiarios
+  for select using (false);
 
+-- valoraciones: las estrellas se ven en la web
 alter table valoraciones enable row level security;
-drop policy if exists "valoraciones_lectura" on valoraciones;
-create policy "valoraciones_lectura" on valoraciones
+drop policy if exists "valoraciones_lectura_publica" on valoraciones;
+create policy "valoraciones_lectura_publica" on valoraciones
   for select using (true);
-drop policy if exists "valoraciones_creacion" on valoraciones;
-create policy "valoraciones_creacion" on valoraciones
-  for insert with check (true);
-drop policy if exists "valoraciones_actualizacion" on valoraciones;
-create policy "valoraciones_actualizacion" on valoraciones
-  for update using (true);
 
+-- notificaciones: datos internos, no se leen con el anon key
 alter table notificaciones enable row level security;
-drop policy if exists "notificaciones_lectura" on notificaciones;
-create policy "notificaciones_lectura" on notificaciones
-  for select using (true);
-drop policy if exists "notificaciones_creacion" on notificaciones;
-create policy "notificaciones_creacion" on notificaciones
-  for insert with check (true);
+drop policy if exists "notificaciones_lectura_publica" on notificaciones;
+create policy "notificaciones_lectura_publica" on notificaciones
+  for select using (false);
 
+-- galeria: cualquiera puede ver las fotos del programa
 alter table galeria enable row level security;
-drop policy if exists "galeria_lectura" on galeria;
-create policy "galeria_lectura" on galeria
+drop policy if exists "galeria_lectura_publica" on galeria;
+create policy "galeria_lectura_publica" on galeria
   for select using (true);
-drop policy if exists "galeria_creacion" on galeria;
-create policy "galeria_creacion" on galeria
-  for insert with check (true);
-drop policy if exists "galeria_borrado" on galeria;
-create policy "galeria_borrado" on galeria
-  for delete using (true);
 
+-- instituciones: datos de las metricas de la Home
 alter table instituciones enable row level security;
-drop policy if exists "instituciones_lectura" on instituciones;
-create policy "instituciones_lectura" on instituciones
+drop policy if exists "instituciones_lectura_publica" on instituciones;
+create policy "instituciones_lectura_publica" on instituciones
   for select using (true);
-drop policy if exists "instituciones_creacion" on instituciones;
-create policy "instituciones_creacion" on instituciones
-  for insert with check (true);
-drop policy if exists "instituciones_borrado" on instituciones;
-create policy "instituciones_borrado" on instituciones
-  for delete using (true);
 
+-- colaboradores: datos de las metricas de la Home
 alter table colaboradores enable row level security;
-drop policy if exists "colaboradores_lectura" on colaboradores;
-create policy "colaboradores_lectura" on colaboradores
+drop policy if exists "colaboradores_lectura_publica" on colaboradores;
+create policy "colaboradores_lectura_publica" on colaboradores
   for select using (true);
-drop policy if exists "colaboradores_creacion" on colaboradores;
-create policy "colaboradores_creacion" on colaboradores
-  for insert with check (true);
-drop policy if exists "colaboradores_borrado" on colaboradores;
-create policy "colaboradores_borrado" on colaboradores
-  for delete using (true);
 
 -- ============================================================
 -- 4.1 Bucket de imagenes (Supabase Storage)
--- Aqui se guardan las fotos de las minutas y los avisos.
--- Es publico para que cualquier persona pueda verlas, y cualquiera
--- puede subir (el backend ya valida que sea el administrador).
+-- ============================================================
+-- La carpeta es publica para que el navegador pueda mostrar las
+-- fotos (la URL se comparte tal cual). Subir y borrar solo lo hace
+-- el backend con la service role key; el anon key no puede.
 -- ============================================================
 insert into storage.buckets (id, name, public)
 values ('imagenes', 'imagenes', true)
@@ -265,14 +228,6 @@ on conflict (id) do nothing;
 drop policy if exists "imagenes_leer" on storage.objects;
 create policy "imagenes_leer" on storage.objects
   for select using (bucket_id = 'imagenes');
-
-drop policy if exists "imagenes_subir" on storage.objects;
-create policy "imagenes_subir" on storage.objects
-  for insert with check (bucket_id = 'imagenes');
-
-drop policy if exists "imagenes_borrar" on storage.objects;
-create policy "imagenes_borrar" on storage.objects
-  for delete using (bucket_id = 'imagenes');
 
 -- ============================================================
 -- 5. Datos de ejemplo: menu del PAE
