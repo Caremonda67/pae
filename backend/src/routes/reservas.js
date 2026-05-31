@@ -6,6 +6,7 @@ import { Router } from "express";
 import { getSupabase } from "../config/supabase.js";
 import { requiereAdmin } from "../config/auth.js";
 import { crearNotificacion } from "./notificaciones.js";
+import { limiteFormularios } from "../config/rateLimit.js";
 
 const router = Router();
 
@@ -231,12 +232,28 @@ router.get("/:id", async (req, res) => {
 // POST /api/reservas
 // Crea una reserva nueva
 // Cuerpo esperado: { estudiante, documento, sede, turno, fecha }
-router.post("/", async (req, res) => {
+router.post("/", limiteFormularios, async (req, res) => {
   const { estudiante, documento, sede, turno, fecha } = req.body;
 
   // Validacion basica de datos obligatorios
   if (!estudiante || !documento || !sede || !turno || !fecha) {
     return res.status(400).json({ error: "Faltan datos obligatorios" });
+  }
+
+  // El turno y la sede deben ser valores conocidos (evita datos raros)
+  const turnosValidos = ["Almuerzo", "Refrigerio"];
+  if (!turnosValidos.includes(turno)) {
+    return res.status(400).json({ error: "Turno no válido" });
+  }
+  const sedesValidas = ["Sede A", "Sede B", "Sede C"];
+  if (!sedesValidas.includes(sede)) {
+    return res.status(400).json({ error: "Sede no válida" });
+  }
+
+  // El documento debe tener formato numerico razonable (8-15 digitos)
+  const docLimpio = String(documento).trim();
+  if (!/^\d{8,15}$/.test(docLimpio)) {
+    return res.status(400).json({ error: "Documento no válido" });
   }
 
   // La fecha debe ser real y estar dentro del rango permitido
@@ -250,7 +267,7 @@ router.post("/", async (req, res) => {
   const { data: beneficiario, error: errBen } = await getSupabase()
     .from("beneficiarios")
     .select("nombre, documento, grado")
-    .eq("documento", String(documento).trim())
+    .eq("documento", docLimpio)
     .maybeSingle();
 
   if (errBen) return res.status(500).json({ error: errBen.message });
@@ -271,7 +288,7 @@ router.post("/", async (req, res) => {
   const { data: existente, error: errExistente } = await getSupabase()
     .from("reservas")
     .select("id")
-    .eq("documento", documento)
+    .eq("documento", docLimpio)
     .eq("fecha", fecha)
     .eq("turno", turno)
     .maybeSingle();
@@ -287,7 +304,7 @@ router.post("/", async (req, res) => {
 
   const { data, error } = await getSupabase()
     .from("reservas")
-    .insert([{ estudiante: nombreFinal, documento, sede, turno, fecha, grado: beneficiario.grado || null }])
+    .insert([{ estudiante: nombreFinal, documento: docLimpio, sede, turno, fecha, grado: beneficiario.grado || null }])
     .select()
     .single();
 
@@ -349,6 +366,16 @@ router.put("/:id", requiereAdmin, async (req, res) => {
       body[k] = v === "true" ? true : v === "false" ? false : v;
     }
   }
+
+  // Verificamos que la reserva exista (si no, es 404, no 500)
+  const { data: reserva, error: errBusca } = await getSupabase()
+    .from("reservas")
+    .select("id")
+    .eq("id", req.params.id)
+    .maybeSingle();
+
+  if (errBusca) return res.status(500).json({ error: errBusca.message });
+  if (!reserva) return res.status(404).json({ error: "Reserva no encontrada" });
 
   const { data, error } = await getSupabase()
     .from("reservas")

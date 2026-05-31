@@ -286,12 +286,17 @@ router.post("/", async (req, res) => {
         )
       : [];
 
-    // 7. Llamamos a la API de Gemini (Google)
+    // 7. Llamamos a la API de Gemini (Google).
+    //    La clave va por header (x-goog-api-key), no en la URL,
+    //    para que no quede expuesta en los logs del servidor.
     const respuesta = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": apiKey,
+        },
         body: JSON.stringify({
           system_instruction: {
             parts: [{ text: construirPromptSistema(contexto) }],

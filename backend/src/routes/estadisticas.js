@@ -31,10 +31,21 @@ router.get("/", async (req, res) => {
   const hoyLocal = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}`;
   const mes = req.query.mes || hoyLocal;
 
+  // El mes debe tener formato YYYY-MM y ser un mes real (1-12).
+  // Si no, rechazamos la peticion en vez de romper con un 500.
+  const coincidencia = String(mes).match(/^(\d{4})-(\d{2})$/);
+  if (!coincidencia) {
+    return res.status(400).json({ error: "El mes debe tener formato año-mes (ej: 2026-08)" });
+  }
+  const añoNum = Number(coincidencia[1]);
+  const mesNum = Number(coincidencia[2]);
+  if (mesNum < 1 || mesNum > 12) {
+    return res.status(400).json({ error: "El mes debe estar entre 01 y 12" });
+  }
+
   // Rango del mes: inicio y principio del siguiente mes
-  const [añoTexto, mesTexto] = mes.split("-");
   const inicio = `${mes}-01`;
-  const siguiente = new Date(Number(añoTexto), Number(mesTexto), 1);
+  const siguiente = new Date(añoNum, mesNum, 1);
   const fin = `${siguiente.getFullYear()}-${String(siguiente.getMonth() + 1).padStart(2, "0")}-01`;
 
   try {
