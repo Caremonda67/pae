@@ -5,7 +5,7 @@
 // - ranking de platos con su valoracion y el mas/menos gustado
 
 import { useEffect, useState } from "react";
-import { descargarCSV } from "../config/exportar";
+import { descargarExcel } from "../config/exportar";
 import { API_URL } from "../config/api";
 
 interface DatosMes {
@@ -102,44 +102,53 @@ function Estadisticas() {
 
   const exportarCSV = () => {
     if (!datos) return;
-    const filas: (string | number)[][] = [
-      ["PAE - Estadísticas", nombreMes(datos.mes)],
-      ["Minutas reservadas", datos.totalReservas],
-      ["Minutas servidas", datos.minutasServidas],
-      ["Minutas sin asistir", datos.minutasDesperdiciadas],
-      ["Porcentaje de desperdicio", `${datos.porcentajeDesperdicio}%`],
-      [],
-      ["Desglose por día de la semana"],
-      ["Día", "Reservadas", "Servidas"],
-      ...Object.entries(datos.porDiaSemana).map(([dia, info]) => [
-        dia,
-        info.reservas,
-        info.servidas,
-      ]),
-      [],
-      ["Desglose por sede"],
-      ["Sede", "Reservadas", "Servidas"],
-      ...Object.entries(datos.porSede).map(([sede, info]) => [
-        sede,
-        info.reservas,
-        info.servidas,
-      ]),
-      [],
-      ["Desglose por turno"],
-      ["Turno", "Reservadas", "Servidas"],
-      ...Object.entries(datos.porTurno).map(([turno, info]) => [
-        turno,
-        info.reservas,
-        info.servidas,
-      ]),
-      [],
-      ["Ranking de platos"],
-      ["Plato", "Valoración", "Votos"],
-      ...datos.ranking
-        .filter((r) => r.valoracion !== null)
-        .map((plato) => [plato.platillo, plato.valoracion ?? "", plato.votos]),
+    const secciones = [
+      {
+        titulo: `PAE · Estadísticas de ${nombreMes(datos.mes)}`,
+        columnas: ["Concepto", "Valor"],
+        filas: [
+          ["Minutas reservadas", datos.totalReservas],
+          ["Minutas servidas", datos.minutasServidas],
+          ["Minutas sin asistir", datos.minutasDesperdiciadas],
+          ["Porcentaje de desperdicio", `${datos.porcentajeDesperdicio}%`],
+        ],
+      },
+      {
+        titulo: "Desglose por día de la semana",
+        columnas: ["Día", "Reservadas", "Servidas"],
+        filas: Object.entries(datos.porDiaSemana).map(([dia, info]) => [
+          dia,
+          info.reservas,
+          info.servidas,
+        ]),
+      },
+      {
+        titulo: "Desglose por sede",
+        columnas: ["Sede", "Reservadas", "Servidas"],
+        filas: Object.entries(datos.porSede).map(([sede, info]) => [
+          sede,
+          info.reservas,
+          info.servidas,
+        ]),
+      },
+      {
+        titulo: "Desglose por turno",
+        columnas: ["Turno", "Reservadas", "Servidas"],
+        filas: Object.entries(datos.porTurno).map(([turno, info]) => [
+          turno,
+          info.reservas,
+          info.servidas,
+        ]),
+      },
+      {
+        titulo: "Ranking de platos",
+        columnas: ["Plato", "Valoración", "Votos"],
+        filas: datos.ranking
+          .filter((r) => r.valoracion !== null)
+          .map((plato) => [plato.platillo, plato.valoracion ?? "", plato.votos]),
+      },
     ];
-    descargarCSV(filas, `estadisticas-${datos.mes}.csv`);
+    descargarExcel(secciones, `estadisticas-${datos.mes}.xls`);
   };
 
   return (
@@ -161,7 +170,7 @@ function Estadisticas() {
         </label>
         {datos && (
           <button type="button" className="boton boton-secundario" onClick={exportarCSV}>
-            ⬇️ Exportar CSV
+            ⬇️ Exportar Excel
           </button>
         )}
       </div>
