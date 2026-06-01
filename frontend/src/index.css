@@ -1243,6 +1243,56 @@ h1 {
   margin-bottom: 1rem;
 }
 
+.filtro-fechas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.8rem 1.2rem;
+  margin: 1.5rem 0 0.5rem;
+  padding: 1rem;
+  background-color: var(--blanco);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  box-shadow: var(--sombra);
+}
+
+.filtro-fechas-etiqueta {
+  font-weight: 600;
+  color: var(--verde-oscuro);
+  align-self: center;
+}
+
+.filtro-fechas-botones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.filtro-fechas-botones .boton {
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+}
+
+.filtro-fechas-botones .boton.activo {
+  background-color: var(--verde);
+  color: var(--blanco);
+}
+
+.filtro-fechas-rango {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  align-items: flex-end;
+}
+
+.filtro-fechas-rango label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  color: var(--texto);
+}
+
 .reporte-cajas {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

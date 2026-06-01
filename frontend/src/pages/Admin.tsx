@@ -15,6 +15,7 @@
 
 import { useEffect, useState } from "react";
 import Buscador from "../components/Buscador";
+import FiltroReportes from "../components/FiltroReportes";
 import { coincide } from "../config/busqueda";
 import { GRADOS, horarioGrado } from "../config/horarios";
 import { API_URL } from "../config/api";
@@ -192,6 +193,8 @@ function Admin() {
   const [diaria, setDiaria] = useState<ReservaDiaria[]>([]);
   const [fechaDiaria, setFechaDiaria] = useState(() => hoyLocal());
   const [diariaCargada, setDiariaCargada] = useState(false);
+  const [desde, setDesde] = useState("");
+  const [hasta, setHasta] = useState("");
 
   // formulario de usuario (cuenta del panel)
   const [nombreUsu, setNombreUsu] = useState("");
@@ -434,13 +437,19 @@ function Admin() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autenticado, fechaPanel]);
 
-  // Carga los reportes tecnicos (totales y desperdicio) una vez al entrar
+  // Carga los reportes tecnicos (totales y desperdicio). Se recargan
+  // cuando cambia el filtro de fechas (semana, mes o rango personalizado).
   useEffect(() => {
     const cargarReportes = async () => {
       try {
+        const parametros = new URLSearchParams();
+        if (desde) parametros.set("desde", desde);
+        if (hasta) parametros.set("hasta", hasta);
+        const consulta = parametros.toString();
+
         const [respTotales, respReporte] = await Promise.all([
-          fetch(`${API_URL}/api/reservas/totales`),
-          fetch(`${API_URL}/api/reservas/reporte`),
+          fetch(`${API_URL}/api/reservas/totales?${consulta}`),
+          fetch(`${API_URL}/api/reservas/reporte?${consulta}`),
         ]);
         if (!respTotales.ok || !respReporte.ok) throw new Error("No se pudieron cargar los reportes");
         setTotales(await respTotales.json());
@@ -451,7 +460,7 @@ function Admin() {
     };
     if (autenticado) cargarReportes();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autenticado]);
+  }, [autenticado, desde, hasta]);
 
   // Carga la tabla diaria de cocina para una fecha (protegida)
   const cargarDiaria = async (fecha: string) => {
@@ -1023,6 +1032,12 @@ function Admin() {
 
       {!cargando && !error && pestanaActiva === "reportes" && (
         <div id="panel-reportes" role="tabpanel" aria-labelledby="tab-reportes">
+          <FiltroReportes
+            desde={desde}
+            hasta={hasta}
+            onCambio={(d, h) => { setDesde(d); setHasta(h); }}
+          />
+
           {reporte && (
             <div className="reporte">
               <h2 className="admin-subtitulo">Reporte de desperdicio</h2>
