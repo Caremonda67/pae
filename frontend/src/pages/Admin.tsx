@@ -516,7 +516,19 @@ function Admin() {
         : []),
     ];
 
-    descargarExcel(secciones, "reporte-pae.xls");
+    const desdeHasta =
+      desde && hasta
+        ? `del ${desde} al ${hasta}`
+        : desde
+          ? `desde ${desde}`
+          : hasta
+            ? `hasta ${hasta}`
+            : "todo el historial";
+
+    descargarExcel(secciones, "reporte-pae.xls", {
+      titulo: "Reporte de Reservas y Desperdicio",
+      subtitulo: `Resumen de minutas ${desdeHasta}`,
+    });
   };
 
   // Imprime / guarda en PDF la tabla diaria de cocina

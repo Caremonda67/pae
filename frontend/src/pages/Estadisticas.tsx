@@ -148,7 +148,10 @@ function Estadisticas() {
           .map((plato) => [plato.platillo, plato.valoracion ?? "", plato.votos]),
       },
     ];
-    descargarExcel(secciones, `estadisticas-${datos.mes}.xls`);
+    descargarExcel(secciones, `estadisticas-${datos.mes}.xls`, {
+      titulo: `Estadísticas ${nombreMes(datos.mes)}`,
+      subtitulo: "Programa de Alimentación Escolar · consumo y preferencias",
+    });
   };
 
   return (
