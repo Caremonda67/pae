@@ -77,18 +77,18 @@ function renderizarTabla(seccion: SeccionTabla): string {
   return `<table>${colgroup}${titulo}${encabezado}${filas}</table>`;
 }
 
-// Genera un archivo .xls (HTML de tablas) y lo descarga
-export function descargarExcel(
+// Construye el HTML del documento (lo usa tanto la descarga como la
+// vista previa en el panel). Devuelve el documento completo.
+export function construirHtmlExcel(
   secciones: SeccionTabla[],
-  nombreArchivo: string,
   opciones: OpcionesExportar = {}
-) {
+): string {
   const cuerpo = secciones
     .filter((seccion) => seccion.columnas.length > 0)
     .map(renderizarTabla)
     .join("<div class=\"espacio\"></div>");
 
-  const html = `<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html xmlns:x="urn:schemas-microsoft-com:office:excel">
 <head>
 <meta charset="utf-8" />
@@ -136,6 +136,15 @@ export function descargarExcel(
   </table>
 </body>
 </html>`;
+}
+
+// Genera un archivo .xls (HTML de tablas) y lo descarga
+export function descargarExcel(
+  secciones: SeccionTabla[],
+  nombreArchivo: string,
+  opciones: OpcionesExportar = {}
+) {
+  const html = construirHtmlExcel(secciones, opciones);
 
   const blob = new Blob(["\uFEFF" + html], { type: "application/vnd.ms-excel;charset=utf-8" });
   const url = URL.createObjectURL(blob);

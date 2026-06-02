@@ -19,7 +19,8 @@ import FiltroReportes from "../components/FiltroReportes";
 import { coincide } from "../config/busqueda";
 import { GRADOS, horarioGrado } from "../config/horarios";
 import { API_URL } from "../config/api";
-import { descargarExcel } from "../config/exportar";
+import { descargarExcel, construirHtmlExcel } from "../config/exportar";
+import type { SeccionTabla, OpcionesExportar } from "../config/exportar";
 import {
   leerSesion,
   guardarSesion,
@@ -490,32 +491,34 @@ function Admin() {
   };
 
   // Descarga un Excel con el resumen de reservas por fecha y el reporte
-  // de desperdicio, filtrados por el rango elegido arriba
-  const exportarCSV = () => {
-    const secciones = [
-      {
-        titulo: "Reservas por fecha",
-        columnas: ["Fecha", "Reservadas", "Asistieron"],
-        filas: Object.entries(totales)
-          .sort((a, b) => (a[0] < b[0] ? -1 : 1))
-          .map(([fecha, info]) => [fecha, info.reservas, info.asistieron]),
-      },
-      ...(reporte
-        ? [
-            {
-              titulo: "Reporte general de desperdicio",
-              columnas: ["Concepto", "Valor"],
-              filas: [
-                ["Total reservadas", reporte.totalReservas],
-                ["Minutas servidas", reporte.minutasServidas],
-                ["Minutas desperdiciadas", reporte.minutasDesperdiciadas],
-                ["Porcentaje de desperdicio", `${reporte.porcentajeDesperdicio}%`],
-              ],
-            },
-          ]
-        : []),
-    ];
+  // Construye las secciones del reporte a partir de los datos cargados
+  // (lo usan tanto la descarga como la vista previa del documento)
+  const construirSecciones = (): SeccionTabla[] => [
+    {
+      titulo: "Reservas por fecha",
+      columnas: ["Fecha", "Reservadas", "Asistieron"],
+      filas: Object.entries(totales)
+        .sort((a, b) => (a[0] < b[0] ? -1 : 1))
+        .map(([fecha, info]) => [fecha, info.reservas, info.asistieron]),
+    },
+    ...(reporte
+      ? [
+          {
+            titulo: "Reporte general de desperdicio",
+            columnas: ["Concepto", "Valor"],
+            filas: [
+              ["Total reservadas", reporte.totalReservas],
+              ["Minutas servidas", reporte.minutasServidas],
+              ["Minutas desperdiciadas", reporte.minutasDesperdiciadas],
+              ["Porcentaje de desperdicio", `${reporte.porcentajeDesperdicio}%`],
+            ],
+          },
+        ]
+      : []),
+  ];
 
+  // Titulo y subtitulo del documento, segun el filtro de fechas elegido
+  const opcionesReporte = (): OpcionesExportar => {
     const desdeHasta =
       desde && hasta
         ? `del ${desde} al ${hasta}`
@@ -525,10 +528,15 @@ function Admin() {
             ? `hasta ${hasta}`
             : "todo el historial";
 
-    descargarExcel(secciones, "reporte-pae.xls", {
+    return {
       titulo: "Reporte de Reservas y Desperdicio",
       subtitulo: `Resumen de minutas ${desdeHasta}`,
-    });
+    };
+  };
+
+  // Descarga el reporte como Excel
+  const exportarCSV = () => {
+    descargarExcel(construirSecciones(), "reporte-pae.xls", opcionesReporte());
   };
 
   // Imprime / guarda en PDF la tabla diaria de cocina
@@ -1104,6 +1112,20 @@ function Admin() {
               </div>
             </div>
           )}
+
+          {/* Vista previa del documento que se exporta */}
+          <div className="reporte">
+            <h2 className="admin-subtitulo">Vista previa del reporte</h2>
+            <p className="subtitulo">
+              Así se verá el documento que se descarga como Excel. Se actualiza
+              según el filtro de fechas elegido.
+            </p>
+            <iframe
+              className="vista-previa"
+              title="Vista previa del reporte"
+              srcDoc={construirHtmlExcel(construirSecciones(), opcionesReporte())}
+            />
+          </div>
 
           {/* Tabla diaria para la cocina */}
           <hr className="separador" />
