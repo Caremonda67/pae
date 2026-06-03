@@ -61,6 +61,17 @@ create table if not exists contactos (
   created_at timestamptz default now()
 );
 
+-- Contactos: el admin puede marcarlos como leidos y responderles.
+-- "documento" vincula el mensaje a un estudiante registrado (su
+-- usuario en la tabla usuarios), asi ese estudiante ve la respuesta
+-- al entrar con su sesion. "imagen" guarda la URL de una foto que
+-- el remitente adjunto y "respuesta" la contestacion del admin.
+alter table contactos add column if not exists leido boolean default false;
+alter table contactos add column if not exists documento text;
+alter table contactos add column if not exists imagen text;
+alter table contactos add column if not exists respuesta text;
+alter table contactos add column if not exists respuesta_at timestamptz;
+
 -- 4. Tabla de avisos: noticias que publica el administrador
 -- Se muestran en la pagina de inicio y el bot las conoce.
 create table if not exists avisos (
@@ -153,6 +164,11 @@ create table if not exists usuarios (
   activo boolean default true,
   created_at timestamptz default now()
 );
+
+-- "clave" guarda la clave/PIN en TEXTO PLANO para que el administrador
+-- la pueda ver y editar desde el panel. El hash (clave_hash) sigue
+-- usandose en el login, esta columna es solo de consulta/edicion.
+alter table usuarios add column if not exists clave text;
 
 -- ============================================================
 -- 4. Politicas de acceso (RLS)
