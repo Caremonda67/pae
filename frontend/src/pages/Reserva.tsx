@@ -8,10 +8,9 @@
 //   wa.me con el mensaje de confirmacion listo para enviar
 // - "Mis reservas": consulta y cancelacion de las reservas propias
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { fechaLegible, hoyLocal, sumarDias, validarFecha } from "../config/fechas";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
+import { API_URL } from "../config/api";
 
 // Turnos y sedes disponibles (se pueden ampliar luego desde el admin)
 const TURNOS = ["Almuerzo", "Refrigerio"];
@@ -68,42 +67,72 @@ function Reserva() {
   };
 
   // Cuando el documento cambia, buscamos al beneficiario y
-  // rellenamos automaticamente el nombre, la sede y el turno
-  const buscarBeneficiario = async (documento: string) => {
+  // rellenamos automaticamente el nombre, la sede y el turno.
+  // Con debounce (350 ms) para no pegarle al servidor en cada tecla.
+  const debounceRef = useRef<number | null>(null);
+
+  const buscarBeneficiario = (documento: string) => {
+    // Limpiamos el temporizador anterior (debounce)
+    if (debounceRef.current !== null) {
+      window.clearTimeout(debounceRef.current);
+    }
+
     if (!documento || documento.trim().length < 3) {
+      // Si se borra el documento, limpiamos los datos que se
+      // habian autocompletado del beneficiario anterior
       setInfoBeneficiario("");
       setBeneficiarioConfirmado(false);
+      setFormulario((f) => ({
+        ...f,
+        estudiante: "",
+        sede: "",
+        turno: "",
+      }));
       return;
     }
 
-    setBuscandoBeneficiario(true);
-    setInfoBeneficiario("");
-    setBeneficiarioConfirmado(false);
-    try {
-      const respuesta = await fetch(
-        `${API_URL}/api/beneficiarios/buscar?documento=${encodeURIComponent(documento.trim())}`
-      );
-      if (respuesta.ok) {
-        const datos = await respuesta.json();
-        setFormulario((f) => ({
-          ...f,
-          estudiante: datos.nombre,
-          sede: datos.sede,
-          turno: datos.turno,
-        }));
-        setBeneficiarioConfirmado(true);
-        setInfoBeneficiario(
-          `✅ Encontrado: ${datos.nombre}. Tu sede (${datos.sede}) y turno (${datos.turno}) ya están definidos.`
+    debounceRef.current = window.setTimeout(async () => {
+      const doc = documento.trim();
+      if (!doc || doc.length < 3) return;
+
+      setBuscandoBeneficiario(true);
+      setInfoBeneficiario("");
+      setBeneficiarioConfirmado(false);
+      try {
+        const respuesta = await fetch(
+          `${API_URL}/api/beneficiarios/buscar?documento=${encodeURIComponent(doc)}`
         );
-      } else {
-        setInfoBeneficiario("ℹ️ Documento no registrado. Verifica con el equipo del PAE.");
+        if (respuesta.ok) {
+          const datos = await respuesta.json();
+          setFormulario((f) => ({
+            ...f,
+            estudiante: datos.nombre,
+            sede: datos.sede,
+            turno: datos.turno,
+          }));
+          setBeneficiarioConfirmado(true);
+          setInfoBeneficiario(
+            `✅ Encontrado: ${datos.nombre}. Tu sede (${datos.sede}) y turno (${datos.turno}) ya están definidos.`
+          );
+        } else {
+          setInfoBeneficiario("ℹ️ Documento no registrado. Verifica con el equipo del PAE.");
+        }
+      } catch {
+        setInfoBeneficiario("ℹ️ No se pudo verificar el documento ahora.");
+      } finally {
+        setBuscandoBeneficiario(false);
       }
-    } catch {
-      setInfoBeneficiario("ℹ️ No se pudo verificar el documento ahora.");
-    } finally {
-      setBuscandoBeneficiario(false);
-    }
+    }, 350);
   };
+
+  // Si el componente se desmonta, cancelamos la busqueda pendiente
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current !== null) {
+        window.clearTimeout(debounceRef.current);
+      }
+    };
+  }, []);
 
   // Envia la reserva al backend
   const enviar = async (e: React.FormEvent) => {

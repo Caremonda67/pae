@@ -1,8 +1,7 @@
 // formulario de contacto, guarda el mensaje en la base de datos
 
 import { useState } from "react";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
+import { API_URL } from "../config/api";
 
 function Contacto() {
   const [formulario, setFormulario] = useState({

@@ -9,8 +9,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Lightbox from "../components/Lightbox";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
+import { API_URL } from "../config/api";
 
 interface MenuItem {
   id: number;
@@ -87,7 +86,8 @@ function Home() {
     descripcion?: string;
   } | null>(null);
   // Plato de la comida del dia abierto en grande (lightbox)
-  const [platoAbierto, setPlatoAbierto] = useState<MenuItem | null>(null);  const [buscador, setBuscador] = useState("");
+  const [platoAbierto, setPlatoAbierto] = useState<MenuItem | null>(null);
+  const [buscador, setBuscador] = useState("");
   const [buscadorAbierto, setBuscadorAbierto] = useState(false);
   // referencia al contenedor del buscador para detectar clic fuera
   const buscadorRef = useRef<HTMLDivElement>(null);
@@ -167,31 +167,31 @@ function Home() {
 
   // Filtra el menu segun lo que el usuario escriba en el buscador
   const menuFiltrado = menu.filter((item) => {
-    const busqueda = buscador.trim().toLowerCase();
+    const busqueda = buscador.trim();
     if (!busqueda) return true;
     return (
-      item.platillo.toLowerCase().includes(busqueda) ||
-      item.dia.toLowerCase().includes(busqueda) ||
-      item.descripcion.toLowerCase().includes(busqueda)
+      normalizar(item.platillo).includes(normalizar(busqueda)) ||
+      normalizar(item.dia).includes(normalizar(busqueda)) ||
+      normalizar(item.descripcion || "").includes(normalizar(busqueda))
     );
   });
 
   // Resultados en vivo para el desplegable: platos y avisos
   const resultadosBusqueda = () => {
-    const busqueda = buscador.trim().toLowerCase();
+    const busqueda = buscador.trim();
     if (!busqueda) return { platos: [], avisosResultado: [] };
 
     const platos = menu.filter(
       (item) =>
-        item.platillo.toLowerCase().includes(busqueda) ||
-        item.dia.toLowerCase().includes(busqueda) ||
-        item.descripcion.toLowerCase().includes(busqueda)
+        normalizar(item.platillo).includes(normalizar(busqueda)) ||
+        normalizar(item.dia).includes(normalizar(busqueda)) ||
+        normalizar(item.descripcion || "").includes(normalizar(busqueda))
     );
 
     const avisosResultado = avisos.filter(
       (aviso) =>
-        aviso.titulo.toLowerCase().includes(busqueda) ||
-        aviso.texto.toLowerCase().includes(busqueda)
+        normalizar(aviso.titulo).includes(normalizar(busqueda)) ||
+        normalizar(aviso.texto).includes(normalizar(busqueda))
     );
 
     return { platos, avisosResultado };
