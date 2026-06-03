@@ -339,7 +339,18 @@ function Admin() {
         ["colaboradores", respColaboradores],
       ];
 
-      const fallo = respuestas.find(([, r]) => !r.ok);
+      // Solo son obligatorios los datos que el rol puede ver. Los
+      // demas endpoints pueden devolver 403 (por ejemplo el rol cocina
+      // no puede leer mensajes ni notificaciones) y eso no es un error.
+      const datosPorRol: Record<string, string[]> = {
+        admin: ["avisos", "mensajes", "beneficiarios", "notificaciones", "menu", "galeria", "instituciones", "colaboradores"],
+        cocina: ["avisos", "beneficiarios", "menu"],
+        profesor: ["avisos", "beneficiarios"],
+        coordinador: ["avisos", "mensajes", "beneficiarios", "notificaciones", "menu", "galeria", "instituciones", "colaboradores"],
+      };
+      const necesarios = datosPorRol[rol] || [];
+
+      const fallo = respuestas.find(([nombre, r]) => !r.ok && necesarios.includes(nombre));
 
       if (fallo) {
         const [nombre, r] = fallo;
@@ -351,10 +362,10 @@ function Admin() {
         throw new Error(`No se pudieron cargar los datos (${nombre}: ${r.status})`);
       }
 
-      setAvisos(await respAvisos.json());
-      setMensajes(await respMensajes.json());
-      setBeneficiarios(await respBeneficiarios.json());
-      setNotificaciones(await respNotificaciones.json());
+      setAvisos(respAvisos.ok ? await respAvisos.json() : []);
+      setMensajes(respMensajes.ok ? await respMensajes.json() : []);
+      setBeneficiarios(respBeneficiarios.ok ? await respBeneficiarios.json() : []);
+      setNotificaciones(respNotificaciones.ok ? await respNotificaciones.json() : []);
 
       // Agrupamos el menu por semana del mes y luego por dia
       const menus = (await respMenu.json()) as MenuItem[];
