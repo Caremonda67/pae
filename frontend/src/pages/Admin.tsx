@@ -15,8 +15,7 @@ import { useEffect, useState } from "react";
 import Buscador from "../components/Buscador";
 import { coincide } from "../config/busqueda";
 import { estadoReserva, GRADOS, horarioGrado } from "../config/horarios";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
+import { API_URL } from "../config/api";
 
 // token guardado entre sesiones (el navegador lo conserva)
 const TOKEN_KEY = "pae_admin_token";
@@ -852,7 +851,7 @@ function Admin() {
       {cargando && <p className="estado">Cargando…</p>}
 
       {!cargando && !error && pestana === "panel" && (
-        <>
+        <div id="panel-panel" role="tabpanel" aria-labelledby="tab-panel">
           {reporte && (
             <div className="reporte">
               <h2>Reporte de desperdicio</h2>
@@ -980,11 +979,11 @@ function Admin() {
                 );
               })}
           </div>
-        </>
+        </div>
       )}
 
       {!cargando && !error && pestana === "beneficiarios" && (
-        <>
+        <div id="panel-beneficiarios" role="tabpanel" aria-labelledby="tab-beneficiarios">
           <h2 className="admin-subtitulo">Registrar beneficiario</h2>
           <form className="formulario" onSubmit={registrarBeneficiario}>
             <label htmlFor="doc-ben">
@@ -1092,13 +1091,13 @@ function Admin() {
                    Borrar
                  </button>
               </article>
-            ))}
+             ))}
           </div>
-        </>
+        </div>
       )}
 
       {!cargando && !error && pestana === "menu" && (
-        <>
+        <div id="panel-menu" role="tabpanel" aria-labelledby="tab-menu">
           <h2 className="admin-subtitulo">Agregar plato al menú</h2>
           <form className="formulario" onSubmit={registrarMenu}>
             <div className="formulario-fila">
@@ -1252,11 +1251,11 @@ function Admin() {
               </div>
             ))}
           </div>
-        </>
+        </div>
       )}
 
       {!cargando && !error && pestana === "avisos" && (
-        <>
+        <div id="panel-avisos" role="tabpanel" aria-labelledby="tab-avisos">
           <h2 className="admin-subtitulo">Publicar aviso</h2>
           <form className="formulario" onSubmit={publicarAviso}>
             <label>
@@ -1361,11 +1360,11 @@ function Admin() {
               </article>
             ))}
           </div>
-        </>
+        </div>
       )}
 
       {!cargando && !error && pestana === "galeria" && (
-        <>
+        <div id="panel-galeria" role="tabpanel" aria-labelledby="tab-galeria">
           <h2 className="admin-subtitulo">Publicar foto en la galería</h2>
           <p className="subtitulo">
             Estas fotos aparecen en la página de inicio junto con las de los
@@ -1458,11 +1457,11 @@ function Admin() {
               </article>
             ))}
           </div>
-        </>
+        </div>
       )}
 
       {!cargando && !error && pestana === "instituciones" && (
-        <>
+        <div id="panel-instituciones" role="tabpanel" aria-labelledby="tab-instituciones">
           <h2 className="admin-subtitulo">Registrar institución</h2>
           <p className="subtitulo">
             Cada institución cuenta en la métrica de la página de inicio.
@@ -1518,11 +1517,11 @@ function Admin() {
               </article>
             ))}
           </div>
-        </>
+        </div>
       )}
 
       {!cargando && !error && pestana === "colaboradores" && (
-        <>
+        <div id="panel-colaboradores" role="tabpanel" aria-labelledby="tab-colaboradores">
           <h2 className="admin-subtitulo">Registrar colaborador</h2>
           <p className="subtitulo">
             Cada colaborador cuenta en la métrica de la página de inicio.
@@ -1593,11 +1592,11 @@ function Admin() {
               </article>
             ))}
           </div>
-        </>
+        </div>
       )}
 
       {!cargando && !error && pestana === "notificaciones" && (
-        <>
+        <div id="panel-notificaciones" role="tabpanel" aria-labelledby="tab-notificaciones">
           <h2 className="admin-subtitulo">
             Confirmaciones de reserva ({notificaciones.length})
           </h2>
@@ -1630,11 +1629,11 @@ function Admin() {
               </article>
             ))}
           </div>
-        </>
+        </div>
       )}
 
       {!cargando && !error && pestana === "mensajes" && (
-        <>
+        <div id="panel-mensajes" role="tabpanel" aria-labelledby="tab-mensajes">
           <h2 className="admin-subtitulo">Mensajes de contacto</h2>
           {mensajes.length === 0 && (
             <p className="estado">Aún no hay mensajes de contacto.</p>
@@ -1664,7 +1663,7 @@ function Admin() {
               </article>
             ))}
           </div>
-        </>
+        </div>
       )}
     </section>
   );
