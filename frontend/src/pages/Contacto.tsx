@@ -1,11 +1,17 @@
 // formulario de contacto, guarda el mensaje en la base de datos.
-// El estudiante puede adjuntar una foto (opcional) y, si entro con su
-// sesion (documento + PIN), su documento se asocia al mensaje para que
-// el admin pueda responderle y él vea la respuesta aquí.
+// El estudiante entra aquí con su documento + PIN: su mensaje queda
+// asociado a su cuenta y en la misma página ve el historial de sus
+// mensajes con las respuestas que le ha dado el admin.
 
 import { useEffect, useState } from "react";
 import { API_URL } from "../config/api";
-import { leerSesion, cabeceras } from "../config/sesion";
+import {
+  leerSesion,
+  guardarSesion,
+  cerrarSesion,
+  cabeceras,
+} from "../config/sesion";
+import type { Sesion } from "../config/sesion";
 
 // un mensaje que manda el estudiante y la respuesta del admin
 interface MiMensaje {
@@ -29,7 +35,16 @@ function aBase64(file: File): Promise<string> {
 }
 
 function Contacto() {
-  const sesion = leerSesion();
+  // Sesión compartida (misma que la reserva). Si el estudiante ya
+  // entró en la página de reserva, aquí también está dentro.
+  const [sesion, setSesion] = useState<Sesion | null>(leerSesion());
+
+  // Login del estudiante (documento + PIN)
+  const [docLogin, setDocLogin] = useState("");
+  const [pinLogin, setPinLogin] = useState("");
+  const [entrando, setEntrando] = useState(false);
+  const [errorLogin, setErrorLogin] = useState("");
+
   const [formulario, setFormulario] = useState({
     nombre: sesion?.nombre || "",
     correo: "",
@@ -51,11 +66,56 @@ function Contacto() {
     setFormulario({ ...formulario, [name]: value });
   };
 
+  // Entra el estudiante con documento + PIN. Usa el mismo login que la
+  // reserva, así la sesión sirve en toda la aplicación.
+  const entrar = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEntrando(true);
+    setErrorLogin("");
+    try {
+      const respuesta = await fetch(`${API_URL}/api/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ usuario: docLogin, clave: pinLogin }),
+      });
+      const datos = await respuesta.json().catch(() => null);
+      if (!respuesta.ok) {
+        throw new Error(datos?.error || "Documento o PIN incorrectos");
+      }
+      if (datos.rol !== "estudiante") {
+        throw new Error("Este documento no tiene cuenta de estudiante.");
+      }
+      const nuevaSesion: Sesion = {
+        token: datos.token,
+        rol: datos.rol,
+        usuario: datos.usuario,
+        nombre: datos.nombre,
+      };
+      guardarSesion(nuevaSesion);
+      setSesion(nuevaSesion);
+      setFormulario((f) => ({ ...f, nombre: nuevaSesion.nombre || "" }));
+      setDocLogin("");
+      setPinLogin("");
+      cargarMios();
+    } catch (err) {
+      setErrorLogin(err instanceof Error ? err.message : "Error desconocido");
+    } finally {
+      setEntrando(false);
+    }
+  };
+
+  // Cierra la sesión del estudiante
+  const salir = () => {
+    cerrarSesion();
+    setSesion(null);
+    setMios([]);
+    setFormulario((f) => ({ ...f, nombre: "" }));
+  };
+
   // Carga los mensajes que el estudiante registrado ha enviado, junto
   // con la respuesta que le haya dado el admin.
   const cargarMios = async () => {
-    const sesionActual = leerSesion();
-    if (sesionActual?.rol !== "estudiante") return;
+    if (sesion?.rol !== "estudiante") return;
     setCargandoMios(true);
     try {
       const respuesta = await fetch(`${API_URL}/api/contacto/mios`, {
@@ -69,6 +129,7 @@ function Contacto() {
     }
   };
 
+  // Si ya había sesión al abrir la página, cargamos sus mensajes
   useEffect(() => {
     cargarMios();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -84,9 +145,8 @@ function Contacto() {
       const cuerpo: Record<string, unknown> = { ...formulario };
       // Si entro como estudiante, su documento queda asociado al
       // mensaje para que el admin pueda responderle.
-      const sesionActual = leerSesion();
-      if (sesionActual?.rol === "estudiante") {
-        cuerpo.documento = sesionActual.usuario;
+      if (sesion?.rol === "estudiante") {
+        cuerpo.documento = sesion.usuario;
       }
       if (foto) {
         cuerpo.imagenBase64 = await aBase64(foto);
@@ -123,11 +183,60 @@ function Contacto() {
         Escríbenos.
       </p>
 
-      {sesion?.rol === "estudiante" && (
-        <p className="estado">
-          ✅ Estás como {sesion.nombre || sesion.usuario}. Tu mensaje quedará
-          asociado a tu documento y verás la respuesta aquí.
-        </p>
+      {/* Entrada del estudiante: con documento + PIN puede recibir las
+          respuestas del admin y ver el historial de sus mensajes */}
+      <hr className="separador" />
+      <h2>Estudiante: entra y recibe las respuestas</h2>
+      <p className="subtitulo">
+        Entra con tu documento y PIN para que tu mensaje quede asociado a tu
+        cuenta y aquí veas las respuestas del equipo del PAE.
+      </p>
+
+      {sesion?.rol === "estudiante" ? (
+        <div className="sesion-estudiante" aria-live="polite">
+          <p>
+            ✅ Estás como {sesion.nombre || sesion.usuario}. Ya puedes enviar tu
+            mensaje (el formulario de abajo) y ver tus respuestas en la sección
+            "Mis mensajes y respuestas".
+          </p>
+          <button type="button" className="boton boton-secundario" onClick={salir}>
+            Cerrar sesión
+          </button>
+        </div>
+      ) : (
+        <form className="formulario" onSubmit={entrar} aria-label="Entrar como estudiante">
+          <div className="formulario-fila">
+            <label htmlFor="doc-contacto">
+              Identificación
+              <input
+                id="doc-contacto"
+                type="text"
+                value={docLogin}
+                onChange={(e) => setDocLogin(e.target.value)}
+                required
+                placeholder="Tu número de documento"
+                autoComplete="username"
+              />
+            </label>
+            <label htmlFor="pin-contacto">
+              PIN
+              <input
+                id="pin-contacto"
+                type="password"
+                value={pinLogin}
+                onChange={(e) => setPinLogin(e.target.value)}
+                required
+                minLength={4}
+                placeholder="Tu PIN (te lo da el equipo del PAE)"
+                autoComplete="current-password"
+              />
+            </label>
+          </div>
+          {errorLogin && <p className="estado error" role="alert">⚠️ {errorLogin}</p>}
+          <button type="submit" className="boton boton-secundario" disabled={entrando}>
+            {entrando ? "Verificando…" : "Entrar"}
+          </button>
+        </form>
       )}
 
       <form className="formulario" onSubmit={enviar}>
@@ -190,9 +299,20 @@ function Contacto() {
           <hr className="separador" />
           <h2>Mis mensajes y respuestas</h2>
           <p className="subtitulo">
-            Aquí ves los mensajes que has enviado y la respuesta del equipo del
-            PAE a cada uno.
+            Aquí ves el historial de los mensajes que has enviado y la respuesta
+            del equipo del PAE a cada uno.
           </p>
+
+          <div className="centrar">
+            <button
+              type="button"
+              className="boton boton-secundario"
+              onClick={cargarMios}
+              disabled={cargandoMios}
+            >
+              {cargandoMios ? "Cargando…" : "↻ Actualizar respuestas"}
+            </button>
+          </div>
 
           {cargandoMios && <p className="estado">Cargando…</p>}
 
@@ -222,13 +342,12 @@ function Contacto() {
                         <img src={m.imagen} alt="Foto adjunta de tu mensaje" />
                       </a>
                     )}
-                    {m.respuesta && (
+                    {m.respuesta ? (
                       <div className="mensaje-respuesta">
                         <strong>Respuesta del PAE:</strong>
                         <p>{m.respuesta}</p>
                       </div>
-                    )}
-                    {!m.respuesta && (
+                    ) : (
                       <p className="mensaje-pendiente">
                         ⏳ Aún no hay respuesta. Te responderemos pronto.
                       </p>
