@@ -108,6 +108,62 @@ router.post("/", requiereRol("admin", "profesor"), async (req, res) => {
   res.status(201).json(data);
 });
 
+// PUT /api/beneficiarios/:id/pin
+// Asigna (o renueva) el PIN de un beneficiario que ya esta registrado.
+// Crea su cuenta de estudiante si todavia no tiene, o le actualiza el
+// PIN a la existente. Solo admin o profesor.
+// Cuerpo: { pin: "1234" }
+router.put("/:id/pin", requiereRol("admin", "profesor"), async (req, res) => {
+  const { pin } = req.body || {};
+  const pinLimpio = pin ? String(pin).trim() : "";
+  if (!pinLimpio) {
+    return res.status(400).json({ error: "Escribe un PIN" });
+  }
+  if (pinLimpio.length < 4) {
+    return res.status(400).json({ error: "El PIN debe tener al menos 4 caracteres" });
+  }
+
+  const { data: ben, error: errBen } = await getSupabase()
+    .from("beneficiarios")
+    .select("id, nombre, documento")
+    .eq("id", req.params.id)
+    .maybeSingle();
+
+  if (errBen) return res.status(500).json({ error: errBen.message });
+  if (!ben) return res.status(404).json({ error: "Beneficiario no encontrado" });
+
+  const documento = String(ben.documento).trim();
+
+  // Si el estudiante ya tiene cuenta (usuario = documento), solo se
+  // renueva el PIN; si no, se crea la cuenta con rol estudiante.
+  const { data: existente } = await getSupabase()
+    .from("usuarios")
+    .select("id")
+    .eq("usuario", documento)
+    .maybeSingle();
+
+  if (existente) {
+    const { error } = await getSupabase()
+      .from("usuarios")
+      .update({ clave: pinLimpio, clave_hash: hashClave(pinLimpio) })
+      .eq("id", existente.id);
+    if (error) return res.status(500).json({ error: error.message });
+  } else {
+    const { error } = await getSupabase().from("usuarios").insert([
+      {
+        nombre: ben.nombre,
+        usuario: documento,
+        clave: pinLimpio,
+        clave_hash: hashClave(pinLimpio),
+        rol: "estudiante",
+      },
+    ]);
+    if (error) return res.status(500).json({ error: error.message });
+  }
+
+  res.json({ ok: true, documento });
+});
+
 // DELETE /api/beneficiarios/:id
 // Elimina un beneficiario (solo admin)
 router.delete("/:id", requiereRol("admin"), async (req, res) => {
