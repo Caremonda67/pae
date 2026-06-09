@@ -262,8 +262,12 @@ function Admin() {
   const [sedeBen, setSedeBen] = useState("Sede A");
   const [turnoBen, setTurnoBen] = useState("Almuerzo");
   const [gradoBen, setGradoBen] = useState("");
+  const [pinBen, setPinBen] = useState("");
   const [benError, setBenError] = useState("");
   const [benExito, setBenExito] = useState("");
+
+  // PIN que se escribe en la fila de un beneficiario ya registrado
+  const [pins, setPins] = useState<Record<number, string>>({});
 
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
@@ -754,6 +758,7 @@ function Admin() {
           sede: sedeBen,
           turno: turnoBen,
           grado: gradoBen,
+          pin: pinBen,
         }),
       });
       if (!respuesta.ok) {
@@ -763,8 +768,31 @@ function Admin() {
       setDocBen("");
       setNombreBen("");
       setGradoBen("");
+      setPinBen("");
       setBenExito("✅ Beneficiario registrado. Ya puede reservar su minuta.");
       cargarDatos();
+    } catch (err) {
+      setBenError(err instanceof Error ? err.message : "Error desconocido");
+    }
+  };
+
+  // Asigna (o renueva) el PIN de un beneficiario ya registrado para que
+  // pueda entrar a reservar con documento + PIN.
+  const asignarPin = async (ben: Beneficiario) => {
+    const pin = (pins[ben.id] || "").trim();
+    if (!pin) return;
+    setBenError("");
+    setBenExito("");
+    try {
+      const respuesta = await fetch(`${API_URL}/api/beneficiarios/${ben.id}/pin`, {
+        method: "PUT",
+        headers: cabeceras(),
+        body: JSON.stringify({ pin }),
+      });
+      const datos = await respuesta.json().catch(() => null);
+      if (!respuesta.ok) throw new Error(datos?.error || "No se pudo asignar el PIN");
+      setPins((p) => ({ ...p, [ben.id]: "" }));
+      setBenExito(`✅ PIN asignado a ${ben.nombre}. Ya puede entrar a reservar.`);
     } catch (err) {
       setBenError(err instanceof Error ? err.message : "Error desconocido");
     }
@@ -1379,6 +1407,22 @@ function Admin() {
                 )}
               </label>
             </div>
+            <label htmlFor="pin-ben">
+              PIN del estudiante (opcional)
+              <input
+                id="pin-ben"
+                type="text"
+                value={pinBen}
+                onChange={(e) => setPinBen(e.target.value)}
+                minLength={4}
+                placeholder="Ej: 8161"
+                autoComplete="off"
+              />
+              <small className="campo-fijo">
+                Si lo pones (mínimo 4 caracteres), el estudiante podrá entrar a
+                reservar con documento + PIN.
+              </small>
+            </label>
             {benError && <p className="estado error" role="alert">⚠️ {benError}</p>}
             {benExito && <p className="estado exito" aria-live="polite">{benExito}</p>}
             <button type="submit" className="boton boton-primario">
@@ -1413,14 +1457,35 @@ function Admin() {
                     {b.grado ? ` · Grado ${b.grado}` : ""}
                   </span>
                 </div>
-                 <button
-                   type="button"
-                   className="boton boton-secundario"
-                   onClick={() => borrarBeneficiario(b.id)}
-                   aria-label={`Borrar beneficiario ${b.nombre}`}
-                 >
-                   Borrar
-                 </button>
+                <div className="formulario-fila">
+                  <input
+                    type="text"
+                    value={pins[b.id] || ""}
+                    onChange={(e) =>
+                      setPins((p) => ({ ...p, [b.id]: e.target.value }))
+                    }
+                    minLength={4}
+                    placeholder="PIN nuevo (4+)"
+                    aria-label={`PIN para ${b.nombre}`}
+                  />
+                  <button
+                    type="button"
+                    className="boton boton-secundario"
+                    onClick={() => asignarPin(b)}
+                    disabled={!(pins[b.id] || "").trim()}
+                    aria-label={`Asignar PIN a ${b.nombre}`}
+                  >
+                    Asignar PIN
+                  </button>
+                  <button
+                    type="button"
+                    className="boton boton-secundario"
+                    onClick={() => borrarBeneficiario(b.id)}
+                    aria-label={`Borrar beneficiario ${b.nombre}`}
+                  >
+                    Borrar
+                  </button>
+                </div>
               </article>
              ))}
           </div>
