@@ -112,6 +112,9 @@ function Reserva() {
       setFormulario((f) => ({ ...f, documento: datos.usuario }));
       setDocConsulta(datos.usuario);
       setPinLogin("");
+      // Al entrar, rellenamos tambien nombre, sede y turno buscando al
+      // beneficiario (igual que cuando se escribe el documento a mano).
+      buscarBeneficiario(datos.usuario);
     } catch (err) {
       setErrorLogin(err instanceof Error ? err.message : "Error desconocido");
     } finally {
@@ -196,6 +199,16 @@ function Reserva() {
         window.clearTimeout(debounceRef.current);
       }
     };
+  }, []);
+
+  // Si ya hay sesion al abrir la pagina (por ejemplo al recargar),
+  // se rellena la informacion del beneficiario (nombre, sede, turno)
+  // ademas del documento, que ya viene precargado.
+  useEffect(() => {
+    if (sesionInicial?.usuario) {
+      buscarBeneficiario(sesionInicial.usuario);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Envia la reserva al backend
