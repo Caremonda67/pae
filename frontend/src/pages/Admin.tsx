@@ -924,19 +924,28 @@ function Admin() {
   };
 
   // Envia la respuesta del admin a un mensaje de contacto. Si el
-  // mensaje era de un estudiante registrado, la ve al entrar.
-  const responderMensaje = async (id: number) => {
-    const texto = (respuestas[id] || "").trim();
+  // mensaje era de un estudiante registrado, la ve al entrar. Se
+  // puede responder varias veces: la respuesta nueva reemplaza a la
+  // anterior.
+  const responderMensaje = async (mensaje: Mensaje) => {
+    const texto = (respuestas[mensaje.id] ?? mensaje.respuesta ?? "").trim();
     if (!texto) return;
     try {
-      const respuesta = await fetch(`${API_URL}/api/contacto/${id}/respuesta`, {
+      const respuesta = await fetch(`${API_URL}/api/contacto/${mensaje.id}/respuesta`, {
         method: "PUT",
         headers: cabeceras(),
         body: JSON.stringify({ respuesta: texto }),
       });
       const datos = await respuesta.json().catch(() => null);
       if (!respuesta.ok) throw new Error(datos?.error || "No se pudo enviar la respuesta");
-      setRespuestas((r) => ({ ...r, [id]: "" }));
+      // Después de enviar, quitamos el borrador para que el textarea
+      // vuelva a mostrar la respuesta guardada (y así se puede editar
+      // y responder de nuevo si hace falta).
+      setRespuestas((r) => {
+        const copia = { ...r };
+        delete copia[mensaje.id];
+        return copia;
+      });
       cargarDatos();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error desconocido");
@@ -2050,7 +2059,7 @@ function Admin() {
                 </div>
                 <textarea
                   className="respuesta-texto"
-                  value={respuestas[mensaje.id] || ""}
+                  value={respuestas[mensaje.id] ?? mensaje.respuesta ?? ""}
                   onChange={(e) =>
                     setRespuestas((r) => ({ ...r, [mensaje.id]: e.target.value }))
                   }
@@ -2061,8 +2070,8 @@ function Admin() {
                   <button
                     type="button"
                     className="boton boton-primario"
-                    onClick={() => responderMensaje(mensaje.id)}
-                    disabled={!(respuestas[mensaje.id] || "").trim()}
+                    onClick={() => responderMensaje(mensaje)}
+                    disabled={!((respuestas[mensaje.id] ?? mensaje.respuesta ?? "") || "").trim()}
                   >
                     Enviar respuesta
                   </button>
