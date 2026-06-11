@@ -1954,6 +1954,86 @@ h1 {
   padding: 0.6rem 0.8rem;
 }
 
+/* ============================================================
+   Chat de contacto (estudiante <-> admin)
+   ============================================================ */
+
+/* Contenedor del hilo de conversacion */
+.chat-burbujas {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin-top: 0.7rem;
+  padding: 0.8rem 0.9rem;
+  background-color: var(--fondo);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+}
+
+.chat-burbujas .chat-burbuja p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.chat-burbujas .chat-burbuja small {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.68rem;
+  opacity: 0.8;
+}
+
+.chat-burbujas .chat-burbuja img {
+  display: block;
+  max-width: 12rem;
+  max-height: 9rem;
+  object-fit: cover;
+  margin-top: 0.4rem;
+  border-radius: 8px;
+}
+
+/* Mensaje del admin: burbuja clara a la izquierda */
+.chat-burbuja.admin {
+  align-self: flex-start;
+  background-color: var(--blanco);
+  border: 1px solid var(--borde);
+  border-bottom-left-radius: 4px;
+  color: var(--texto);
+}
+
+.chat-burbuja.admin small {
+  color: var(--texto-suave);
+}
+
+/* Mensaje del estudiante: burbuja verde a la derecha */
+.chat-burbuja.estudiante {
+  align-self: flex-end;
+  background-color: var(--verde);
+  color: var(--blanco);
+  border-bottom-right-radius: 4px;
+}
+
+.chat-burbuja.estudiante small {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* Fila para escribir y enviar otro mensaje */
+.chat-responder {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+  margin-top: 0.7rem;
+}
+
+.chat-responder input,
+.chat-responder textarea {
+  flex: 1;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  font: inherit;
+  resize: vertical;
+}
+
 .chatbot-input {
   display: flex;
   gap: 0.5rem;

@@ -13,10 +13,11 @@
 //   notificaciones, mensajes
 // - estudiante: no tiene panel (entra por Reserva)
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Buscador from "../components/Buscador";
 import FiltroReportes from "../components/FiltroReportes";
 import { coincide } from "../config/busqueda";
+import { fechaCorta } from "../config/fechas";
 import { GRADOS, horarioGrado } from "../config/horarios";
 import { API_URL } from "../config/api";
 import { descargarExcel, construirHtmlExcel } from "../config/exportar";
@@ -122,6 +123,15 @@ interface Mensaje {
   created_at: string;
 }
 
+// un mensaje del hilo de chat entre estudiante y admin
+interface MensajeChat {
+  id: number | string;
+  remitente: "estudiante" | "admin";
+  texto: string;
+  imagen?: string | null;
+  created_at?: string;
+}
+
 interface Beneficiario {
   id: number;
   documento: string;
@@ -219,8 +229,17 @@ function Admin() {
   const [editRol, setEditRol] = useState("cocina");
   const [editClave, setEditClave] = useState("");
 
-  // respuestas que se estan escribiendo en la pestana Mensajes
-  const [respuestas, setRespuestas] = useState<Record<number, string>>({});
+  // chat de contacto: hilos abiertos, mensajes cargados y borradores.
+  // Con el chat el admin puede responder varias veces (no solo una).
+  const [hilos, setHilos] = useState<Record<number, MensajeChat[]>>({});
+  const [hiloAbierto, setHiloAbierto] = useState<Record<number, boolean>>({});
+  const [hiloCargando, setHiloCargando] = useState<Record<number, boolean>>({});
+  const [hiloEnviando, setHiloEnviando] = useState<Record<number, boolean>>({});
+  const [borradoresChat, setBorradoresChat] = useState<Record<number, string>>({});
+  const hilosRef = useRef(hilos);
+  hilosRef.current = hilos;
+  const hiloAbiertoRef = useRef(hiloAbierto);
+  hiloAbiertoRef.current = hiloAbierto;
 
   // formulario de institucion
   const [nombreInst, setNombreInst] = useState("");
@@ -493,6 +512,16 @@ function Admin() {
     if (autenticado) cargarReportes();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autenticado, desde, hasta]);
+
+  // Mientras se ve la pestaña Mensajes, actualizamos la lista y los
+  // hilos abiertos cada pocos segundos para no tener que recargar.
+  useEffect(() => {
+    if (!autenticado || pestana !== "mensajes") return;
+    refrescarMensajes();
+    const intervalo = setInterval(refrescarMensajes, 7000);
+    return () => clearInterval(intervalo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autenticado, pestana]);
 
   // Carga la tabla diaria de cocina para una fecha (protegida)
   const cargarDiaria = async (fecha: string) => {
@@ -923,32 +952,71 @@ function Admin() {
     }
   };
 
-  // Envia la respuesta del admin a un mensaje de contacto. Si el
-  // mensaje era de un estudiante registrado, la ve al entrar. Se
-  // puede responder varias veces: la respuesta nueva reemplaza a la
-  // anterior.
-  const responderMensaje = async (mensaje: Mensaje) => {
-    const texto = (respuestas[mensaje.id] ?? mensaje.respuesta ?? "").trim();
-    if (!texto) return;
+  // Carga el hilo de una conversacion de contacto (mensajes del
+  // estudiante y del admin).
+  const cargarHilo = async (id: number) => {
+    setHiloCargando((c) => ({ ...c, [id]: true }));
     try {
-      const respuesta = await fetch(`${API_URL}/api/contacto/${mensaje.id}/respuesta`, {
-        method: "PUT",
+      const respuesta = await fetch(`${API_URL}/api/contacto/${id}/mensajes`, {
+        headers: cabeceras(false),
+      });
+      if (respuesta.ok) {
+        const datos = (await respuesta.json()) as MensajeChat[];
+        setHilos((h) => ({ ...h, [id]: datos }));
+      }
+    } catch {
+      // si falla, dejamos el hilo anterior
+    } finally {
+      setHiloCargando((c) => ({ ...c, [id]: false }));
+    }
+  };
+
+  // Abre/cierra la conversacion de un mensaje
+  const abrirHilo = (id: number) => {
+    setHiloAbierto((a) => {
+      const abierto = !a[id];
+      if (abierto) cargarHilo(id);
+      return { ...a, [id]: abierto };
+    });
+  };
+
+  // El admin manda un mensaje al hilo. Se puede hacer varias veces:
+  // no hay limite como antes (donde solo se podia responder una vez).
+  const enviarMensajeAdmin = async (id: number) => {
+    const texto = (borradoresChat[id] || "").trim();
+    if (!texto) return;
+    setHiloEnviando((e) => ({ ...e, [id]: true }));
+    try {
+      const respuesta = await fetch(`${API_URL}/api/contacto/${id}/mensajes`, {
+        method: "POST",
         headers: cabeceras(),
-        body: JSON.stringify({ respuesta: texto }),
+        body: JSON.stringify({ texto }),
       });
       const datos = await respuesta.json().catch(() => null);
-      if (!respuesta.ok) throw new Error(datos?.error || "No se pudo enviar la respuesta");
-      // Después de enviar, quitamos el borrador para que el textarea
-      // vuelva a mostrar la respuesta guardada (y así se puede editar
-      // y responder de nuevo si hace falta).
-      setRespuestas((r) => {
-        const copia = { ...r };
-        delete copia[mensaje.id];
-        return copia;
-      });
-      cargarDatos();
+      if (!respuesta.ok) throw new Error(datos?.error || "No se pudo enviar el mensaje");
+      setBorradoresChat((b) => ({ ...b, [id]: "" }));
+      cargarHilo(id);
+      refrescarMensajes();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error desconocido");
+    } finally {
+      setHiloEnviando((e) => ({ ...e, [id]: false }));
+    }
+  };
+
+  // Refresca la lista de mensajes y los hilos abiertos. Asi los
+  // mensajes nuevos del estudiante aparecen sin recargar la pagina.
+  const refrescarMensajes = async () => {
+    try {
+      const respuesta = await fetch(`${API_URL}/api/contacto`, {
+        headers: cabeceras(false),
+      });
+      if (respuesta.ok) setMensajes(await respuesta.json());
+    } catch {
+      // sin hacer nada: el proximo ciclo lo intenta de nuevo
+    }
+    for (const id of Object.keys(hilosRef.current)) {
+      if (hiloAbiertoRef.current[Number(id)]) cargarHilo(Number(id));
     }
   };
 
@@ -1618,6 +1686,7 @@ function Admin() {
                     return coincide(texto, busquedaMenu);
                   });
                   if (platosFiltrados.length === 0) return null;
+
                   return (
                     <div key={dia.dia} className="menu-dia-admin">
                       <h4>{dia.dia}</h4>
@@ -2040,12 +2109,6 @@ function Admin() {
                       <img src={mensaje.imagen} alt="Foto adjunta del mensaje" />
                     </a>
                   )}
-                  {mensaje.respuesta && (
-                    <div className="mensaje-respuesta">
-                      <strong>Tu respuesta:</strong>
-                      <p>{mensaje.respuesta}</p>
-                    </div>
-                  )}
                 </div>
                 <div className="formulario-fila">
                   <button
@@ -2056,26 +2119,76 @@ function Admin() {
                   >
                     {mensaje.leido ? "Marcar no leído" : "✓ Marcar leído"}
                   </button>
-                </div>
-                <textarea
-                  className="respuesta-texto"
-                  value={respuestas[mensaje.id] ?? mensaje.respuesta ?? ""}
-                  onChange={(e) =>
-                    setRespuestas((r) => ({ ...r, [mensaje.id]: e.target.value }))
-                  }
-                  rows={2}
-                  placeholder="Escribe tu respuesta para este mensaje…"
-                />
-                <div className="formulario-fila">
                   <button
                     type="button"
-                    className="boton boton-primario"
-                    onClick={() => responderMensaje(mensaje)}
-                    disabled={!((respuestas[mensaje.id] ?? mensaje.respuesta ?? "") || "").trim()}
+                    className="boton boton-secundario"
+                    onClick={() => abrirHilo(mensaje.id)}
+                    aria-expanded={hiloAbierto[mensaje.id] || false}
                   >
-                    Enviar respuesta
+                    {hiloAbierto[mensaje.id] ? "Ocultar conversación" : "Ver conversación"}
                   </button>
                 </div>
+
+                {hiloAbierto[mensaje.id] && (
+                  <>
+                    <div className="chat-burbujas">
+                      {hiloCargando[mensaje.id] && !hilos[mensaje.id] && (
+                        <p className="estado">Cargando conversación…</p>
+                      )}
+                      {(hilos[mensaje.id] || []).map((msj) => (
+                        <div
+                          key={msj.id}
+                          className={`chat-burbuja ${msj.remitente === "estudiante" ? "estudiante" : "admin"}`}
+                        >
+                          <p>{msj.texto}</p>
+                          {msj.imagen && (
+                            <a
+                              href={msj.imagen}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <img src={msj.imagen} alt="Foto adjunta" />
+                            </a>
+                          )}
+                          {msj.created_at && <small>{fechaCorta(msj.created_at)}</small>}
+                        </div>
+                      ))}
+                      {hilos[mensaje.id] && hilos[mensaje.id].length === 1 && (
+                        <p className="estado">
+                          Aún no has respondido a este mensaje.
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="chat-responder">
+                      <input
+                        value={borradoresChat[mensaje.id] || ""}
+                        onChange={(e) =>
+                          setBorradoresChat((b) => ({ ...b, [mensaje.id]: e.target.value }))
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            enviarMensajeAdmin(mensaje.id);
+                          }
+                        }}
+                        placeholder="Escribe tu respuesta y presiona Enter…"
+                        aria-label={`Responder al mensaje de ${mensaje.nombre}`}
+                      />
+                      <button
+                        type="button"
+                        className="boton boton-primario"
+                        onClick={() => enviarMensajeAdmin(mensaje.id)}
+                        disabled={
+                          !(borradoresChat[mensaje.id] || "").trim() || hiloEnviando[mensaje.id]
+                        }
+                      >
+                        {hiloEnviando[mensaje.id] ? "Enviando…" : "Enviar"}
+                      </button>
+                    </div>
+                  </>
+                )}
+
                 <span className="mensaje-fecha">
                   {mensaje.created_at ? mensaje.created_at.slice(0, 10) : ""}
                 </span>

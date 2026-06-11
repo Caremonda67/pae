@@ -170,4 +170,172 @@ router.put("/:id/respuesta", requiereRol("admin", "coordinador"), async (req, re
   res.json(data);
 });
 
+// ============================================================
+// Chat entre el estudiante y el admin
+// El primer mensaje del estudiante vive en "contactos.mensaje".
+// Los mensajes siguientes de ida y vuelta viven en "chat_mensajes"
+// (ver sql/chat_mensajes.sql). Asi la conversacion puede tener
+// varios mensajes y no solo uno.
+// ============================================================
+
+// Arma el hilo de la conversacion: el mensaje original del
+// estudiante + las respuestas que le dio el admin. Si todavia no
+// hay mensajes en chat_mensajes pero el mensaje tiene una respuesta
+// antigua guardada (campo respuesta), esa se muestra como el primer
+// mensaje del admin para no perder conversaciones pasadas.
+function armarHilo(contacto, filas) {
+  const hilo = [
+    {
+      id: `original-${contacto.id}`,
+      remitente: "estudiante",
+      texto: contacto.mensaje,
+      imagen: contacto.imagen || null,
+      created_at: contacto.created_at,
+    },
+  ];
+
+  if (filas.length === 0 && contacto.respuesta) {
+    hilo.push({
+      id: `legacy-${contacto.id}`,
+      remitente: "admin",
+      texto: contacto.respuesta,
+      imagen: null,
+      created_at: contacto.respuesta_at,
+    });
+  }
+
+  for (const fila of filas) {
+    hilo.push({
+      id: fila.id,
+      remitente: fila.remitente,
+      texto: fila.texto,
+      imagen: fila.imagen || null,
+      created_at: fila.created_at,
+    });
+  }
+
+  return hilo;
+}
+
+// Valida y limpia el texto de un mensaje de chat
+function textoValido(texto) {
+  const limpio = String(texto || "").trim();
+  if (!limpio || limpio.length > 2000) return "";
+  return limpio;
+}
+
+// GET /api/contacto/:id/mensajes
+// Hilo completo de la conversacion (para el panel del admin)
+router.get("/:id/mensajes", requiereRol("admin", "coordinador"), async (req, res) => {
+  const { data: contacto, error: errContacto } = await getSupabase()
+    .from("contactos")
+    .select("*")
+    .eq("id", req.params.id)
+    .maybeSingle();
+  if (errContacto) return res.status(500).json({ error: errContacto.message });
+  if (!contacto) return res.status(404).json({ error: "Mensaje no encontrado" });
+
+  const { data: filas, error } = await getSupabase()
+    .from("chat_mensajes")
+    .select("*")
+    .eq("contacto_id", contacto.id)
+    .order("created_at", { ascending: true });
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(armarHilo(contacto, filas || []));
+});
+
+// POST /api/contacto/:id/mensajes
+// El admin/coordinador manda otro mensaje al hilo (se puede varias
+// veces, no hay limite). Cuerpo: { texto }
+router.post("/:id/mensajes", requiereRol("admin", "coordinador"), async (req, res) => {
+  const texto = textoValido(req.body?.texto);
+  if (!texto) {
+    return res.status(400).json({ error: "Escribe un mensaje" });
+  }
+
+  const { data, error } = await getSupabase()
+    .from("chat_mensajes")
+    .insert([{ contacto_id: req.params.id, remitente: "admin", texto }])
+    .select()
+    .single();
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.status(201).json(data);
+});
+
+// GET /api/contacto/:id/mensajes/estudiante
+// El estudiante dueño del mensaje ve su conversacion completa
+router.get("/:id/mensajes/estudiante", requiereSesion, async (req, res) => {
+  const { data: contacto, error: errContacto } = await getSupabase()
+    .from("contactos")
+    .select("*")
+    .eq("id", req.params.id)
+    .maybeSingle();
+  if (errContacto) return res.status(500).json({ error: errContacto.message });
+  if (!contacto) return res.status(404).json({ error: "Mensaje no encontrado" });
+
+  if (!contacto.documento || contacto.documento !== req.usuario.sub) {
+    return res.status(403).json({ error: "No es tu mensaje" });
+  }
+
+  const { data: filas, error } = await getSupabase()
+    .from("chat_mensajes")
+    .select("*")
+    .eq("contacto_id", contacto.id)
+    .order("created_at", { ascending: true });
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(armarHilo(contacto, filas || []));
+});
+
+// POST /api/contacto/:id/mensajes/estudiante
+// El estudiante responde al admin dentro de la conversacion.
+// Cuerpo: { texto, imagenBase64?, imagenNombre? }
+router.post("/:id/mensajes/estudiante", requiereSesion, async (req, res) => {
+  const { texto: textoEnviado, imagenBase64, imagenNombre } = req.body || {};
+  const texto = textoValido(textoEnviado);
+  if (!texto) {
+    return res.status(400).json({ error: "Escribe un mensaje" });
+  }
+
+  const { data: contacto, error: errContacto } = await getSupabase()
+    .from("contactos")
+    .select("*")
+    .eq("id", req.params.id)
+    .maybeSingle();
+  if (errContacto) return res.status(500).json({ error: errContacto.message });
+  if (!contacto) return res.status(404).json({ error: "Mensaje no encontrado" });
+
+  if (!contacto.documento || contacto.documento !== req.usuario.sub) {
+    return res.status(403).json({ error: "No es tu mensaje" });
+  }
+
+  let imagen = null;
+  if (imagenBase64) {
+    try {
+      imagen = await subirImagen(imagenBase64, imagenNombre || "foto.png");
+    } catch (err) {
+      return res.status(400).json({ error: err.message });
+    }
+  }
+
+  const fila = { contacto_id: contacto.id, remitente: "estudiante", texto, imagen };
+  const { data, error } = await getSupabase()
+    .from("chat_mensajes")
+    .insert([fila])
+    .select()
+    .single();
+
+  if (error) return res.status(500).json({ error: error.message });
+
+  // Al responder, el mensaje vuelve a estar sin leer para el admin
+  await getSupabase()
+    .from("contactos")
+    .update({ leido: false })
+    .eq("id", contacto.id);
+
+  res.status(201).json(data);
+});
+
 export default router;
