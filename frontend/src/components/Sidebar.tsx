@@ -32,6 +32,12 @@ function Sidebar() {
     ? `⚙️ ${ROLES_LABEL[sesion.rol] || sesion.rol}`
     : "⚙️ Administrador";
 
+  // El personal del PAE (admin, cocina, profesor, coordinador) no
+  // reserva minutas: eso es solo para estudiantes y visitantes.
+  const esPersonal =
+    sesion &&
+    ["admin", "cocina", "profesor", "coordinador"].includes(sesion.rol);
+
   // En movil, cuando el menu esta cerrado lo sacamos del foco del
   // teclado y de los lectores de pantalla (esta oculto fuera de la
   // pantalla). En escritorio siempre es navegable.
@@ -76,9 +82,6 @@ function Sidebar() {
           <NavLink to="/menu" onClick={cerrar}>
             <span className="nav-icono">🍽️</span> Menú semanal
           </NavLink>
-          <NavLink to="/beneficiarios" onClick={cerrar}>
-            <span className="nav-icono">👥</span> Beneficiarios
-          </NavLink>
           <NavLink to="/noticias" onClick={cerrar}>
             <span className="nav-icono">📰</span> Noticias
           </NavLink>
@@ -97,9 +100,11 @@ function Sidebar() {
         </nav>
 
         <div className="sidebar-acciones">
-          <NavLink to="/reserva" onClick={cerrar} className="sidebar-boton-reserva">
-            🥗 Reservar comida
-          </NavLink>
+          {!esPersonal && (
+            <NavLink to="/reserva" onClick={cerrar} className="sidebar-boton-reserva">
+              🥗 Reservar comida
+            </NavLink>
+          )}
           <NavLink to="/admin" onClick={cerrar} className="sidebar-enlace-admin">
             {etiquetaPanel}
           </NavLink>

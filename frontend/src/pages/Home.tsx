@@ -2,7 +2,7 @@
 // hero, comida del dia, metricas, impacto, menu de la semana, avisos,
 // galeria y cita
 //
-// Las metricas (estudiantes, instituciones, colaboradores) son REALES:
+// Las metricas (estudiantes, instituciones, minutas) son REALES:
 // se cuentan desde la base. La comida del dia viene de /api/menus/hoy
 // que calcula la semana del mes y el dia actual.
 
@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Lightbox from "../components/Lightbox";
 import { API_URL } from "../config/api";
+import { leerSesion } from "../config/sesion";
 
 interface MenuItem {
   id: number;
@@ -73,8 +74,10 @@ function Home() {
   const [metricas, setMetricas] = useState({
     estudiantes: 0,
     instituciones: 0,
-    colaboradores: 0,
+    minutas: 0,
   });
+  // Beneficiarios reales (para el registro por sede de la Home)
+  const [beneficiarios, setBeneficiarios] = useState<{ sede: string }[]>([]);
   // Avisos publicados por el administrador (vienen de la base)
   const [avisos, setAvisos] = useState<Aviso[]>([]);
   // Fotos propias de la galeria (publicadas por el administrador)
@@ -92,6 +95,12 @@ function Home() {
   // referencia al contenedor del buscador para detectar clic fuera
   const buscadorRef = useRef<HTMLDivElement>(null);
   const navegar = useNavigate();
+
+  // El personal del PAE (admin, cocina, profesor, coordinador) no reserva
+  // minutas: eso es solo para estudiantes y visitantes.
+  const sesion = leerSesion();
+  const esPersonal =
+    sesion && ["admin", "cocina", "profesor", "coordinador"].includes(sesion.rol);
 
   useEffect(() => {
     const cargarMenu = async () => {
@@ -118,7 +127,7 @@ function Home() {
     };
     cargarComidaHoy();
 
-    // Metricas reales: estudiantes, instituciones y colaboradores
+    // Metricas reales: estudiantes, instituciones y minutas reservadas
     const cargarMetricas = async () => {
       try {
         const respuesta = await fetch(`${API_URL}/api/metricas`);
@@ -128,6 +137,19 @@ function Home() {
       }
     };
     cargarMetricas();
+
+    // Beneficiarios reales: alimentan la seccion "Beneficiarios del
+    // programa" (registro por sede). Si algo falla la seccion se muestra
+    // en cero, nunca rompe la pagina.
+    const cargarBeneficiarios = async () => {
+      try {
+        const respBen = await fetch(`${API_URL}/api/beneficiarios`);
+        if (respBen.ok) setBeneficiarios(await respBen.json());
+      } catch {
+        // se queda en cero
+      }
+    };
+    cargarBeneficiarios();
 
     // Tambien cargamos los avisos publicados
     const cargarAvisos = async () => {
@@ -214,6 +236,12 @@ function Home() {
     descripcion: f.descripcion,
   })).slice(0, 6);
 
+  // Cuenta cuantos beneficiarios hay por sede (registro por sede)
+  const porSede: Record<string, number> = {};
+  for (const b of beneficiarios) {
+    porSede[b.sede] = (porSede[b.sede] || 0) + 1;
+  }
+
   return (
     <div className="home-pae">
       {/* ===== HERO ===== */}
@@ -296,9 +324,11 @@ function Home() {
           </div>
 
           <div className="hero-acciones">
-            <Link to="/reserva" className="boton boton-primario">
-              Reservar mi comida
-            </Link>
+            {!esPersonal && (
+              <Link to="/reserva" className="boton boton-primario">
+                Reservar mi comida
+              </Link>
+            )}
             <Link to="/sobre" className="boton boton-secundario">
               Conoce más
             </Link>
@@ -380,11 +410,50 @@ function Home() {
         </article>
         <article className="metrica">
           <span className="metrica-numero">
-            {metricas.colaboradores.toLocaleString("es-CO")}
+            {metricas.minutas.toLocaleString("es-CO")}
           </span>
-          <span className="metrica-etiqueta">Colaboradores del PAE</span>
-          <span className="metrica-detalle">Equipo comprometido</span>
+          <span className="metrica-etiqueta">Minutas reservadas</span>
+          <span className="metrica-detalle">Confirmadas por los estudiantes</span>
         </article>
+      </section>
+
+      {/* ===== BENEFICIARIOS DEL PROGRAMA (registro por sede) ===== */}
+      <section className="seccion-pae">
+        <div className="seccion-titulo">
+          <h2>🎓 Beneficiarios del programa</h2>
+          <span className="comida-dia-semana">Datos reales</span>
+        </div>
+        <p className="subtitulo">
+          A dónde llega la alimentación escolar y cuántos beneficiarios hay
+          por sede.
+        </p>
+        <div className="metricas">
+          <article className="metrica">
+            <span className="metrica-numero">
+              {Object.keys(porSede).length}
+            </span>
+            <span className="metrica-etiqueta">Sedes atendidas</span>
+            <span className="metrica-detalle">Puntos de atención</span>
+          </article>
+        </div>
+
+        <h3 className="admin-subtitulo">Registro por sede</h3>
+        <div className="lista-totales">
+          {Object.keys(porSede).length === 0 && (
+            <p className="estado">Aún no hay beneficiarios registrados.</p>
+          )}
+          {Object.entries(porSede).map(([sede, cantidad]) => (
+            <article key={sede} className="total-fecha">
+              <span className="total-fecha-nombre">{sede}</span>
+              <span className="total-fecha-cantidad">
+                {cantidad} beneficiario{cantidad === 1 ? "" : "s"}
+              </span>
+            </article>
+          ))}
+        </div>
+        <p className="nota">
+          El listado completo de beneficiarios lo administra el equipo del PAE.
+        </p>
       </section>
 
       {/* ===== IMPACTO ===== */}
@@ -397,9 +466,6 @@ function Home() {
             Gracias al programa, nuestros estudiantes tienen la energía que
             necesitan para concentrarse y aprender.
           </p>
-          <Link to="/beneficiarios" className="enlace-ver">
-            Ver más →
-          </Link>
         </div>
         <div className="impacto-caja">
           <span className="seccion-etiqueta">Cobertura del programa</span>

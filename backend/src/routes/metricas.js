@@ -1,6 +1,6 @@
 // rutas de metricas de la Home
 // devuelve los conteos REALES de la base para la seccion de numeros:
-// estudiantes beneficiarios, instituciones educativas y colaboradores.
+// estudiantes beneficiarios, instituciones educativas y minutas reservadas.
 
 import { Router } from "express";
 import { getSupabase } from "../config/supabase.js";
@@ -20,13 +20,13 @@ router.get("/", async (_req, res) => {
     return error ? 0 : count;
   };
 
-  const [estudiantes, instituciones, colaboradores] = await Promise.all([
+  const [estudiantes, instituciones, minutas] = await Promise.all([
     conteo("beneficiarios"),
     conteo("instituciones"),
-    conteo("colaboradores"),
+    conteo("reservas"),
   ]);
 
-  res.json({ estudiantes, instituciones, colaboradores });
+  res.json({ estudiantes, instituciones, minutas });
 });
 
 export default router;

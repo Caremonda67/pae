@@ -295,7 +295,17 @@ router.post("/", limiteFormularios, async (req, res) => {
   if (!turnosValidos.includes(turno)) {
     return res.status(400).json({ error: "Turno no válido" });
   }
-  const sedesValidas = ["Sede A", "Sede B", "Sede C"];
+
+  // La sede se valida contra la tabla de sedes (la maneja el admin).
+  // Si la tabla aun no existe (migracion pendiente), se usan las sedes
+  // originales para no romper las reservas existentes.
+  let sedesValidas = ["Sede A", "Sede B", "Sede C"];
+  const { data: sedes, error: errSedes } = await getSupabase()
+    .from("sedes")
+    .select("nombre");
+  if (!errSedes && sedes && sedes.length > 0) {
+    sedesValidas = sedes.map((s) => s.nombre);
+  }
   if (!sedesValidas.includes(sede)) {
     return res.status(400).json({ error: "Sede no válida" });
   }
