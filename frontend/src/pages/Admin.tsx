@@ -179,6 +179,17 @@ function hoyLocal() {
   return `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, "0")}-${String(ahora.getDate()).padStart(2, "0")}`;
 }
 
+// Convierte un archivo de imagen a base64 para mandarlo en el JSON
+// del chat (así el admin puede adjuntar fotos en sus respuestas).
+function aBase64(archivo: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const lector = new FileReader();
+    lector.onload = () => resolve(String(lector.result));
+    lector.onerror = () => reject(new Error("No se pudo leer la imagen"));
+    lector.readAsDataURL(archivo);
+  });
+}
+
 function Admin() {
   const [autenticado, setAutenticado] = useState(leerSesion() !== null);
   const [rol, setRol] = useState(leerSesion()?.rol || "");
@@ -236,6 +247,8 @@ function Admin() {
   const [hiloCargando, setHiloCargando] = useState<Record<number, boolean>>({});
   const [hiloEnviando, setHiloEnviando] = useState<Record<number, boolean>>({});
   const [borradoresChat, setBorradoresChat] = useState<Record<number, string>>({});
+  const [fotosChat, setFotosChat] = useState<Record<number, File | null>>({});
+  const [borrandoHilo, setBorrandoHilo] = useState<Record<number, boolean>>({});
   const hilosRef = useRef(hilos);
   hilosRef.current = hilos;
   const hiloAbiertoRef = useRef(hiloAbierto);
@@ -984,23 +997,54 @@ function Admin() {
   // no hay limite como antes (donde solo se podia responder una vez).
   const enviarMensajeAdmin = async (id: number) => {
     const texto = (borradoresChat[id] || "").trim();
-    if (!texto) return;
+    const foto = fotosChat[id];
+    if (!texto && !foto) return;
     setHiloEnviando((e) => ({ ...e, [id]: true }));
     try {
+      const cuerpo: Record<string, unknown> = { texto };
+      if (foto) {
+        cuerpo.imagenBase64 = await aBase64(foto);
+        cuerpo.imagenNombre = foto.name;
+      }
       const respuesta = await fetch(`${API_URL}/api/contacto/${id}/mensajes`, {
         method: "POST",
         headers: cabeceras(),
-        body: JSON.stringify({ texto }),
+        body: JSON.stringify(cuerpo),
       });
       const datos = await respuesta.json().catch(() => null);
       if (!respuesta.ok) throw new Error(datos?.error || "No se pudo enviar el mensaje");
       setBorradoresChat((b) => ({ ...b, [id]: "" }));
+      setFotosChat((f) => ({ ...f, [id]: null }));
       cargarHilo(id);
       refrescarMensajes();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error desconocido");
     } finally {
       setHiloEnviando((e) => ({ ...e, [id]: false }));
+    }
+  };
+
+  // Borra la conversación completa. El estudiante también la pierde.
+  const borrarConversacion = async (id: number) => {
+    if (!window.confirm("¿Borrar esta conversación? No se puede deshacer.")) return;
+    setBorrandoHilo((e) => ({ ...e, [id]: true }));
+    try {
+      const respuesta = await fetch(`${API_URL}/api/contacto/${id}`, {
+        method: "DELETE",
+        headers: cabeceras(false),
+      });
+      const datos = await respuesta.json().catch(() => null);
+      if (!respuesta.ok) throw new Error(datos?.error || "No se pudo borrar la conversación");
+      setMensajes((m) => m.filter((msj) => msj.id !== id));
+      setHilos((h) => {
+        const copia = { ...h };
+        delete copia[id];
+        return copia;
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error desconocido");
+    } finally {
+      setBorrandoHilo((e) => ({ ...e, [id]: false }));
     }
   };
 
@@ -2127,6 +2171,14 @@ function Admin() {
                   >
                     {hiloAbierto[mensaje.id] ? "Ocultar conversación" : "Ver conversación"}
                   </button>
+                  <button
+                    type="button"
+                    className="boton boton-peligro"
+                    onClick={() => borrarConversacion(mensaje.id)}
+                    disabled={borrandoHilo[mensaje.id] || false}
+                  >
+                    {borrandoHilo[mensaje.id] ? "Borrando…" : "🗑 Borrar"}
+                  </button>
                 </div>
 
                 {hiloAbierto[mensaje.id] && (
@@ -2175,17 +2227,51 @@ function Admin() {
                         placeholder="Escribe tu respuesta y presiona Enter…"
                         aria-label={`Responder al mensaje de ${mensaje.nombre}`}
                       />
+                      <label className="chat-foto" title="Adjuntar foto">
+                        📎
+                        <input
+                          type="file"
+                          accept="image/*"
+                          hidden
+                          onChange={(e) =>
+                            setFotosChat((f) => ({
+                              ...f,
+                              [mensaje.id]: e.target.files?.[0] || null,
+                            }))
+                          }
+                          aria-label="Adjuntar foto a la respuesta"
+                        />
+                      </label>
                       <button
                         type="button"
                         className="boton boton-primario"
                         onClick={() => enviarMensajeAdmin(mensaje.id)}
                         disabled={
-                          !(borradoresChat[mensaje.id] || "").trim() || hiloEnviando[mensaje.id]
+                          (!(borradoresChat[mensaje.id] || "").trim() && !fotosChat[mensaje.id]) ||
+                          hiloEnviando[mensaje.id]
                         }
                       >
                         {hiloEnviando[mensaje.id] ? "Enviando…" : "Enviar"}
                       </button>
                     </div>
+                    {fotosChat[mensaje.id] && (
+                      <div className="chat-vista-previa">
+                        <img
+                          src={URL.createObjectURL(fotosChat[mensaje.id]!)}
+                          alt="Vista previa de la foto"
+                        />
+                        <span>{fotosChat[mensaje.id]!.name}</span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFotosChat((f) => ({ ...f, [mensaje.id]: null }))
+                          }
+                          aria-label="Quitar la foto adjunta"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    )}
                   </>
                 )}
 

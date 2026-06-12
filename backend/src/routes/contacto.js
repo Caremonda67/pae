@@ -247,16 +247,27 @@ router.get("/:id/mensajes", requiereRol("admin", "coordinador"), async (req, res
 
 // POST /api/contacto/:id/mensajes
 // El admin/coordinador manda otro mensaje al hilo (se puede varias
-// veces, no hay limite). Cuerpo: { texto }
+// veces, no hay limite). Cuerpo: { texto?, imagenBase64?, imagenNombre? }
 router.post("/:id/mensajes", requiereRol("admin", "coordinador"), async (req, res) => {
-  const texto = textoValido(req.body?.texto);
-  if (!texto) {
-    return res.status(400).json({ error: "Escribe un mensaje" });
+  const { texto: textoEnviado, imagenBase64, imagenNombre } = req.body || {};
+  const texto = textoValido(textoEnviado);
+  if (!texto && !imagenBase64) {
+    return res.status(400).json({ error: "Escribe un mensaje o adjunta una imagen" });
   }
 
+  let imagen = null;
+  if (imagenBase64) {
+    try {
+      imagen = await subirImagen(imagenBase64, imagenNombre || "foto.png");
+    } catch (err) {
+      return res.status(400).json({ error: err.message });
+    }
+  }
+
+  const fila = { contacto_id: req.params.id, remitente: "admin", texto, imagen };
   const { data, error } = await getSupabase()
     .from("chat_mensajes")
-    .insert([{ contacto_id: req.params.id, remitente: "admin", texto }])
+    .insert([fila])
     .select()
     .single();
 
@@ -295,8 +306,8 @@ router.get("/:id/mensajes/estudiante", requiereSesion, async (req, res) => {
 router.post("/:id/mensajes/estudiante", requiereSesion, async (req, res) => {
   const { texto: textoEnviado, imagenBase64, imagenNombre } = req.body || {};
   const texto = textoValido(textoEnviado);
-  if (!texto) {
-    return res.status(400).json({ error: "Escribe un mensaje" });
+  if (!texto && !imagenBase64) {
+    return res.status(400).json({ error: "Escribe un mensaje o adjunta una imagen" });
   }
 
   const { data: contacto, error: errContacto } = await getSupabase()
@@ -336,6 +347,42 @@ router.post("/:id/mensajes/estudiante", requiereSesion, async (req, res) => {
     .eq("id", contacto.id);
 
   res.status(201).json(data);
+});
+
+// DELETE /api/contacto/:id
+// Borra la conversacion completa (mensaje original + chat_mensajes).
+// Al ser compartida, tambien desaparece del lado del estudiante.
+router.delete("/:id", requiereRol("admin", "coordinador"), async (req, res) => {
+  const { error } = await getSupabase()
+    .from("contactos")
+    .delete()
+    .eq("id", req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ ok: true });
+});
+
+// DELETE /api/contacto/:id/estudiante
+// El estudiante borra su conversacion. Como es compartida, tambien
+// desaparece del panel del admin.
+router.delete("/:id/estudiante", requiereSesion, async (req, res) => {
+  const { data: contacto, error: errContacto } = await getSupabase()
+    .from("contactos")
+    .select("id, documento")
+    .eq("id", req.params.id)
+    .maybeSingle();
+  if (errContacto) return res.status(500).json({ error: errContacto.message });
+  if (!contacto) return res.status(404).json({ error: "Mensaje no encontrado" });
+
+  if (!contacto.documento || contacto.documento !== req.usuario.sub) {
+    return res.status(403).json({ error: "No es tu mensaje" });
+  }
+
+  const { error } = await getSupabase()
+    .from("contactos")
+    .delete()
+    .eq("id", contacto.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ ok: true });
 });
 
 export default router;
