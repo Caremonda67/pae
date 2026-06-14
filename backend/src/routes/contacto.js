@@ -2,7 +2,7 @@
 
 import { Router } from "express";
 import { getSupabase } from "../config/supabase.js";
-import { requiereAdmin } from "../config/auth.js";
+import { requiereRol } from "../config/auth.js";
 import { enviarEmail, correoConfigurado } from "../config/email.js";
 import { limiteFormularios } from "../config/rateLimit.js";
 
@@ -10,7 +10,7 @@ const router = Router();
 
 // GET /api/contacto
 // lista los mensajes recibidos (solo para el panel de administrador)
-router.get("/", requiereAdmin, async (_req, res) => {
+router.get("/", requiereRol("admin", "coordinador"), async (_req, res) => {
   const { data, error } = await getSupabase()
     .from("contactos")
     .select("*")

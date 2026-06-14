@@ -13,7 +13,7 @@
 
 import { Router } from "express";
 import { getSupabase } from "../config/supabase.js";
-import { requiereAdmin } from "../config/auth.js";
+import { requiereRol } from "../config/auth.js";
 import { enviarEmail, correoConfigurado } from "../config/email.js";
 
 const router = Router();
@@ -57,7 +57,7 @@ export async function crearNotificacion({ tipo, destinatario, mensaje, mensajeHt
 
 // GET /api/notificaciones
 // Lista las notificaciones (solo admin)
-router.get("/", requiereAdmin, async (_req, res) => {
+router.get("/", requiereRol("admin", "coordinador"), async (_req, res) => {
   const { data, error } = await getSupabase()
     .from("notificaciones")
     .select("*")

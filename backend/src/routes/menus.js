@@ -6,7 +6,7 @@
 
 import { Router } from "express";
 import { getSupabase } from "../config/supabase.js";
-import { requiereAdmin } from "../config/auth.js";
+import { requiereRol } from "../config/auth.js";
 
 const router = Router();
 
@@ -105,7 +105,7 @@ router.get("/hoy", async (_req, res) => {
 // Cuerpo esperado: { semana, dia, jornada, platillo, descripcion, calorias, imagen }
 //   - semana: 1 a 4 (semana del mes)
 //   - jornada: "Almuerzo" o "Refrigerio" (una comida DIFERENTE por jornada)
-router.post("/", requiereAdmin, async (req, res) => {
+router.post("/", requiereRol("admin", "cocina"), async (req, res) => {
   const { semana, dia, jornada, platillo, descripcion, calorias, imagen } = req.body;
 
   if (!dia || !platillo || !jornada) {
@@ -134,7 +134,7 @@ router.post("/", requiereAdmin, async (req, res) => {
 
 // DELETE /api/menus/:id
 // Elimina un plato del menu (solo admin)
-router.delete("/:id", requiereAdmin, async (req, res) => {
+router.delete("/:id", requiereRol("admin", "cocina"), async (req, res) => {
   const { error } = await getSupabase()
     .from("menus")
     .delete()
