@@ -10,7 +10,6 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Lightbox from "../components/Lightbox";
 import { API_URL } from "../config/api";
-import { leerSesion } from "../config/sesion";
 
 interface MenuItem {
   id: number;
@@ -95,12 +94,6 @@ function Home() {
   // referencia al contenedor del buscador para detectar clic fuera
   const buscadorRef = useRef<HTMLDivElement>(null);
   const navegar = useNavigate();
-
-  // El personal del PAE (admin, cocina, profesor, coordinador) no reserva
-  // minutas: eso es solo para estudiantes y visitantes.
-  const sesion = leerSesion();
-  const esPersonal =
-    sesion && ["admin", "cocina", "profesor", "coordinador"].includes(sesion.rol);
 
   useEffect(() => {
     const cargarMenu = async () => {
@@ -324,11 +317,9 @@ function Home() {
           </div>
 
           <div className="hero-acciones">
-            {!esPersonal && (
-              <Link to="/reserva" className="boton boton-primario">
-                Reservar mi comida
-              </Link>
-            )}
+            <Link to="/reserva" className="boton boton-primario">
+              Reservar mi comida
+            </Link>
             <Link to="/sobre" className="boton boton-secundario">
               Conoce más
             </Link>

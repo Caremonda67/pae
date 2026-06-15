@@ -446,9 +446,9 @@ function Admin() {
         }))
       );
 
-      setGaleria(await respGaleria.json());
-      setInstituciones(await respInstituciones.json());
-      setSedes(await respSedes.json());
+      setGaleria(respGaleria.ok ? await respGaleria.json() : []);
+      setInstituciones(respInstituciones.ok ? await respInstituciones.json() : []);
+      setSedes(respSedes.ok ? await respSedes.json() : []);
 
       // Solo el admin ve las cuentas de usuario del panel
       if (leerSesion()?.rol === "admin") {

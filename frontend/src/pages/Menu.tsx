@@ -6,7 +6,6 @@
 // retroalimentacion ayuda a la cocina a mejorar el menu.
 
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { API_URL } from "../config/api";
 
 // Tipado de un plato del menu
@@ -306,12 +305,6 @@ function Menu() {
           </div>
         </>
       )}
-
-      <div className="centrar">
-        <Link to="/reserva" className="boton boton-primario">
-          Reservar mi minuta
-        </Link>
-      </div>
     </section>
   );
 }
