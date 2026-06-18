@@ -11,6 +11,12 @@
 import { useEffect, useRef, useState } from "react";
 import { fechaLegible, hoyLocal, sumarDias, validarFecha } from "../config/fechas";
 import { API_URL } from "../config/api";
+import {
+  leerSesion,
+  guardarSesion,
+  cerrarSesion,
+  ROLES_LABEL,
+} from "../config/sesion";
 
 // Turnos y sedes disponibles (se pueden ampliar luego desde el admin)
 const TURNOS = ["Almuerzo", "Refrigerio"];
@@ -27,10 +33,21 @@ interface MisReserva {
 }
 
 function Reserva() {
+  // Sesión del estudiante (entra con documento + PIN). Si hay sesión,
+  // el documento se autocompleta y no hay que volver a escribirlo.
+  const sesionInicial = leerSesion();
+  const [sesion, setSesion] = useState(sesionInicial);
+
+  // Formulario de login del estudiante
+  const [docLogin, setDocLogin] = useState(sesionInicial?.usuario || "");
+  const [pinLogin, setPinLogin] = useState("");
+  const [entrando, setEntrando] = useState(false);
+  const [errorLogin, setErrorLogin] = useState("");
+
   // Estado del formulario
   const [formulario, setFormulario] = useState({
     estudiante: "",
-    documento: "",
+    documento: sesionInicial?.usuario || "",
     correo: "",
     sede: "",
     turno: "",
@@ -64,6 +81,53 @@ function Reserva() {
   const cambiar = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormulario({ ...formulario, [name]: value });
+  };
+
+  // Entra el estudiante con documento + PIN
+  const entrar = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEntrando(true);
+    setErrorLogin("");
+    try {
+      const respuesta = await fetch(`${API_URL}/api/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ usuario: docLogin, clave: pinLogin }),
+      });
+      const datos = await respuesta.json().catch(() => null);
+      if (!respuesta.ok) {
+        throw new Error(datos?.error || "Documento o PIN incorrectos");
+      }
+      if (datos.rol !== "estudiante") {
+        throw new Error("Este documento no tiene cuenta de estudiante.");
+      }
+      const nuevaSesion = {
+        token: datos.token,
+        rol: datos.rol,
+        usuario: datos.usuario,
+        nombre: datos.nombre,
+      };
+      guardarSesion(nuevaSesion);
+      setSesion(nuevaSesion);
+      setFormulario((f) => ({ ...f, documento: datos.usuario }));
+      setDocConsulta(datos.usuario);
+      setPinLogin("");
+    } catch (err) {
+      setErrorLogin(err instanceof Error ? err.message : "Error desconocido");
+    } finally {
+      setEntrando(false);
+    }
+  };
+
+  // Cierra la sesión del estudiante
+  const salir = () => {
+    cerrarSesion();
+    setSesion(null);
+    setDocLogin("");
+    setFormulario((f) => ({ ...f, documento: "" }));
+    setDocConsulta("");
+    setMisReservas([]);
+    setConsultaHecha(false);
   };
 
   // Cuando el documento cambia, buscamos al beneficiario y
@@ -182,11 +246,12 @@ function Reserva() {
   // Consulta las reservas propias por documento
   const consultarMisReservas = async (e: React.FormEvent) => {
     e.preventDefault();
+    const documento = (sesion?.usuario || docConsulta).trim();
     setCargandoConsulta(true);
     setErrorConsulta("");
     try {
       const respuesta = await fetch(
-        `${API_URL}/api/reservas/mis?documento=${encodeURIComponent(docConsulta.trim())}`
+        `${API_URL}/api/reservas/mis?documento=${encodeURIComponent(documento)}`
       );
       if (!respuesta.ok) {
         const datos = await respuesta.json().catch(() => null);
@@ -205,9 +270,10 @@ function Reserva() {
 
   // Cancela una reserva propia
   const cancelarReserva = async (id: number) => {
+    const documento = (sesion?.usuario || docConsulta).trim();
     try {
       const respuesta = await fetch(
-        `${API_URL}/api/reservas/mis/${id}?documento=${encodeURIComponent(docConsulta.trim())}`,
+        `${API_URL}/api/reservas/mis/${id}?documento=${encodeURIComponent(documento)}`,
         { method: "DELETE" }
       );
       if (!respuesta.ok) {
@@ -241,6 +307,56 @@ function Reserva() {
         minutas necesarias y no se desperdicie comida.
       </p>
 
+      {sesion?.rol === "estudiante" ? (
+        <div className="sesion-estudiante" aria-live="polite">
+          <p>
+            ✅ Estás como {sesion.nombre || sesion.usuario} ({ROLES_LABEL.estudiante}).
+            Tu documento ya está cargado, solo elige fecha y turno.
+          </p>
+          <button type="button" className="boton boton-secundario" onClick={salir}>
+            Cerrar sesión
+          </button>
+        </div>
+      ) : (
+        <form className="formulario" onSubmit={entrar} aria-label="Entrar como estudiante">
+          <h2 className="admin-subtitulo">Entrar con documento y PIN</h2>
+          <div className="formulario-fila">
+            <label htmlFor="doc-login">
+              Número de documento
+              <input
+                id="doc-login"
+                type="text"
+                value={docLogin}
+                onChange={(e) => setDocLogin(e.target.value)}
+                required
+                placeholder="Tu documento"
+                autoComplete="username"
+              />
+            </label>
+            <label htmlFor="pin-login">
+              PIN
+              <input
+                id="pin-login"
+                type="password"
+                value={pinLogin}
+                onChange={(e) => setPinLogin(e.target.value)}
+                required
+                minLength={4}
+                placeholder="Tu PIN (te lo da el equipo del PAE)"
+                autoComplete="current-password"
+              />
+            </label>
+          </div>
+          {errorLogin && <p className="estado error" role="alert">⚠️ {errorLogin}</p>}
+          <button type="submit" className="boton boton-secundario" disabled={entrando}>
+            {entrando ? "Verificando…" : "Entrar"}
+          </button>
+          <p className="subtitulo">
+            También puedes reservar sin entrar, escribiendo tu documento abajo.
+          </p>
+        </form>
+      )}
+
       <form className="formulario" onSubmit={enviar}>
         <label>
           Número de documento
@@ -254,8 +370,12 @@ function Reserva() {
               buscarBeneficiario(valor);
             }}
             required
+            disabled={Boolean(sesion)}
             placeholder="Escribe tu documento"
           />
+          {sesion && (
+            <small className="campo-fijo">Documento de tu sesión</small>
+          )}
         </label>
         {buscandoBeneficiario && <p className="estado">Buscando…</p>}
         {infoBeneficiario && (
@@ -377,7 +497,7 @@ function Reserva() {
       <hr className="separador" />
       <h2>Mis reservas</h2>
       <p className="subtitulo">
-        Consulta y cancela tus reservas escribiendo tu documento.
+        Consulta y cancela tus reservas {sesion ? "de tu sesión" : "escribiendo tu documento"}.
       </p>
 
       <form className="formulario" onSubmit={consultarMisReservas}>
@@ -385,11 +505,17 @@ function Reserva() {
           Tu número de documento
           <input
             type="text"
-            value={docConsulta}
-            onChange={(e) => setDocConsulta(e.target.value)}
+            value={sesion?.usuario || docConsulta}
+            onChange={(e) => {
+              if (!sesion) setDocConsulta(e.target.value);
+            }}
             required
+            disabled={Boolean(sesion)}
             placeholder="Escribe tu documento"
           />
+          {sesion && (
+            <small className="campo-fijo">Documento de tu sesión</small>
+          )}
         </label>
         <button type="submit" className="boton boton-primario" disabled={cargandoConsulta}>
           {cargandoConsulta ? "Consultando…" : "Consultar mis reservas"}
