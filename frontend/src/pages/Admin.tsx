@@ -18,6 +18,7 @@ import Buscador from "../components/Buscador";
 import { coincide } from "../config/busqueda";
 import { GRADOS, horarioGrado } from "../config/horarios";
 import { API_URL } from "../config/api";
+import { descargarCSV } from "../config/exportar";
 import {
   leerSesion,
   guardarSesion,
@@ -52,6 +53,27 @@ interface PanelCocina {
   porJornada: Record<string, number>;
   porSede: Record<string, number>;
   total: number;
+}
+
+// reporte de desperdicio (ruta /api/reservas/reporte)
+interface Reporte {
+  totalReservas: number;
+  minutasServidas: number;
+  minutasDesperdiciadas: number;
+  porcentajeDesperdicio: number;
+  porSede: Record<string, { reservas: number; asistieron: number }>;
+  porTurno: Record<string, { reservas: number; asistieron: number }>;
+}
+
+// una reserva de la tabla diaria (ruta /api/reservas/diario)
+interface ReservaDiaria {
+  id: number;
+  estudiante: string;
+  documento: string;
+  sede: string;
+  turno: string;
+  fecha: string;
+  asistio: boolean;
 }
 
 // dia de la semana con su lista de platos
@@ -130,6 +152,7 @@ type Pestana =
   | "colaboradores"
   | "notificaciones"
   | "mensajes"
+  | "reportes"
   | "usuarios";
 
 // Fecha de hoy en formato YYYY-MM-DD (hora local del navegador)
@@ -162,6 +185,13 @@ function Admin() {
   const [panelDia, setPanelDia] = useState<PanelCocina | null>(null);
   const [menuDia, setMenuDia] = useState<MenuItem[]>([]);
   const [panelCargando, setPanelCargando] = useState(false);
+
+  // reportes tecnicos (desperdicio, tabla diaria, exportar)
+  const [totales, setTotales] = useState<Record<string, { reservas: number; asistieron: number }>>({});
+  const [reporte, setReporte] = useState<Reporte | null>(null);
+  const [diaria, setDiaria] = useState<ReservaDiaria[]>([]);
+  const [fechaDiaria, setFechaDiaria] = useState(() => hoyLocal());
+  const [diariaCargada, setDiariaCargada] = useState(false);
 
   // formulario de usuario (cuenta del panel)
   const [nombreUsu, setNombreUsu] = useState("");
@@ -403,6 +433,79 @@ function Admin() {
     if (autenticado) cargarPanel(fechaPanel);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autenticado, fechaPanel]);
+
+  // Carga los reportes tecnicos (totales y desperdicio) una vez al entrar
+  useEffect(() => {
+    const cargarReportes = async () => {
+      try {
+        const [respTotales, respReporte] = await Promise.all([
+          fetch(`${API_URL}/api/reservas/totales`),
+          fetch(`${API_URL}/api/reservas/reporte`),
+        ]);
+        if (!respTotales.ok || !respReporte.ok) throw new Error("No se pudieron cargar los reportes");
+        setTotales(await respTotales.json());
+        setReporte(await respReporte.json());
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Error desconocido");
+      }
+    };
+    if (autenticado) cargarReportes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autenticado]);
+
+  // Carga la tabla diaria de cocina para una fecha (protegida)
+  const cargarDiaria = async (fecha: string) => {
+    setDiariaCargada(false);
+    try {
+      const respuesta = await fetch(
+        `${API_URL}/api/reservas/diario?fecha=${fecha}`,
+        { headers: cabeceras(false) }
+      );
+      if (!respuesta.ok) throw new Error("No se pudo cargar la tabla diaria");
+      const datos = await respuesta.json();
+      setDiaria(datos.reservas || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error desconocido");
+    } finally {
+      setDiariaCargada(true);
+    }
+  };
+
+  // Cuenta la tabla diaria por turno
+  const conteoDiario = () => {
+    const conteo: Record<string, number> = {};
+    for (const r of diaria) {
+      conteo[r.turno] = (conteo[r.turno] || 0) + 1;
+    }
+    return conteo;
+  };
+
+  // Descarga un CSV con el resumen de reservas por fecha
+  const exportarCSV = () => {
+    const filas: (string | number)[][] = [
+      ["Fecha", "Reservadas", "Asistieron"],
+      ...Object.entries(totales)
+        .sort((a, b) => (a[0] < b[0] ? -1 : 1))
+        .map(([fecha, info]) => [fecha, info.reservas, info.asistieron]),
+      ...(reporte
+        ? [
+            [],
+            ["Reporte general"],
+            ["Total reservadas", reporte.totalReservas],
+            ["Minutas servidas", reporte.minutasServidas],
+            ["Minutas desperdiciadas", reporte.minutasDesperdiciadas],
+            ["Porcentaje de desperdicio", `${reporte.porcentajeDesperdicio}%`],
+          ]
+        : []),
+    ];
+
+    descargarCSV(filas, "reporte-pae.csv");
+  };
+
+  // Imprime / guarda en PDF la tabla diaria de cocina
+  const imprimirDiaria = () => {
+    window.print();
+  };
 
   // Publica un aviso nuevo (si hay imagen subida, la adjunta)
   const publicarAviso = async (e: React.FormEvent) => {
@@ -767,11 +870,13 @@ function Admin() {
       { id: "colaboradores", etiqueta: "👥 Colaboradores" },
       { id: "notificaciones", etiqueta: "🔔 Notificaciones" },
       { id: "mensajes", etiqueta: `✉️ Mensajes (${mensajes.length})` },
+      { id: "reportes", etiqueta: "📊 Reportes" },
       { id: "usuarios", etiqueta: "🔐 Usuarios" },
     ],
     cocina: [
       { id: "panel", etiqueta: "🍳 Panel de cocina" },
       { id: "menu", etiqueta: "🍽️ Menú" },
+      { id: "reportes", etiqueta: "📊 Reportes" },
     ],
     profesor: [
       { id: "beneficiarios", etiqueta: "🎓 Beneficiarios" },
@@ -913,6 +1018,143 @@ function Admin() {
               )}
             </>
           )}
+        </div>
+      )}
+
+      {!cargando && !error && pestanaActiva === "reportes" && (
+        <div id="panel-reportes" role="tabpanel" aria-labelledby="tab-reportes">
+          {reporte && (
+            <div className="reporte">
+              <h2 className="admin-subtitulo">Reporte de desperdicio</h2>
+              <div className="reporte-cajas">
+                <div className="reporte-caja">
+                  <span className="reporte-numero">{reporte.totalReservas}</span>
+                  <span className="reporte-etiqueta">Minutas reservadas</span>
+                </div>
+                <div className="reporte-caja">
+                  <span className="reporte-numero">{reporte.minutasServidas}</span>
+                  <span className="reporte-etiqueta">Minutas servidas</span>
+                </div>
+                <div className="reporte-caja desperdicio">
+                  <span className="reporte-numero">{reporte.minutasDesperdiciadas}</span>
+                  <span className="reporte-etiqueta">Sin asistir ({reporte.porcentajeDesperdicio}%)</span>
+                </div>
+              </div>
+
+              {/* Desglose por sede y turno */}
+              <h3 className="reporte-subtitulo">Desglose por sede</h3>
+              <div className="reporte-desglose">
+                {Object.entries(reporte.porSede || {}).map(([sede, info]) => (
+                  <div key={sede} className="reporte-caja">
+                    <span className="reporte-numero">{info.reservas}</span>
+                    <span className="reporte-etiqueta">{sede} · {info.asistieron} asistieron</span>
+                  </div>
+                ))}
+              </div>
+              <h3 className="reporte-subtitulo">Desglose por turno</h3>
+              <div className="reporte-desglose">
+                {Object.entries(reporte.porTurno || {}).map(([turno, info]) => (
+                  <div key={turno} className="reporte-caja">
+                    <span className="reporte-numero">{info.reservas}</span>
+                    <span className="reporte-etiqueta">{turno} · {info.asistieron} asistieron</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Botones de exportacion */}
+              <div className="centrar">
+                <button type="button" className="boton boton-secundario" onClick={exportarCSV} aria-label="Exportar reporte a CSV">
+                  ⬇️ Exportar CSV
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Tabla diaria para la cocina */}
+          <hr className="separador" />
+          <div className="tabla-diaria">
+            <h2 className="admin-subtitulo">Tabla diaria de cocina</h2>
+            <p className="subtitulo">
+              Elige una fecha para ver cuántas minutas preparar por turno y
+              quién reservó. Puedes imprimirla o guardarla en PDF.
+            </p>
+
+            <form
+              className="formulario formulario-fila"
+              onSubmit={(e) => {
+                e.preventDefault();
+                cargarDiaria(fechaDiaria);
+              }}
+            >
+              <label htmlFor="fecha-diaria">
+                Fecha
+                <input
+                  id="fecha-diaria"
+                  type="date"
+                  value={fechaDiaria}
+                  onChange={(e) => setFechaDiaria(e.target.value)}
+                />
+              </label>
+              <button type="submit" className="boton boton-primario">
+                Ver minutas
+              </button>
+              {diariaCargada && (
+                <button type="button" className="boton boton-secundario" onClick={imprimirDiaria} aria-label="Imprimir tabla diaria o guardar en PDF">
+                  🖨️ Imprimir / PDF
+                </button>
+              )}
+            </form>
+
+            {diariaCargada && (
+              <>
+                {diaria.length === 0 ? (
+                  <p className="estado">
+                    No hay reservas para el {fechaDiaria}.
+                  </p>
+                ) : (
+                  <>
+                    <div className="reporte-desglose">
+                      {Object.entries(conteoDiario()).map(([turno, cantidad]) => (
+                        <div key={turno} className="reporte-caja">
+                          <span className="reporte-numero">{cantidad}</span>
+                          <span className="reporte-etiqueta">Minutas · {turno}</span>
+                        </div>
+                      ))}
+                      <div className="reporte-caja">
+                        <span className="reporte-numero">{diaria.length}</span>
+                        <span className="reporte-etiqueta">Total del día</span>
+                      </div>
+                    </div>
+
+                    <div className="tabla-cocina">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Estudiante</th>
+                            <th>Documento</th>
+                            <th>Sede</th>
+                            <th>Turno</th>
+                            <th>Asistió</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {diaria.map((r) => (
+                            <tr key={r.id}>
+                              <td>{r.estudiante}</td>
+                              <td>{r.documento}</td>
+                              <td>{r.sede}</td>
+                              <td>{r.turno}</td>
+                              <td>{r.asistio ? "✓" : "—"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+          </div>
         </div>
       )}
 

@@ -50,6 +50,11 @@ notificaciones, mensajes)
 - [ ] Exportar datos (CSV/JSON) para reportes a la entidad.
 - [ ] Configuracion del sistema: hora limite de reserva, cupos por sede
       (tabla de settings).
+- [x] Reportes tecnicos movidos al panel (pestana "Reportes" solo para
+      admin y cocina): desperdicio con desgloses, tabla diaria y exportar
+      CSV, con datos protegidos por sesion. La pagina publica Reportes
+      quedo simplificada (solo resumen y grafico). El endpoint
+      /api/reservas/diario ahora requiere rol.
 
 ## Prioridades tentativas
 
