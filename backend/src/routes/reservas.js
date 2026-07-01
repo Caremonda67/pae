@@ -65,11 +65,22 @@ router.get("/", requiereRol("admin", "cocina", "profesor", "coordinador"), async
 });
 
 // GET /api/reservas/totales
-// Total de reservas agrupadas por fecha (para que cocina sepa cuantas minutas preparar)
-router.get("/totales", async (_req, res) => {
-  const { data, error } = await getSupabase()
+// Total de reservas agrupadas por fecha (para que cocina sepa cuantas
+// minutas preparar). Acepta ?desde=YYYY-MM-DD y ?hasta=YYYY-MM-DD para
+// limitar a un rango de fechas (semanas o meses).
+router.get("/totales", async (req, res) => {
+  let consulta = getSupabase()
     .from("reservas")
     .select("fecha, asistio");
+
+  if (req.query.desde) {
+    consulta = consulta.gte("fecha", req.query.desde);
+  }
+  if (req.query.hasta) {
+    consulta = consulta.lte("fecha", req.query.hasta);
+  }
+
+  const { data, error } = await consulta;
   if (error) return res.status(500).json({ error: error.message });
 
   // Contamos cuantas reservas hay por cada fecha y cuantas asistieron
@@ -111,10 +122,20 @@ router.get("/mis", async (req, res) => {
 // Reporte de desperdicio: cuantas minutas se reservaron, cuantas
 // se sirvieron y cuantas se desperdiciaron por no asistir.
 // Incluye desglose por sede y por turno para cocina.
-router.get("/reporte", async (_req, res) => {
-  const { data, error } = await getSupabase()
+// Acepta ?desde=YYYY-MM-DD y ?hasta=YYYY-MM-DD para filtrar por rango.
+router.get("/reporte", async (req, res) => {
+  let consulta = getSupabase()
     .from("reservas")
     .select("fecha, asistio, sede, turno");
+
+  if (req.query.desde) {
+    consulta = consulta.gte("fecha", req.query.desde);
+  }
+  if (req.query.hasta) {
+    consulta = consulta.lte("fecha", req.query.hasta);
+  }
+
+  const { data, error } = await consulta;
   if (error) return res.status(500).json({ error: error.message });
 
   let total = 0;

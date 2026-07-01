@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from "react";
 import { API_URL } from "../config/api";
+import FiltroReportes from "../components/FiltroReportes";
 
 interface Reporte {
   totalReservas: number;
@@ -19,13 +20,20 @@ function Reportes() {
   const [reporte, setReporte] = useState<Reporte | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
+  const [desde, setDesde] = useState("");
+  const [hasta, setHasta] = useState("");
 
   useEffect(() => {
     const cargarDatos = async () => {
       try {
+        const parametros = new URLSearchParams();
+        if (desde) parametros.set("desde", desde);
+        if (hasta) parametros.set("hasta", hasta);
+        const consulta = parametros.toString();
+
         const [respTotales, respReporte] = await Promise.all([
-          fetch(`${API_URL}/api/reservas/totales`),
-          fetch(`${API_URL}/api/reservas/reporte`),
+          fetch(`${API_URL}/api/reservas/totales?${consulta}`),
+          fetch(`${API_URL}/api/reservas/reporte?${consulta}`),
         ]);
         if (!respTotales.ok || !respReporte.ok) {
           throw new Error("No se pudieron cargar los datos");
@@ -39,7 +47,7 @@ function Reportes() {
       }
     };
     cargarDatos();
-  }, []);
+  }, [desde, hasta]);
 
   // la barra mas alta tiene 100% y las demas se calculan respecto a ella
   const fechas = Object.keys(totales).sort();
@@ -61,6 +69,8 @@ function Reportes() {
 
       {!cargando && !error && (
         <>
+          <FiltroReportes desde={desde} hasta={hasta} onCambio={(d, h) => { setDesde(d); setHasta(h); }} />
+
           {/* Resumen de desperdicio */}
           {reporte && (
             <div className="reporte">
