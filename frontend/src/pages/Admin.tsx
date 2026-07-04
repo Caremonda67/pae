@@ -19,7 +19,7 @@ import FiltroReportes from "../components/FiltroReportes";
 import { coincide } from "../config/busqueda";
 import { GRADOS, horarioGrado } from "../config/horarios";
 import { API_URL } from "../config/api";
-import { descargarCSV } from "../config/exportar";
+import { descargarExcel } from "../config/exportar";
 import {
   leerSesion,
   guardarSesion,
@@ -489,26 +489,34 @@ function Admin() {
     return conteo;
   };
 
-  // Descarga un CSV con el resumen de reservas por fecha
+  // Descarga un Excel con el resumen de reservas por fecha y el reporte
+  // de desperdicio, filtrados por el rango elegido arriba
   const exportarCSV = () => {
-    const filas: (string | number)[][] = [
-      ["Fecha", "Reservadas", "Asistieron"],
-      ...Object.entries(totales)
-        .sort((a, b) => (a[0] < b[0] ? -1 : 1))
-        .map(([fecha, info]) => [fecha, info.reservas, info.asistieron]),
+    const secciones = [
+      {
+        titulo: "Reservas por fecha",
+        columnas: ["Fecha", "Reservadas", "Asistieron"],
+        filas: Object.entries(totales)
+          .sort((a, b) => (a[0] < b[0] ? -1 : 1))
+          .map(([fecha, info]) => [fecha, info.reservas, info.asistieron]),
+      },
       ...(reporte
         ? [
-            [],
-            ["Reporte general"],
-            ["Total reservadas", reporte.totalReservas],
-            ["Minutas servidas", reporte.minutasServidas],
-            ["Minutas desperdiciadas", reporte.minutasDesperdiciadas],
-            ["Porcentaje de desperdicio", `${reporte.porcentajeDesperdicio}%`],
+            {
+              titulo: "Reporte general de desperdicio",
+              columnas: ["Concepto", "Valor"],
+              filas: [
+                ["Total reservadas", reporte.totalReservas],
+                ["Minutas servidas", reporte.minutasServidas],
+                ["Minutas desperdiciadas", reporte.minutasDesperdiciadas],
+                ["Porcentaje de desperdicio", `${reporte.porcentajeDesperdicio}%`],
+              ],
+            },
           ]
         : []),
     ];
 
-    descargarCSV(filas, "reporte-pae.csv");
+    descargarExcel(secciones, "reporte-pae.xls");
   };
 
   // Imprime / guarda en PDF la tabla diaria de cocina
@@ -1078,8 +1086,8 @@ function Admin() {
 
               {/* Botones de exportacion */}
               <div className="centrar">
-                <button type="button" className="boton boton-secundario" onClick={exportarCSV} aria-label="Exportar reporte a CSV">
-                  ⬇️ Exportar CSV
+                <button type="button" className="boton boton-secundario" onClick={exportarCSV} aria-label="Exportar reporte a Excel">
+                  ⬇️ Exportar Excel
                 </button>
               </div>
             </div>
