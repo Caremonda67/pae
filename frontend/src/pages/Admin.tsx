@@ -296,7 +296,7 @@ function Admin() {
   // formulario de nuevo beneficiario
   const [docBen, setDocBen] = useState("");
   const [nombreBen, setNombreBen] = useState("");
-  const [sedeBen, setSedeBen] = useState("Sede A");
+  const [sedeBen, setSedeBen] = useState("");
   const [turnoBen, setTurnoBen] = useState("Almuerzo");
   const [gradoBen, setGradoBen] = useState("");
   const [pinBen, setPinBen] = useState("");
@@ -476,6 +476,15 @@ function Admin() {
     if (autenticado) cargarDatos();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autenticado]);
+
+  // Si la sede elegida para el formulario de beneficiarios ya no esta
+  // en la lista (por ejemplo sigue siendo el valor por defecto), se
+  // selecciona automaticamente la primera sede registrada.
+  useEffect(() => {
+    if (sedes.length === 0) return;
+    if (!sedes.some((s) => s.nombre === sedeBen)) setSedeBen(sedes[0].nombre);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sedes]);
 
   // Carga el panel compacto de cocina para la fecha elegida:
   // cuantas minutas por jornada y por sede + el menu del dia.
@@ -1568,17 +1577,21 @@ function Admin() {
             <div className="formulario-fila">
               <label htmlFor="sede-ben">
                 Sede
-                <select id="sede-ben" value={sedeBen} onChange={(e) => setSedeBen(e.target.value)}>
-                  {(sedes.length > 0 ? sedes : [
-                    { id: -1, nombre: "Sede A" },
-                    { id: -2, nombre: "Sede B" },
-                    { id: -3, nombre: "Sede C" },
-                  ]).map((s) => (
+                <select id="sede-ben" value={sedeBen} onChange={(e) => setSedeBen(e.target.value)} required>
+                  <option value="" disabled>
+                    {sedes.length > 0 ? "Selecciona la sede" : "Sin sedes registradas"}
+                  </option>
+                  {sedes.map((s) => (
                     <option key={s.id} value={s.nombre}>
                       {s.nombre}
                     </option>
                   ))}
                 </select>
+                {sedes.length === 0 && (
+                  <small className="campo-fijo">
+                    Aún no hay sedes registradas. Crea una desde la pestaña "Sedes".
+                  </small>
+                )}
               </label>
               <label htmlFor="turno-ben">
                 Turno
@@ -1632,7 +1645,7 @@ function Admin() {
             </label>
             {benError && <p className="estado error" role="alert">⚠️ {benError}</p>}
             {benExito && <p className="estado exito" aria-live="polite">{benExito}</p>}
-            <button type="submit" className="boton boton-primario">
+            <button type="submit" className="boton boton-primario" disabled={sedes.length === 0}>
               Registrar beneficiario
             </button>
           </form>

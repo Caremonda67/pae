@@ -77,6 +77,8 @@ function Home() {
   });
   // Beneficiarios reales (para el registro por sede de la Home)
   const [beneficiarios, setBeneficiarios] = useState<{ sede: string }[]>([]);
+  // Sedes del programa (las administra el admin desde el panel)
+  const [sedesSistema, setSedesSistema] = useState<string[]>([]);
   // Avisos publicados por el administrador (vienen de la base)
   const [avisos, setAvisos] = useState<Aviso[]>([]);
   // Fotos propias de la galeria (publicadas por el administrador)
@@ -143,6 +145,26 @@ function Home() {
       }
     };
     cargarBeneficiarios();
+
+    // Sedes del programa: la lista la administra el admin desde el
+    // panel (pestana Sedes). Si falla o esta vacia, la seccion muestra
+    // un mensaje en vez de sedes inventadas.
+    const cargarSedes = async () => {
+      try {
+        const respuesta = await fetch(`${API_URL}/api/sedes`);
+        if (respuesta.ok) {
+          const datos = await respuesta.json();
+          setSedesSistema(
+            Array.isArray(datos)
+              ? datos.map((s: { nombre: string }) => s.nombre).filter(Boolean)
+              : []
+          );
+        }
+      } catch {
+        // se queda en cero
+      }
+    };
+    cargarSedes();
 
     // Tambien cargamos los avisos publicados
     const cargarAvisos = async () => {
@@ -421,7 +443,7 @@ function Home() {
         <div className="metricas">
           <article className="metrica">
             <span className="metrica-numero">
-              {Object.keys(porSede).length}
+              {sedesSistema.length}
             </span>
             <span className="metrica-etiqueta">Sedes atendidas</span>
             <span className="metrica-detalle">Puntos de atención</span>
@@ -430,14 +452,17 @@ function Home() {
 
         <h3 className="admin-subtitulo">Registro por sede</h3>
         <div className="lista-totales">
-          {Object.keys(porSede).length === 0 && (
-            <p className="estado">Aún no hay beneficiarios registrados.</p>
+          {sedesSistema.length === 0 && (
+            <p className="estado">
+              Aún no hay sedes registradas. El administrador puede crearlas
+              desde el panel.
+            </p>
           )}
-          {Object.entries(porSede).map(([sede, cantidad]) => (
+          {sedesSistema.map((sede) => (
             <article key={sede} className="total-fecha">
               <span className="total-fecha-nombre">{sede}</span>
               <span className="total-fecha-cantidad">
-                {cantidad} beneficiario{cantidad === 1 ? "" : "s"}
+                {porSede[sede] || 0} beneficiario{(porSede[sede] || 0) === 1 ? "" : "s"}
               </span>
             </article>
           ))}

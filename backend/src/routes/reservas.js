@@ -297,16 +297,16 @@ router.post("/", limiteFormularios, async (req, res) => {
   }
 
   // La sede se valida contra la tabla de sedes (la maneja el admin).
-  // Si la tabla aun no existe (migracion pendiente), se usan las sedes
-  // originales para no romper las reservas existentes.
-  let sedesValidas = ["Sede A", "Sede B", "Sede C"];
+  // Si no hay sedes configuradas, no se aceptan reservas.
   const { data: sedes, error: errSedes } = await getSupabase()
     .from("sedes")
     .select("nombre");
-  if (!errSedes && sedes && sedes.length > 0) {
-    sedesValidas = sedes.map((s) => s.nombre);
+  if (errSedes || !sedes || sedes.length === 0) {
+    return res
+      .status(503)
+      .json({ error: "No hay sedes configuradas. Contacta al administrador." });
   }
-  if (!sedesValidas.includes(sede)) {
+  if (!sedes.map((s) => s.nombre).includes(sede)) {
     return res.status(400).json({ error: "Sede no válida" });
   }
 
