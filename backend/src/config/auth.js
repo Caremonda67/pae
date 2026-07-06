@@ -105,3 +105,8 @@ export function requiereRol(...rolesPermitidos) {
 
 // Atajo para las rutas que solo puede usar el administrador
 export const requiereAdmin = requiereRol("admin");
+
+// Middleware para rutas que solo necesitan una sesion valida
+// (cualquier rol que haya entrado). Por ejemplo, un estudiante
+// consultando sus propios mensajes de contacto.
+export const requiereSesion = requiereRol(...ROLES);

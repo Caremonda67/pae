@@ -93,6 +93,7 @@ router.post("/", requiereRol("admin", "profesor"), async (req, res) => {
       {
         nombre,
         usuario: String(documento).trim(),
+        clave: pinLimpio,
         clave_hash: hashClave(pinLimpio),
         rol: "estudiante",
       },
