@@ -1574,7 +1574,7 @@ function Admin() {
                 autoComplete="off"
               />
             </label>
-            <div className="formulario-fila">
+            <div className="formulario-fila formulario-fila-grid">
               <label htmlFor="sede-ben">
                 Sede
                 <select id="sede-ben" value={sedeBen} onChange={(e) => setSedeBen(e.target.value)} required>
