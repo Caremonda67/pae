@@ -1563,6 +1563,67 @@ h1 {
   color: var(--texto-suave);
 }
 
+/* Mensaje de contacto sin leer: se resalta con borde y fondo */
+.fila-mensaje.no-leido {
+  border-color: var(--acento);
+  border-left-width: 4px;
+}
+
+/* Etiqueta "Nuevo" de los mensajes sin leer */
+.badge-sin-leer {
+  background-color: var(--acento);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  margin-left: 0.5rem;
+  vertical-align: middle;
+}
+
+/* Respuesta del admin a un mensaje de contacto */
+.mensaje-respuesta {
+  margin-top: 0.7rem;
+  padding: 0.7rem 0.9rem;
+  background-color: var(--fondo);
+  border-radius: var(--radio);
+  border: 1px solid var(--borde);
+}
+
+.mensaje-respuesta p {
+  margin-top: 0.3rem;
+  color: var(--texto);
+}
+
+/* Foto adjunta en un mensaje de contacto (miniatura clicable) */
+.mensaje-imagen img {
+  display: block;
+  max-width: 12rem;
+  max-height: 9rem;
+  object-fit: cover;
+  margin-top: 0.6rem;
+  border-radius: var(--radio);
+  border: 1px solid var(--borde);
+}
+
+/* Caja donde el admin escribe la respuesta */
+.respuesta-texto {
+  width: 100%;
+  margin-top: 0.7rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  font: inherit;
+  resize: vertical;
+}
+
+.mensaje-pendiente {
+  margin-top: 0.7rem;
+  color: var(--texto-suave);
+}
+
 /* ============================================================
    Valoraciones (estrellas del menu)
    ============================================================ */

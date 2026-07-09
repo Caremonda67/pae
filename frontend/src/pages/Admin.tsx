@@ -114,6 +114,11 @@ interface Mensaje {
   nombre: string;
   correo: string;
   mensaje: string;
+  documento?: string | null;
+  imagen?: string | null;
+  leido?: boolean;
+  respuesta?: string | null;
+  respuesta_at?: string | null;
   created_at: string;
 }
 
@@ -141,6 +146,7 @@ interface Usuario {
   usuario: string;
   rol: string;
   activo: boolean;
+  clave?: string | null;
 }
 
 // pestañas del panel
@@ -205,6 +211,16 @@ function Admin() {
   const [usuError, setUsuError] = useState("");
   const [usuExito, setUsuExito] = useState("");
   const [busquedaUsuarios, setBusquedaUsuarios] = useState("");
+
+  // edicion de una cuenta existente (abre un formulario en la fila)
+  const [editandoUsuario, setEditandoUsuario] = useState<number | null>(null);
+  const [editNombre, setEditNombre] = useState("");
+  const [editUsuario, setEditUsuario] = useState("");
+  const [editRol, setEditRol] = useState("cocina");
+  const [editClave, setEditClave] = useState("");
+
+  // respuestas que se estan escribiendo en la pestana Mensajes
+  const [respuestas, setRespuestas] = useState<Record<number, string>>({});
 
   // formulario de institucion
   const [nombreInst, setNombreInst] = useState("");
@@ -864,6 +880,76 @@ function Admin() {
     }
   };
 
+  // Marca un mensaje de contacto como leido (o no leido)
+  const alternarLeido = async (mensaje: Mensaje) => {
+    try {
+      const respuesta = await fetch(`${API_URL}/api/contacto/${mensaje.id}`, {
+        method: "PUT",
+        headers: cabeceras(),
+        body: JSON.stringify({ leido: !mensaje.leido }),
+      });
+      if (!respuesta.ok) throw new Error("No se pudo actualizar el mensaje");
+      cargarDatos();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error desconocido");
+    }
+  };
+
+  // Envia la respuesta del admin a un mensaje de contacto. Si el
+  // mensaje era de un estudiante registrado, la ve al entrar.
+  const responderMensaje = async (id: number) => {
+    const texto = (respuestas[id] || "").trim();
+    if (!texto) return;
+    try {
+      const respuesta = await fetch(`${API_URL}/api/contacto/${id}/respuesta`, {
+        method: "PUT",
+        headers: cabeceras(),
+        body: JSON.stringify({ respuesta: texto }),
+      });
+      const datos = await respuesta.json().catch(() => null);
+      if (!respuesta.ok) throw new Error(datos?.error || "No se pudo enviar la respuesta");
+      setRespuestas((r) => ({ ...r, [id]: "" }));
+      cargarDatos();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error desconocido");
+    }
+  };
+
+  // Abre el formulario de edicion de una cuenta con sus datos actuales
+  const iniciarEdicionUsuario = (u: Usuario) => {
+    setEditandoUsuario(u.id);
+    setEditNombre(u.nombre);
+    setEditUsuario(u.usuario);
+    setEditRol(u.rol);
+    setEditClave(u.clave || "");
+  };
+
+  // Guarda los cambios de una cuenta editada (solo admin)
+  const guardarEdicionUsuario = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editandoUsuario === null) return;
+    try {
+      const cuerpo: Record<string, unknown> = {
+        nombre: editNombre,
+        usuario: editUsuario,
+        rol: editRol,
+      };
+      // Si dejan la clave vacia, no se cambia la actual
+      if (editClave) cuerpo.clave = editClave;
+      const respuesta = await fetch(`${API_URL}/api/usuarios/${editandoUsuario}`, {
+        method: "PUT",
+        headers: cabeceras(),
+        body: JSON.stringify(cuerpo),
+      });
+      const datos = await respuesta.json().catch(() => null);
+      if (!respuesta.ok) throw new Error(datos?.error || "No se pudo actualizar la cuenta");
+      setEditandoUsuario(null);
+      cargarDatos();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error desconocido");
+    }
+  };
+
   // ---------- Pantalla de login ----------
   if (!autenticado) {
     return (
@@ -907,6 +993,7 @@ function Admin() {
   // Pestañas que puede ver cada rol:
   // admin ve todas, cocina solo su panel y el menú, profesor los
   // beneficiarios y avisos, coordinador el contenido público.
+  const noLeidos = mensajes.filter((m) => !m.leido).length;
   const pestanasPorRol: Record<string, { id: Pestana; etiqueta: string }[]> = {
     admin: [
       { id: "panel", etiqueta: "🍳 Panel de cocina" },
@@ -917,7 +1004,7 @@ function Admin() {
       { id: "instituciones", etiqueta: "🏫 Instituciones" },
       { id: "colaboradores", etiqueta: "👥 Colaboradores" },
       { id: "notificaciones", etiqueta: "🔔 Notificaciones" },
-      { id: "mensajes", etiqueta: `✉️ Mensajes (${mensajes.length})` },
+      { id: "mensajes", etiqueta: `✉️ Mensajes${noLeidos > 0 ? ` (${noLeidos} sin leer)` : ""}` },
       { id: "reportes", etiqueta: "📊 Reportes" },
       { id: "usuarios", etiqueta: "🔐 Usuarios" },
     ],
@@ -936,7 +1023,7 @@ function Admin() {
       { id: "instituciones", etiqueta: "🏫 Instituciones" },
       { id: "colaboradores", etiqueta: "👥 Colaboradores" },
       { id: "notificaciones", etiqueta: "🔔 Notificaciones" },
-      { id: "mensajes", etiqueta: `✉️ Mensajes (${mensajes.length})` },
+      { id: "mensajes", etiqueta: `✉️ Mensajes${noLeidos > 0 ? ` (${noLeidos} sin leer)` : ""}` },
     ],
   };
 
@@ -1857,11 +1944,63 @@ function Admin() {
                 return coincide(texto, busquedaMensajes);
               })
               .map((mensaje) => (
-              <article key={mensaje.id} className="fila-mensaje">
+              <article
+                key={mensaje.id}
+                className={`fila-mensaje${mensaje.leido ? "" : " no-leido"}`}
+              >
                 <div>
                   <strong>{mensaje.nombre}</strong>
-                  <span className="fila-reserva-detalle">{mensaje.correo}</span>
+                  {!mensaje.leido && <span className="badge-sin-leer">Nuevo</span>}
+                  <span className="fila-reserva-detalle">
+                    {mensaje.correo}
+                    {mensaje.documento ? ` · Estudiante Doc. ${mensaje.documento}` : ""}
+                  </span>
                   <p>{mensaje.mensaje}</p>
+                  {mensaje.imagen && (
+                    <a
+                      href={mensaje.imagen}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mensaje-imagen"
+                    >
+                      <img src={mensaje.imagen} alt="Foto adjunta del mensaje" />
+                    </a>
+                  )}
+                  {mensaje.respuesta && (
+                    <div className="mensaje-respuesta">
+                      <strong>Tu respuesta:</strong>
+                      <p>{mensaje.respuesta}</p>
+                    </div>
+                  )}
+                </div>
+                <div className="formulario-fila">
+                  <button
+                    type="button"
+                    className="boton boton-secundario"
+                    onClick={() => alternarLeido(mensaje)}
+                    aria-label={`${mensaje.leido ? "Marcar como no leído" : "Marcar como leído"} el mensaje de ${mensaje.nombre}`}
+                  >
+                    {mensaje.leido ? "Marcar no leído" : "✓ Marcar leído"}
+                  </button>
+                </div>
+                <textarea
+                  className="respuesta-texto"
+                  value={respuestas[mensaje.id] || ""}
+                  onChange={(e) =>
+                    setRespuestas((r) => ({ ...r, [mensaje.id]: e.target.value }))
+                  }
+                  rows={2}
+                  placeholder="Escribe tu respuesta para este mensaje…"
+                />
+                <div className="formulario-fila">
+                  <button
+                    type="button"
+                    className="boton boton-primario"
+                    onClick={() => responderMensaje(mensaje.id)}
+                    disabled={!(respuestas[mensaje.id] || "").trim()}
+                  >
+                    Enviar respuesta
+                  </button>
                 </div>
                 <span className="mensaje-fecha">
                   {mensaje.created_at ? mensaje.created_at.slice(0, 10) : ""}
@@ -1960,9 +2099,22 @@ function Admin() {
                   <strong>{u.nombre}</strong>
                   <span className="fila-reserva-detalle">
                     {u.usuario} · {u.rol} · {u.activo ? "activo" : "desactivado"}
+                    {u.clave ? ` · clave: ${u.clave}` : " · clave: no visible"}
                   </span>
                 </div>
                 <div className="formulario-fila">
+                  <button
+                    type="button"
+                    className="boton boton-secundario"
+                    onClick={() =>
+                      editandoUsuario === u.id
+                        ? setEditandoUsuario(null)
+                        : iniciarEdicionUsuario(u)
+                    }
+                    aria-label={`Editar cuenta de ${u.nombre}`}
+                  >
+                    {editandoUsuario === u.id ? "Cancelar" : "Editar"}
+                  </button>
                   <button
                     type="button"
                     className="boton boton-secundario"
@@ -1980,6 +2132,60 @@ function Admin() {
                     Borrar
                   </button>
                 </div>
+
+                {editandoUsuario === u.id && (
+                  <form className="formulario" onSubmit={guardarEdicionUsuario}>
+                    <label>
+                      Nombre completo
+                      <input
+                        type="text"
+                        value={editNombre}
+                        onChange={(e) => setEditNombre(e.target.value)}
+                        required
+                        autoComplete="off"
+                      />
+                    </label>
+                    <div className="formulario-fila">
+                      <label>
+                        Usuario
+                        <input
+                          type="text"
+                          value={editUsuario}
+                          onChange={(e) => setEditUsuario(e.target.value)}
+                          required
+                          autoComplete="off"
+                        />
+                      </label>
+                      <label>
+                        Rol
+                        <select
+                          value={editRol}
+                          onChange={(e) => setEditRol(e.target.value)}
+                        >
+                          <option value="cocina">Cocina</option>
+                          <option value="profesor">Profesor</option>
+                          <option value="coordinador">Coordinador</option>
+                          <option value="estudiante">Estudiante</option>
+                          <option value="admin">Administrador</option>
+                        </select>
+                      </label>
+                    </div>
+                    <label>
+                      Clave / PIN (déjala vacía para no cambiarla)
+                      <input
+                        type="text"
+                        value={editClave}
+                        onChange={(e) => setEditClave(e.target.value)}
+                        minLength={4}
+                        placeholder={u.clave ? `Actual: ${u.clave}` : "Sin clave guardada"}
+                        autoComplete="off"
+                      />
+                    </label>
+                    <button type="submit" className="boton boton-primario">
+                      Guardar cambios
+                    </button>
+                  </form>
+                )}
               </article>
             ))}
           </div>
