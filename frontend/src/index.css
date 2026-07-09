@@ -1795,6 +1795,86 @@ h1 {
   min-width: 140px;
 }
 
+/* Reporte de sobrantes del panel de cocina: el personal registra
+   cuantas porciones y el peso (kg) que sobraron por sede y jornada. */
+.sobrantes {
+  margin-top: 1.5rem;
+  background-color: var(--blanco);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: 1.4rem;
+  box-shadow: var(--sombra);
+}
+
+.sobrantes .admin-subtitulo {
+  margin-top: 0;
+}
+
+.sobrante-sede {
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: 1rem;
+  margin-top: 1rem;
+}
+
+.sobrante-sede-nombre {
+  margin: 0 0 0.6rem;
+  font-size: 1rem;
+  color: var(--verde-oscuro);
+}
+
+.sobrante-fila {
+  display: grid;
+  grid-template-columns: 7rem 1fr 1fr;
+  gap: 0.8rem;
+  align-items: end;
+  margin-top: 0.6rem;
+}
+
+.sobrante-fila label {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--texto);
+  min-width: 0;
+}
+
+.sobrante-fila input {
+  padding: 0.55rem 0.7rem;
+  border: 1.5px solid #d3dbcf;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-family: inherit;
+  width: 100%;
+  min-width: 0;
+}
+
+.sobrante-fila input:focus {
+  outline: none;
+  border-color: var(--verde);
+}
+
+.sobrante-turno {
+  font-weight: 700;
+  color: var(--verde-oscuro);
+  padding-bottom: 0.55rem;
+}
+
+.sobrante-acciones {
+  margin-top: 1.2rem;
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+@media (max-width: 560px) {
+  .sobrante-fila {
+    grid-template-columns: 1fr;
+    gap: 0.6rem;
+  }
+}
+
 .tabla-diaria {
   background-color: var(--blanco);
   border: 1px solid var(--borde);

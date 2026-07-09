@@ -74,6 +74,7 @@ router.put("/:id", requiereRol("admin"), async (req, res) => {
   // Actualizamos los registros que usaban el nombre anterior
   await getSupabase().from("beneficiarios").update({ sede: nuevo }).eq("sede", viejo);
   await getSupabase().from("reservas").update({ sede: nuevo }).eq("sede", viejo);
+  await getSupabase().from("sobrantes").update({ sede: nuevo }).eq("sede", viejo);
 
   res.json(data);
 });

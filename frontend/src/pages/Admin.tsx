@@ -57,6 +57,20 @@ interface PanelCocina {
   total: number;
 }
 
+// sobrante de comida reportado por cocina (ruta /api/sobrantes)
+interface Sobrante {
+  id: number;
+  fecha: string;
+  sede: string;
+  turno: string;
+  porciones: number | null;
+  peso_kg: number | null;
+  creado_por?: string;
+}
+
+// jornadas para el reporte de sobrantes (mismo orden del panel)
+const TURNOS_SOBRANTES = ["Almuerzo", "Refrigerio"] as const;
+
 // reporte de desperdicio (ruta /api/reservas/reporte)
 interface Reporte {
   totalReservas: number;
@@ -212,6 +226,16 @@ function Admin() {
   const [panelDia, setPanelDia] = useState<PanelCocina | null>(null);
   const [menuDia, setMenuDia] = useState<MenuItem[]>([]);
   const [panelCargando, setPanelCargando] = useState(false);
+
+  // reporte de sobrantes del panel de cocina. El borrador guarda los
+  // valores escritos por sede + jornada: "Sede||Almuerzo" -> {porciones, peso_kg}
+  const [sobrantesCargando, setSobrantesCargando] = useState(false);
+  const [sobrantesGuardando, setSobrantesGuardando] = useState(false);
+  const [sobrantesBorrador, setSobrantesBorrador] = useState<
+    Record<string, { porciones: string; peso_kg: string }>
+  >({});
+  const [sobranteError, setSobranteError] = useState("");
+  const [sobranteExito, setSobranteExito] = useState("");
 
   // reportes tecnicos (desperdicio, tabla diaria, exportar)
   const [totales, setTotales] = useState<Record<string, { reservas: number; asistieron: number }>>({});
@@ -513,6 +537,96 @@ function Admin() {
     if (autenticado) cargarPanel(fechaPanel);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autenticado, fechaPanel]);
+
+  // Carga los sobrantes guardados de la fecha elegida en el panel de
+  // cocina y los deja en el borrador para poder editarlos.
+  const cargarSobrantes = async (fecha: string) => {
+    setSobrantesCargando(true);
+    setSobranteError("");
+    try {
+      const respuesta = await fetch(
+        `${API_URL}/api/sobrantes?fecha=${fecha}`,
+        { headers: cabeceras(false) }
+      );
+      if (!respuesta.ok) throw new Error("No se pudieron cargar los sobrantes");
+      const datos = (await respuesta.json()) as Sobrante[];
+      const borrador: Record<string, { porciones: string; peso_kg: string }> = {};
+      for (const s of datos) {
+        borrador[`${s.sede}||${s.turno}`] = {
+          porciones: s.porciones !== null ? String(s.porciones) : "",
+          peso_kg: s.peso_kg !== null ? String(s.peso_kg) : "",
+        };
+      }
+      setSobrantesBorrador(borrador);
+    } catch (err) {
+      setSobranteError(err instanceof Error ? err.message : "Error desconocido");
+    } finally {
+      setSobrantesCargando(false);
+    }
+  };
+
+  useEffect(() => {
+    if (autenticado) cargarSobrantes(fechaPanel);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autenticado, fechaPanel]);
+
+  // Actualiza un campo del borrador de sobrantes
+  const cambiarSobrante = (
+    sede: string,
+    turno: string,
+    campo: "porciones" | "peso_kg",
+    valor: string
+  ) => {
+    setSobrantesBorrador((prev) => {
+      const actual = prev[`${sede}||${turno}`] || { porciones: "", peso_kg: "" };
+      return { ...prev, [`${sede}||${turno}`]: { ...actual, [campo]: valor } };
+    });
+  };
+
+  // Guarda todos los sobrantes escritos (solo los que tienen algo).
+  // Cada fila se guarda por separado con upsert (fecha + sede + jornada).
+  const guardarSobrantes = async () => {
+    setSobranteError("");
+    setSobranteExito("");
+    const filas: { sede: string; turno: string; porciones: string; peso_kg: string }[] = [];
+    for (const sede of sedes) {
+      for (const turno of TURNOS_SOBRANTES) {
+        const datos = sobrantesBorrador[`${sede.nombre}||${turno}`];
+        if (datos && (datos.porciones.trim() || datos.peso_kg.trim())) {
+          filas.push({ sede: sede.nombre, turno, ...datos });
+        }
+      }
+    }
+
+    if (filas.length === 0) {
+      setSobranteError("Escribe al menos una porción o peso para guardar.");
+      return;
+    }
+
+    setSobrantesGuardando(true);
+    try {
+      await Promise.all(
+        filas.map((fila) =>
+          fetch(`${API_URL}/api/sobrantes`, {
+            method: "POST",
+            headers: cabeceras(true),
+            body: JSON.stringify({
+              fecha: fechaPanel,
+              sede: fila.sede,
+              turno: fila.turno,
+              porciones: fila.porciones.trim() || null,
+              peso_kg: fila.peso_kg.trim() || null,
+            }),
+          })
+        )
+      );
+      setSobranteExito("Sobrantes guardados correctamente.");
+    } catch (err) {
+      setSobranteError(err instanceof Error ? err.message : "Error al guardar");
+    } finally {
+      setSobrantesGuardando(false);
+    }
+  };
 
   // Carga los reportes tecnicos (totales y desperdicio). Se recargan
   // cuando cambia el filtro de fechas (semana, mes o rango personalizado).
@@ -1360,6 +1474,84 @@ function Admin() {
                   </div>
                 </>
               )}
+
+              {/* Reporte de sobrantes: lo que quedo sin servir por sede y jornada */}
+              <div className="sobrantes">
+                <h2 className="admin-subtitulo">Sobrantes del día</h2>
+                <p className="estado">
+                  Registra cuántas porciones y el peso (kg) de comida que
+                  sobró en cada sede y jornada.
+                </p>
+                {sobrantesCargando && <p className="estado">Cargando sobrantes…</p>}
+                {!sobrantesCargando &&
+                  (sedes.length === 0 ? (
+                    <p className="estado">
+                      Aún no hay sedes registradas. Crea una desde la pestaña
+                      "Sedes".
+                    </p>
+                  ) : (
+                    <>
+                      {sedes.map((s) => (
+                        <div key={s.id} className="sobrante-sede">
+                          <h3 className="sobrante-sede-nombre">{s.nombre}</h3>
+                          {TURNOS_SOBRANTES.map((turno) => {
+                            const clave = `${s.nombre}||${turno}`;
+                            const datos = sobrantesBorrador[clave] || { porciones: "", peso_kg: "" };
+                            return (
+                              <div key={turno} className="sobrante-fila">
+                                <span className="sobrante-turno">{turno}</span>
+                                <label>
+                                  Porciones sobrantes
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    step={1}
+                                    value={datos.porciones}
+                                    onChange={(e) =>
+                                      cambiarSobrante(s.nombre, turno, "porciones", e.target.value)
+                                    }
+                                    placeholder="Ej: 12"
+                                    aria-label={`Porciones sobrantes de ${turno} en ${s.nombre}`}
+                                  />
+                                </label>
+                                <label>
+                                  Peso (kg)
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    step="0.1"
+                                    value={datos.peso_kg}
+                                    onChange={(e) =>
+                                      cambiarSobrante(s.nombre, turno, "peso_kg", e.target.value)
+                                    }
+                                    placeholder="Ej: 3.5"
+                                    aria-label={`Peso sobrante de ${turno} en ${s.nombre}`}
+                                  />
+                                </label>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ))}
+                      <div className="sobrante-acciones">
+                        <button
+                          type="button"
+                          className="boton boton-primario"
+                          onClick={guardarSobrantes}
+                          disabled={sobrantesGuardando}
+                        >
+                          {sobrantesGuardando ? "Guardando…" : "Guardar sobrantes"}
+                        </button>
+                      </div>
+                      {sobranteError && (
+                        <p className="estado error" role="alert">⚠️ {sobranteError}</p>
+                      )}
+                      {sobranteExito && (
+                        <p className="estado exito" role="status">✅ {sobranteExito}</p>
+                      )}
+                    </>
+                  ))}
+              </div>
 
               {/* Menu del dia: lo que toca cocinar */}
               {menuDia.length > 0 && (
