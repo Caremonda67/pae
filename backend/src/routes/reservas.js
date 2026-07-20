@@ -300,9 +300,10 @@ router.post("/", limiteFormularios, async (req, res) => {
     return res.status(400).json({ error: "Sede no válida" });
   }
 
-  // El documento debe tener formato numerico razonable (8-15 digitos)
-  const docLimpio = String(documento).trim();
-  if (!/^\d{8,15}$/.test(docLimpio)) {
+  // El documento debe tener formato numerico razonable (4-20 digitos).
+  // Se ignoran espacios, puntos y guiones para aceptar formatos comunes.
+  const docLimpio = String(documento).replace(/[\s.\-]/g, "");
+  if (!/^\d{4,20}$/.test(docLimpio)) {
     return res.status(400).json({ error: "Documento no válido" });
   }
 
