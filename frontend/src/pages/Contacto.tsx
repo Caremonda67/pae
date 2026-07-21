@@ -5,6 +5,7 @@
 
 import { useEffect, useState } from "react";
 import { API_URL } from "../config/api";
+import { fechaCorta } from "../config/fechas";
 import {
   leerSesion,
   guardarSesion,
@@ -22,6 +23,15 @@ interface MiMensaje {
   respuesta?: string | null;
   respuesta_at?: string | null;
   created_at: string;
+}
+
+// un mensaje del hilo de chat entre estudiante y admin
+interface MensajeChat {
+  id: number | string;
+  remitente: "estudiante" | "admin";
+  texto: string;
+  imagen?: string | null;
+  created_at?: string;
 }
 
 // Convierte un archivo de imagen a base64 para mandarlo en el JSON
@@ -58,6 +68,12 @@ function Contacto() {
   // Mensajes propios y respuestas del admin (solo estudiante logueado)
   const [mios, setMios] = useState<MiMensaje[]>([]);
   const [cargandoMios, setCargandoMios] = useState(false);
+
+  // Conversaciones (hilos) de cada mensaje + borradores para responder
+  const [hilos, setHilos] = useState<Record<number, MensajeChat[]>>({});
+  const [borradoresChat, setBorradoresChat] = useState<Record<number, string>>({});
+  const [hiloCargando, setHiloCargando] = useState<Record<number, boolean>>({});
+  const [hiloEnviando, setHiloEnviando] = useState<Record<number, boolean>>({});
 
   const cambiar = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -112,8 +128,27 @@ function Contacto() {
     setFormulario((f) => ({ ...f, nombre: "" }));
   };
 
+  // Carga la conversacion completa de un mensaje del estudiante
+  const cargarHilo = async (id: number) => {
+    setHiloCargando((c) => ({ ...c, [id]: true }));
+    try {
+      const respuesta = await fetch(
+        `${API_URL}/api/contacto/${id}/mensajes/estudiante`,
+        { headers: cabeceras(false) }
+      );
+      if (respuesta.ok) {
+        const datos = (await respuesta.json()) as MensajeChat[];
+        setHilos((h) => ({ ...h, [id]: datos }));
+      }
+    } catch {
+      // dejamos el hilo anterior si falla
+    } finally {
+      setHiloCargando((c) => ({ ...c, [id]: false }));
+    }
+  };
+
   // Carga los mensajes que el estudiante registrado ha enviado, junto
-  // con la respuesta que le haya dado el admin.
+  // con su conversacion con el admin.
   const cargarMios = async () => {
     if (sesion?.rol !== "estudiante") return;
     setCargandoMios(true);
@@ -121,7 +156,13 @@ function Contacto() {
       const respuesta = await fetch(`${API_URL}/api/contacto/mios`, {
         headers: cabeceras(false),
       });
-      if (respuesta.ok) setMios(await respuesta.json());
+      if (respuesta.ok) {
+        const lista = (await respuesta.json()) as MiMensaje[];
+        setMios(lista);
+        // Recargamos los hilos para ver las respuestas nuevas del
+        // admin sin necesidad de recargar la pagina.
+        lista.forEach((m) => cargarHilo(m.id));
+      }
     } catch {
       setMios([]);
     } finally {
@@ -129,11 +170,45 @@ function Contacto() {
     }
   };
 
-  // Si ya había sesión al abrir la página, cargamos sus mensajes
+  // El estudiante responde dentro de una conversacion. Se puede
+  // responder varias veces (es un chat, no solo mensaje -> respuesta).
+  const enviarMensajeEstudiante = async (id: number) => {
+    const texto = (borradoresChat[id] || "").trim();
+    if (!texto) return;
+    setHiloEnviando((e) => ({ ...e, [id]: true }));
+    try {
+      const respuesta = await fetch(
+        `${API_URL}/api/contacto/${id}/mensajes/estudiante`,
+        {
+          method: "POST",
+          headers: cabeceras(),
+          body: JSON.stringify({ texto }),
+        }
+      );
+      const datos = await respuesta.json().catch(() => null);
+      if (!respuesta.ok) {
+        throw new Error(datos?.error || "No se pudo enviar el mensaje");
+      }
+      setBorradoresChat((b) => ({ ...b, [id]: "" }));
+      cargarHilo(id);
+      cargarMios();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error desconocido");
+    } finally {
+      setHiloEnviando((e) => ({ ...e, [id]: false }));
+    }
+  };
+
+  // Si ya había sesión al abrir la página, cargamos sus mensajes. Y
+  // mientras el estudiante está dentro, actualizamos cada pocos
+  // segundos para que las respuestas del admin aparezcan solas.
   useEffect(() => {
+    if (sesion?.rol !== "estudiante") return;
     cargarMios();
+    const intervalo = setInterval(cargarMios, 7000);
+    return () => clearInterval(intervalo);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [sesion]);
 
   const enviar = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -299,8 +374,9 @@ function Contacto() {
           <hr className="separador" />
           <h2>Mis mensajes y respuestas</h2>
           <p className="subtitulo">
-            Aquí ves el historial de los mensajes que has enviado y la respuesta
-            del equipo del PAE a cada uno.
+            Conversa con el equipo del PAE: escribes un mensaje, el equipo te
+            responde y aquí sigue la conversación. Se actualiza sola, no hace
+            falta recargar la página.
           </p>
 
           <div className="centrar">
@@ -310,11 +386,11 @@ function Contacto() {
               onClick={cargarMios}
               disabled={cargandoMios}
             >
-              {cargandoMios ? "Cargando…" : "↻ Actualizar respuestas"}
+              {cargandoMios ? "Cargando…" : "↻ Actualizar"}
             </button>
           </div>
 
-          {cargandoMios && <p className="estado">Cargando…</p>}
+          {cargandoMios && mios.length === 0 && <p className="estado">Cargando…</p>}
 
           {!cargandoMios && mios.length === 0 && (
             <p className="estado">
@@ -331,27 +407,62 @@ function Contacto() {
                     <span className="fila-reserva-detalle">
                       {m.created_at ? m.created_at.slice(0, 10) : ""}
                     </span>
-                    <p>{m.mensaje}</p>
-                    {m.imagen && (
-                      <a
-                        href={m.imagen}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mensaje-imagen"
-                      >
-                        <img src={m.imagen} alt="Foto adjunta de tu mensaje" />
-                      </a>
+                  </div>
+
+                  <div className="chat-burbujas">
+                    {hiloCargando[m.id] && !hilos[m.id] && (
+                      <p className="estado">Cargando conversación…</p>
                     )}
-                    {m.respuesta ? (
-                      <div className="mensaje-respuesta">
-                        <strong>Respuesta del PAE:</strong>
-                        <p>{m.respuesta}</p>
+                    {(hilos[m.id] || []).map((msj) => (
+                      <div
+                        key={msj.id}
+                        className={`chat-burbuja ${msj.remitente === "estudiante" ? "estudiante" : "admin"}`}
+                      >
+                        <p>{msj.texto}</p>
+                        {msj.imagen && (
+                          <a
+                            href={msj.imagen}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <img src={msj.imagen} alt="Foto adjunta" />
+                          </a>
+                        )}
+                        {msj.created_at && <small>{fechaCorta(msj.created_at)}</small>}
                       </div>
-                    ) : (
-                      <p className="mensaje-pendiente">
+                    ))}
+                    {hilos[m.id] && hilos[m.id].length === 1 && (
+                      <p className="estado">
                         ⏳ Aún no hay respuesta. Te responderemos pronto.
                       </p>
                     )}
+                  </div>
+
+                  <div className="chat-responder">
+                    <input
+                      value={borradoresChat[m.id] || ""}
+                      onChange={(e) =>
+                        setBorradoresChat((b) => ({ ...b, [m.id]: e.target.value }))
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          enviarMensajeEstudiante(m.id);
+                        }
+                      }}
+                      placeholder="Escribe tu respuesta y presiona Enter…"
+                      aria-label={`Responder a la conversación del ${m.created_at ? m.created_at.slice(0, 10) : "PAE"}`}
+                    />
+                    <button
+                      type="button"
+                      className="boton boton-primario"
+                      onClick={() => enviarMensajeEstudiante(m.id)}
+                      disabled={
+                        !(borradoresChat[m.id] || "").trim() || hiloEnviando[m.id]
+                      }
+                    >
+                      {hiloEnviando[m.id] ? "Enviando…" : "Enviar"}
+                    </button>
                   </div>
                 </article>
               ))}

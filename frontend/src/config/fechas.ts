@@ -11,6 +11,20 @@ export function hoyLocal() {
   return partes;
 }
 
+// Fecha y hora corta de un timestamp de la base de datos
+// (ej: "08/08 · 09:35"). Usado en los chats de contacto.
+export function fechaCorta(timestamp?: string | null) {
+  if (!timestamp) return "";
+  const f = new Date(timestamp);
+  if (Number.isNaN(f.getTime())) return "";
+  return f.toLocaleString("es-CO", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 // Cuantos dias hay que sumar a una fecha YYYY-MM-DD
 export function sumarDias(fecha: string, dias: number) {
   const [año, mes, dia] = fecha.split("-").map(Number);
