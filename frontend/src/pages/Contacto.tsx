@@ -74,6 +74,8 @@ function Contacto() {
   const [borradoresChat, setBorradoresChat] = useState<Record<number, string>>({});
   const [hiloCargando, setHiloCargando] = useState<Record<number, boolean>>({});
   const [hiloEnviando, setHiloEnviando] = useState<Record<number, boolean>>({});
+  const [fotosChat, setFotosChat] = useState<Record<number, File | null>>({});
+  const [borrandoHilo, setBorrandoHilo] = useState<Record<number, boolean>>({});
 
   const cambiar = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -174,15 +176,21 @@ function Contacto() {
   // responder varias veces (es un chat, no solo mensaje -> respuesta).
   const enviarMensajeEstudiante = async (id: number) => {
     const texto = (borradoresChat[id] || "").trim();
-    if (!texto) return;
+    const foto = fotosChat[id];
+    if (!texto && !foto) return;
     setHiloEnviando((e) => ({ ...e, [id]: true }));
     try {
+      const cuerpo: Record<string, unknown> = { texto };
+      if (foto) {
+        cuerpo.imagenBase64 = await aBase64(foto);
+        cuerpo.imagenNombre = foto.name;
+      }
       const respuesta = await fetch(
         `${API_URL}/api/contacto/${id}/mensajes/estudiante`,
         {
           method: "POST",
           headers: cabeceras(),
-          body: JSON.stringify({ texto }),
+          body: JSON.stringify(cuerpo),
         }
       );
       const datos = await respuesta.json().catch(() => null);
@@ -190,12 +198,43 @@ function Contacto() {
         throw new Error(datos?.error || "No se pudo enviar el mensaje");
       }
       setBorradoresChat((b) => ({ ...b, [id]: "" }));
+      setFotosChat((f) => ({ ...f, [id]: null }));
       cargarHilo(id);
       cargarMios();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error desconocido");
     } finally {
       setHiloEnviando((e) => ({ ...e, [id]: false }));
+    }
+  };
+
+  // Borra la conversación completa. Como es compartida, también
+  // desaparece del panel del admin.
+  const borrarConversacion = async (id: number) => {
+    if (!window.confirm("¿Borrar esta conversación? No se puede deshacer.")) return;
+    setBorrandoHilo((e) => ({ ...e, [id]: true }));
+    try {
+      const respuesta = await fetch(
+        `${API_URL}/api/contacto/${id}/estudiante`,
+        {
+          method: "DELETE",
+          headers: cabeceras(false),
+        }
+      );
+      const datos = await respuesta.json().catch(() => null);
+      if (!respuesta.ok) {
+        throw new Error(datos?.error || "No se pudo borrar la conversación");
+      }
+      setMios((m) => m.filter((mi) => mi.id !== id));
+      setHilos((h) => {
+        const copia = { ...h };
+        delete copia[id];
+        return copia;
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error desconocido");
+    } finally {
+      setBorrandoHilo((e) => ({ ...e, [id]: false }));
     }
   };
 
@@ -402,11 +441,21 @@ function Contacto() {
             <div className="lista-mensajes">
               {mios.map((m) => (
                 <article key={m.id} className="fila-mensaje">
-                  <div>
-                    <strong>{m.nombre}</strong>
-                    <span className="fila-reserva-detalle">
-                      {m.created_at ? m.created_at.slice(0, 10) : ""}
-                    </span>
+                  <div className="formulario-fila">
+                    <div>
+                      <strong>{m.nombre}</strong>
+                      <span className="fila-reserva-detalle">
+                        {m.created_at ? m.created_at.slice(0, 10) : ""}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="boton boton-peligro"
+                      onClick={() => borrarConversacion(m.id)}
+                      disabled={borrandoHilo[m.id] || false}
+                    >
+                      {borrandoHilo[m.id] ? "Borrando…" : "🗑 Borrar"}
+                    </button>
                   </div>
 
                   <div className="chat-burbujas">
@@ -453,17 +502,49 @@ function Contacto() {
                       placeholder="Escribe tu respuesta y presiona Enter…"
                       aria-label={`Responder a la conversación del ${m.created_at ? m.created_at.slice(0, 10) : "PAE"}`}
                     />
+                    <label className="chat-foto" title="Adjuntar foto">
+                      📎
+                      <input
+                        type="file"
+                        accept="image/*"
+                        hidden
+                        onChange={(e) =>
+                          setFotosChat((f) => ({
+                            ...f,
+                            [m.id]: e.target.files?.[0] || null,
+                          }))
+                        }
+                        aria-label="Adjuntar foto a la respuesta"
+                      />
+                    </label>
                     <button
                       type="button"
                       className="boton boton-primario"
                       onClick={() => enviarMensajeEstudiante(m.id)}
                       disabled={
-                        !(borradoresChat[m.id] || "").trim() || hiloEnviando[m.id]
+                        (!(borradoresChat[m.id] || "").trim() && !fotosChat[m.id]) ||
+                        hiloEnviando[m.id]
                       }
                     >
                       {hiloEnviando[m.id] ? "Enviando…" : "Enviar"}
                     </button>
                   </div>
+                  {fotosChat[m.id] && (
+                    <div className="chat-vista-previa">
+                      <img
+                        src={URL.createObjectURL(fotosChat[m.id]!)}
+                        alt="Vista previa de la foto"
+                      />
+                      <span>{fotosChat[m.id]!.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => setFotosChat((f) => ({ ...f, [m.id]: null }))}
+                        aria-label="Quitar la foto adjunta"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
                 </article>
               ))}
             </div>
