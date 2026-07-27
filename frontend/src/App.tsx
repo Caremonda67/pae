@@ -4,7 +4,6 @@ import Chatbot from "./components/Chatbot";
 import Home from "./pages/Home";
 import Sobre from "./pages/Sobre";
 import Menu from "./pages/Menu";
-import Beneficiarios from "./pages/Beneficiarios";
 import Noticias from "./pages/Noticias";
 import Galeria from "./pages/Galeria";
 import Reserva from "./pages/Reserva";
@@ -27,7 +26,6 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/sobre" element={<Sobre />} />
             <Route path="/menu" element={<Menu />} />
-            <Route path="/beneficiarios" element={<Beneficiarios />} />
             <Route path="/noticias" element={<Noticias />} />
             <Route path="/galeria" element={<Galeria />} />
             <Route path="/reserva" element={<Reserva />} />

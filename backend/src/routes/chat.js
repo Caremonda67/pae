@@ -117,7 +117,7 @@ function construirPromptSistema(contexto) {
     "- El estudiante debe RESERVAR su comida para que la cocina prepare solo",
     "  la cantidad exacta y así evitar el desperdicio de alimentos.",
     "- Para reservar: entrar a la página y usar la opción 'Reservar comida'.",
-    "- Las sedes disponibles son: Sede A, Sede B y Sede C.",
+    `- Las sedes disponibles son: ${contexto.sedes}.`,
     "- Los turnos son: Almuerzo y Refrigerio.",
     "- El usuario debe escribir su documento y puede ser validado con el registro",
     "  de beneficiarios.",
@@ -229,16 +229,26 @@ router.post("/", async (req, res) => {
         .select("*", { count: "exact", head: true });
       return error ? 0 : count;
     };
-    const [estudiantes, instituciones, colaboradores] = await Promise.all([
+    const [estudiantes, instituciones, minutas] = await Promise.all([
       conteo("beneficiarios"),
       conteo("instituciones"),
-      conteo("colaboradores"),
+      conteo("reservas"),
     ]);
     const metricasTexto = [
       `- Estudiantes beneficiarios: ${estudiantes}`,
       `- Instituciones educativas cubiertas: ${instituciones}`,
-      `- Colaboradores del PAE: ${colaboradores}`,
+      `- Minutas reservadas: ${minutas}`,
     ].join("\n");
+
+    // 6. Sedes del programa (las administra el admin desde el panel).
+    //    Si la tabla no existe aun, se usan las sedes originales.
+    const { data: sedes, error: errSedes } = await supabase
+      .from("sedes")
+      .select("nombre");
+    const sedesTexto =
+      !errSedes && sedes && sedes.length > 0
+        ? sedes.map((s) => s.nombre).join(", ")
+        : "Sede A, Sede B y Sede C";
 
     const contexto = {
       fechaHoy: fechaDeHoy(),
@@ -249,6 +259,7 @@ router.post("/", async (req, res) => {
       reporte: reporteTexto,
       avisos: avisosTexto,
       metricas: metricasTexto,
+      sedes: sedesTexto,
     };
 
     // 6. Historial de la conversacion (si el navegador lo envia) para

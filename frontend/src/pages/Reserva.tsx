@@ -18,9 +18,13 @@ import {
   ROLES_LABEL,
 } from "../config/sesion";
 
-// Turnos y sedes disponibles (se pueden ampliar luego desde el admin)
+// Turnos para reservar. Un estudiante con turno "Ambas jornadas"
+// elige aquí en cuál de las dos (Almuerzo o Refrigerio) reservar.
 const TURNOS = ["Almuerzo", "Refrigerio"];
-const SEDES = ["Sede A", "Sede B", "Sede C"];
+
+// Roles del personal del PAE: no reservan minutas, eso es solo de
+// estudiantes y visitantes.
+const ROLES_PERSONAL = ["admin", "cocina", "profesor", "coordinador"];
 
 interface MisReserva {
   id: number;
@@ -54,6 +58,10 @@ function Reserva() {
     fecha: "",
   });
 
+  // Sedes disponibles: las administra el panel (tabla sedes).
+  // Si no cargan, se usan las sedes originales para no romper la reserva.
+  const [sedes, setSedes] = useState<string[]>([]);
+
   // Estados de la respuesta del servidor
   const [enviando, setEnviando] = useState(false);
   const [exito, setExito] = useState("");
@@ -66,6 +74,9 @@ function Reserva() {
   // true cuando el documento es de un beneficiario registrado:
   // la sede y el turno quedan fijos (no se le preguntan)
   const [beneficiarioConfirmado, setBeneficiarioConfirmado] = useState(false);
+  // true cuando el beneficiario tiene turno "Ambas jornadas": el turno
+  // no se fija y se le pide elegir en cuál de las dos va a reservar.
+  const [turnoDoble, setTurnoDoble] = useState(false);
 
   // Mis reservas
   const [docConsulta, setDocConsulta] = useState("");
@@ -149,6 +160,7 @@ function Reserva() {
       // habian autocompletado del beneficiario anterior
       setInfoBeneficiario("");
       setBeneficiarioConfirmado(false);
+      setTurnoDoble(false);
       setFormulario((f) => ({
         ...f,
         estudiante: "",
@@ -165,21 +177,28 @@ function Reserva() {
       setBuscandoBeneficiario(true);
       setInfoBeneficiario("");
       setBeneficiarioConfirmado(false);
+      setTurnoDoble(false);
       try {
         const respuesta = await fetch(
           `${API_URL}/api/beneficiarios/buscar?documento=${encodeURIComponent(doc)}`
         );
         if (respuesta.ok) {
           const datos = await respuesta.json();
+          // Con turno "Ambas jornadas" el estudiante puede venir a
+          // Almuerzo y a Refrigerio: no fijamos el turno, que elija.
+          const ambasJornadas = datos.turno === "Ambas jornadas";
           setFormulario((f) => ({
             ...f,
             estudiante: datos.nombre,
             sede: datos.sede,
-            turno: datos.turno,
+            turno: ambasJornadas ? "" : datos.turno,
           }));
           setBeneficiarioConfirmado(true);
+          setTurnoDoble(ambasJornadas);
           setInfoBeneficiario(
-            `✅ Encontrado: ${datos.nombre}. Tu sede (${datos.sede}) y turno (${datos.turno}) ya están definidos.`
+            ambasJornadas
+              ? `✅ Encontrado: ${datos.nombre}. Tu sede (${datos.sede}) está registrada y puedes venir en las dos jornadas (Almuerzo y Refrigerio). Elige en cuál reservar.`
+              : `✅ Encontrado: ${datos.nombre}. Tu sede (${datos.sede}) y turno (${datos.turno}) ya están definidos.`
           );
         } else {
           setInfoBeneficiario("ℹ️ Documento no registrado. Verifica con el equipo del PAE.");
@@ -209,6 +228,20 @@ function Reserva() {
       buscarBeneficiario(sesionInicial.usuario);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Carga las sedes registradas (las administra el panel admin).
+  // Si falla o la tabla no tiene datos, usamos las sedes originales.
+  useEffect(() => {
+    fetch(`${API_URL}/api/sedes`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((datos) => {
+        const nombres = Array.isArray(datos)
+          ? datos.map((s: { nombre: string }) => s.nombre).filter(Boolean)
+          : [];
+        setSedes(nombres.length > 0 ? nombres : ["Sede A", "Sede B", "Sede C"]);
+      })
+      .catch(() => setSedes(["Sede A", "Sede B", "Sede C"]));
   }, []);
 
   // Envia la reserva al backend
@@ -311,6 +344,28 @@ function Reserva() {
       `¡Allí estaré para que no se desperdicie comida! 🙌`;
     return `https://wa.me/?text=${encodeURIComponent(mensaje)}`;
   };
+
+  // El personal del PAE no usa la reserva: si entra con su sesion
+  // (admin, cocina, profesor, coordinador) le mostramos un aviso.
+  const esPersonal =
+    sesionInicial && ROLES_PERSONAL.includes(sesionInicial.rol);
+
+  if (esPersonal) {
+    return (
+      <section className="reserva-pagina">
+        <h1>Reservar mi comida</h1>
+        <p className="subtitulo">
+          La reserva de minutas es para los estudiantes del programa.
+        </p>
+        <p className="estado">
+          ℹ️ Tienes una sesión de{" "}
+          {ROLES_LABEL[sesionInicial.rol] || sesionInicial.rol}. Para reservar
+          como estudiante, entra con el documento y el PIN del estudiante.
+          Desde el panel puedes gestionar las reservas del programa.
+        </p>
+      </section>
+    );
+  }
 
   return (
     <section className="reserva-pagina">
@@ -432,7 +487,7 @@ function Reserva() {
                 ? "Definida por el registro"
                 : "Selecciona tu sede"}
             </option>
-            {SEDES.map((s) => (
+            {sedes.map((s) => (
               <option key={s} value={s}>
                 {s}
               </option>
@@ -464,7 +519,9 @@ function Reserva() {
           </select>
           {beneficiarioConfirmado && (
             <small className="campo-fijo">
-              Tu turno habitual ya se seleccionó, pero puedes cambiarlo.
+              {turnoDoble
+                ? "Puedes venir a Almuerzo y a Refrigerio. Elige el turno de esta reserva."
+                : "Tu turno habitual ya se seleccionó, pero puedes cambiarlo."}
             </small>
           )}
         </label>

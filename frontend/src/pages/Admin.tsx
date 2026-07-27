@@ -6,11 +6,10 @@
 //
 // Pestañas por rol:
 // - admin: todas (cocina, beneficiarios, menu, avisos, galeria,
-//   instituciones, colaboradores, notificaciones, mensajes, usuarios)
+//   instituciones, sedes, notificaciones, mensajes, usuarios)
 // - cocina: panel de cocina y menú
 // - profesor: beneficiarios, avisos
-// - coordinador: avisos, galeria, instituciones, colaboradores,
-//   notificaciones, mensajes
+// - coordinador: avisos, galeria, instituciones, notificaciones, mensajes
 // - estudiante: no tiene panel (entra por Reserva)
 
 import { useEffect, useRef, useState } from "react";
@@ -96,10 +95,9 @@ interface Institucion {
   nombre: string;
 }
 
-interface Colaborador {
+interface Sede {
   id: number;
   nombre: string;
-  rol?: string | null;
 }
 
 // una foto de la galeria del programa
@@ -167,7 +165,7 @@ type Pestana =
   | "avisos"
   | "galeria"
   | "instituciones"
-  | "colaboradores"
+  | "sedes"
   | "notificaciones"
   | "mensajes"
   | "reportes"
@@ -206,7 +204,7 @@ function Admin() {
   const [menu, setMenu] = useState<MenuSemanaAdmin[]>([]);
   const [galeria, setGaleria] = useState<FotoGaleria[]>([]);
   const [instituciones, setInstituciones] = useState<Institucion[]>([]);
-  const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
+  const [sedes, setSedes] = useState<Sede[]>([]);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
 
   // panel compacto de cocina
@@ -259,6 +257,13 @@ function Admin() {
   const [instError, setInstError] = useState("");
   const [instExito, setInstExito] = useState("");
 
+  // formulario de sede (registrar, editar y borrar)
+  const [nombreSede, setNombreSede] = useState("");
+  const [editandoSede, setEditandoSede] = useState<number | null>(null);
+  const [editNombreSede, setEditNombreSede] = useState("");
+  const [sedeError, setSedeError] = useState("");
+  const [sedeExito, setSedeExito] = useState("");
+
   // formulario de foto de galeria
   const [tituloGaleria, setTituloGaleria] = useState("");
   const [descripcionGaleria, setDescripcionGaleria] = useState("");
@@ -310,7 +315,6 @@ function Admin() {
   const [busquedaAvisos, setBusquedaAvisos] = useState("");
   const [busquedaGaleria, setBusquedaGaleria] = useState("");
   const [busquedaInstituciones, setBusquedaInstituciones] = useState("");
-  const [busquedaColaboradores, setBusquedaColaboradores] = useState("");
   const [busquedaNotificaciones, setBusquedaNotificaciones] = useState("");
   const [busquedaMensajes, setBusquedaMensajes] = useState("");
 
@@ -368,7 +372,7 @@ function Admin() {
         respMenu,
         respGaleria,
         respInstituciones,
-        respColaboradores,
+        respSedes,
       ] = await Promise.all([
         fetch(`${API_URL}/api/avisos`),
         fetch(`${API_URL}/api/contacto`, { headers: cabeceras(false) }),
@@ -377,7 +381,7 @@ function Admin() {
         fetch(`${API_URL}/api/menus`),
         fetch(`${API_URL}/api/galeria`),
         fetch(`${API_URL}/api/instituciones`),
-        fetch(`${API_URL}/api/colaboradores`),
+        fetch(`${API_URL}/api/sedes`),
       ]);
 
       const respuestas: [string, Response][] = [
@@ -388,17 +392,17 @@ function Admin() {
         ["menu", respMenu],
         ["galeria", respGaleria],
         ["instituciones", respInstituciones],
-        ["colaboradores", respColaboradores],
+        ["sedes", respSedes],
       ];
 
       // Solo son obligatorios los datos que el rol puede ver. Los
       // demas endpoints pueden devolver 403 (por ejemplo el rol cocina
       // no puede leer mensajes ni notificaciones) y eso no es un error.
       const datosPorRol: Record<string, string[]> = {
-        admin: ["avisos", "mensajes", "beneficiarios", "notificaciones", "menu", "galeria", "instituciones", "colaboradores"],
+        admin: ["avisos", "mensajes", "beneficiarios", "notificaciones", "menu", "galeria", "instituciones"],
         cocina: ["avisos", "beneficiarios", "menu"],
         profesor: ["avisos", "beneficiarios"],
-        coordinador: ["avisos", "mensajes", "beneficiarios", "notificaciones", "menu", "galeria", "instituciones", "colaboradores"],
+        coordinador: ["avisos", "mensajes", "beneficiarios", "notificaciones", "menu", "galeria", "instituciones"],
       };
       const necesarios = datosPorRol[rol] || [];
 
@@ -444,7 +448,7 @@ function Admin() {
 
       setGaleria(await respGaleria.json());
       setInstituciones(await respInstituciones.json());
-      setColaboradores(await respColaboradores.json());
+      setSedes(await respSedes.json());
 
       // Solo el admin ve las cuentas de usuario del panel
       if (leerSesion()?.rol === "admin") {
@@ -891,6 +895,78 @@ function Admin() {
     }
   };
 
+  // Registra una sede nueva
+  const registrarSede = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSedeError("");
+    setSedeExito("");
+    try {
+      const respuesta = await fetch(`${API_URL}/api/sedes`, {
+        method: "POST",
+        headers: cabeceras(),
+        body: JSON.stringify({ nombre: nombreSede }),
+      });
+      const datos = await respuesta.json().catch(() => null);
+      if (!respuesta.ok) {
+        throw new Error(datos?.error || "No se pudo registrar la sede");
+      }
+      setNombreSede("");
+      setSedeExito("✅ Sede registrada. Ya aparece en la reserva y en los beneficiarios.");
+      cargarDatos();
+    } catch (err) {
+      setSedeError(err instanceof Error ? err.message : "Error desconocido");
+    }
+  };
+
+  // Abre el formulario de edicion de una sede con su nombre actual
+  const iniciarEdicionSede = (s: Sede) => {
+    setEditandoSede(s.id);
+    setEditNombreSede(s.nombre);
+  };
+
+  // Guarda el nuevo nombre de una sede
+  const guardarEdicionSede = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editandoSede === null) return;
+    setSedeError("");
+    setSedeExito("");
+    try {
+      const respuesta = await fetch(`${API_URL}/api/sedes/${editandoSede}`, {
+        method: "PUT",
+        headers: cabeceras(),
+        body: JSON.stringify({ nombre: editNombreSede }),
+      });
+      const datos = await respuesta.json().catch(() => null);
+      if (!respuesta.ok) {
+        throw new Error(datos?.error || "No se pudo actualizar la sede");
+      }
+      setEditandoSede(null);
+      setSedeExito("✅ Sede actualizada. Los beneficiarios y reservas se actualizaron.");
+      cargarDatos();
+    } catch (err) {
+      setSedeError(err instanceof Error ? err.message : "Error desconocido");
+    }
+  };
+
+  // Borra una sede
+  const borrarSede = async (id: number) => {
+    setSedeError("");
+    setSedeExito("");
+    try {
+      const respuesta = await fetch(`${API_URL}/api/sedes/${id}`, {
+        method: "DELETE",
+        headers: cabeceras(false),
+      });
+      const datos = await respuesta.json().catch(() => null);
+      if (!respuesta.ok) {
+        throw new Error(datos?.error || "No se pudo borrar la sede");
+      }
+      cargarDatos();
+    } catch (err) {
+      setSedeError(err instanceof Error ? err.message : "Error desconocido");
+    }
+  };
+
   // Crea una cuenta de usuario del panel (solo admin)
   const registrarUsuario = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1151,7 +1227,7 @@ function Admin() {
       { id: "avisos", etiqueta: "📢 Avisos" },
       { id: "galeria", etiqueta: "🖼️ Galería" },
       { id: "instituciones", etiqueta: "🏫 Instituciones" },
-      { id: "colaboradores", etiqueta: "👥 Colaboradores" },
+      { id: "sedes", etiqueta: "📍 Sedes" },
       { id: "notificaciones", etiqueta: "🔔 Notificaciones" },
       { id: "mensajes", etiqueta: `✉️ Mensajes${noLeidos > 0 ? ` (${noLeidos} sin leer)` : ""}` },
       { id: "reportes", etiqueta: "📊 Reportes" },
@@ -1170,7 +1246,6 @@ function Admin() {
       { id: "avisos", etiqueta: "📢 Avisos" },
       { id: "galeria", etiqueta: "🖼️ Galería" },
       { id: "instituciones", etiqueta: "🏫 Instituciones" },
-      { id: "colaboradores", etiqueta: "👥 Colaboradores" },
       { id: "notificaciones", etiqueta: "🔔 Notificaciones" },
       { id: "mensajes", etiqueta: `✉️ Mensajes${noLeidos > 0 ? ` (${noLeidos} sin leer)` : ""}` },
     ],
@@ -1494,9 +1569,15 @@ function Admin() {
               <label htmlFor="sede-ben">
                 Sede
                 <select id="sede-ben" value={sedeBen} onChange={(e) => setSedeBen(e.target.value)}>
-                  <option>Sede A</option>
-                  <option>Sede B</option>
-                  <option>Sede C</option>
+                  {(sedes.length > 0 ? sedes : [
+                    { id: -1, nombre: "Sede A" },
+                    { id: -2, nombre: "Sede B" },
+                    { id: -3, nombre: "Sede C" },
+                  ]).map((s) => (
+                    <option key={s.id} value={s.nombre}>
+                      {s.nombre}
+                    </option>
+                  ))}
                 </select>
               </label>
               <label htmlFor="turno-ben">
@@ -1504,7 +1585,12 @@ function Admin() {
                 <select id="turno-ben" value={turnoBen} onChange={(e) => setTurnoBen(e.target.value)}>
                   <option>Almuerzo</option>
                   <option>Refrigerio</option>
+                  <option>Ambas jornadas</option>
                 </select>
+                <small className="campo-fijo">
+                  Elige "Ambas jornadas" si el estudiante puede ir al Almuerzo y
+                  al Refrigerio.
+                </small>
               </label>
               <label htmlFor="grado-ben">
                 Grado
@@ -2038,37 +2124,94 @@ function Admin() {
         </div>
       )}
 
-      {!cargando && !error && pestanaActiva === "colaboradores" && (
-        <div id="panel-colaboradores" role="tabpanel" aria-labelledby="tab-colaboradores">
-          <h2 className="admin-subtitulo">
-            Colaboradores registrados ({colaboradores.length})
-          </h2>
+      {!cargando && !error && pestanaActiva === "sedes" && (
+        <div id="panel-sedes" role="tabpanel" aria-labelledby="tab-sedes">
+          <h2 className="admin-subtitulo">Registrar sede</h2>
           <p className="subtitulo">
-            Cada colaborador cuenta en la métrica de la página de inicio.
+            Las sedes son los puntos donde se atiende a los estudiantes.
+            Aparecen en la reserva, en el registro de beneficiarios y en el
+            registro por sede de la página de inicio.
           </p>
-          {colaboradores.length === 0 && (
-            <p className="estado">Aún no hay colaboradores registrados.</p>
+          <form className="formulario" onSubmit={registrarSede}>
+            <label htmlFor="nombre-sede">
+              Nombre de la sede
+              <input
+                id="nombre-sede"
+                type="text"
+                value={nombreSede}
+                onChange={(e) => setNombreSede(e.target.value)}
+                required
+                placeholder="Ej: Sede D"
+                autoComplete="off"
+              />
+            </label>
+            {sedeError && <p className="estado error" role="alert">⚠️ {sedeError}</p>}
+            {sedeExito && <p className="estado exito" aria-live="polite">{sedeExito}</p>}
+            <button type="submit" className="boton boton-primario">
+              Registrar sede
+            </button>
+          </form>
+
+          <h2 className="admin-subtitulo">
+            Sedes registradas ({sedes.length})
+          </h2>
+          {sedes.length === 0 && (
+            <p className="estado">Aún no hay sedes registradas.</p>
           )}
-          <Buscador
-            valor={busquedaColaboradores}
-            alCambiar={setBusquedaColaboradores}
-            placeholder="Buscar por nombre o rol…"
-          />
           <div className="lista-reservas">
-            {colaboradores
-              .filter((col) => {
-                if (!busquedaColaboradores.trim()) return true;
-                const texto = `${col.nombre} ${col.rol || ""}`;
-                return coincide(texto, busquedaColaboradores);
-              })
-              .map((col) => (
-              <article key={col.id} className="fila-reserva">
-                <div>
-                  <strong>{col.nombre}</strong>
-                  <span className="fila-reserva-detalle">
-                    {col.rol || "Sin rol"}
-                  </span>
-                </div>
+            {sedes.map((s) => (
+              <article key={s.id} className="fila-reserva">
+                {editandoSede === s.id ? (
+                  <form className="formulario" onSubmit={guardarEdicionSede}>
+                    <label htmlFor={`editar-sede-${s.id}`}>
+                      Nuevo nombre
+                      <input
+                        id={`editar-sede-${s.id}`}
+                        type="text"
+                        value={editNombreSede}
+                        onChange={(e) => setEditNombreSede(e.target.value)}
+                        required
+                        autoComplete="off"
+                      />
+                    </label>
+                    <div className="formulario-fila">
+                      <button type="submit" className="boton boton-primario">
+                        Guardar
+                      </button>
+                      <button
+                        type="button"
+                        className="boton boton-secundario"
+                        onClick={() => setEditandoSede(null)}
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <>
+                    <div>
+                      <strong>{s.nombre}</strong>
+                    </div>
+                    <div className="formulario-fila">
+                      <button
+                        type="button"
+                        className="boton boton-secundario"
+                        onClick={() => iniciarEdicionSede(s)}
+                        aria-label={`Renombrar sede ${s.nombre}`}
+                      >
+                        Renombrar
+                      </button>
+                      <button
+                        type="button"
+                        className="boton boton-secundario"
+                        onClick={() => borrarSede(s.id)}
+                        aria-label={`Borrar sede ${s.nombre}`}
+                      >
+                        Borrar
+                      </button>
+                    </div>
+                  </>
+                )}
               </article>
             ))}
           </div>
