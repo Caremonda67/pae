@@ -59,7 +59,6 @@ function Reserva() {
   });
 
   // Sedes disponibles: las administra el panel (tabla sedes).
-  // Si no cargan, se usan las sedes originales para no romper la reserva.
   const [sedes, setSedes] = useState<string[]>([]);
 
   // Estados de la respuesta del servidor
@@ -231,7 +230,7 @@ function Reserva() {
   }, []);
 
   // Carga las sedes registradas (las administra el panel admin).
-  // Si falla o la tabla no tiene datos, usamos las sedes originales.
+  // Si no hay ninguna, el formulario muestra un aviso y no deja reservar.
   useEffect(() => {
     fetch(`${API_URL}/api/sedes`)
       .then((r) => (r.ok ? r.json() : []))
@@ -239,9 +238,9 @@ function Reserva() {
         const nombres = Array.isArray(datos)
           ? datos.map((s: { nombre: string }) => s.nombre).filter(Boolean)
           : [];
-        setSedes(nombres.length > 0 ? nombres : ["Sede A", "Sede B", "Sede C"]);
+        setSedes(nombres);
       })
-      .catch(() => setSedes(["Sede A", "Sede B", "Sede C"]));
+      .catch(() => setSedes([]));
   }, []);
 
   // Envia la reserva al backend
@@ -496,6 +495,11 @@ function Reserva() {
           {beneficiarioConfirmado && (
             <small className="campo-fijo" aria-live="polite">Tu sede ya está registrada</small>
           )}
+          {!beneficiarioConfirmado && sedes.length === 0 && (
+            <small className="campo-fijo" role="alert">
+              Aún no hay sedes disponibles. Contacta al equipo del PAE.
+            </small>
+          )}
         </label>
 
         <label>
@@ -558,7 +562,7 @@ function Reserva() {
           </a>
         )}
 
-        <button type="submit" className="boton boton-primario" disabled={enviando}>
+        <button type="submit" className="boton boton-primario" disabled={enviando || (sedes.length === 0 && !beneficiarioConfirmado)}>
           {enviando ? "Guardando…" : "Confirmar reserva"}
         </button>
       </form>

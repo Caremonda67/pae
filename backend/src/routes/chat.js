@@ -241,14 +241,14 @@ router.post("/", async (req, res) => {
     ].join("\n");
 
     // 6. Sedes del programa (las administra el admin desde el panel).
-    //    Si la tabla no existe aun, se usan las sedes originales.
+    //    Si la tabla no existe o esta vacia, se avisa que no hay sedes.
     const { data: sedes, error: errSedes } = await supabase
       .from("sedes")
       .select("nombre");
     const sedesTexto =
       !errSedes && sedes && sedes.length > 0
         ? sedes.map((s) => s.nombre).join(", ")
-        : "Sede A, Sede B y Sede C";
+        : "No hay sedes registradas aun";
 
     const contexto = {
       fechaHoy: fechaDeHoy(),
