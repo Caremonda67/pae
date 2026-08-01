@@ -6,16 +6,12 @@ seccion de abajo para decisiones pendientes.
 
 ## Cocina (hoy: panel de cocina + menu)
 
-- [ ] Turnos de cocina: elegir quien cocina cada dia (los colaboradores
-      ya tienen `rol`).
-- [ ] Inventario / insumos: registrar lo que falta y avisar al coordinador.
-- [ ] Reporte de sobrantes: reservados vs. los que asistieron
-      (depende de marcar asistencia).
+- [x] Reporte de sobrantes manual: el personal con rol `cocina` registra
+      cuántas porciones y el peso (kg) que sobraron por jornada y sede en
+      el panel de cocina (tabla `sobrantes`, rutas `/api/sobrantes`).
 - [x] Panel compacto de cocina: cuantas minutas preparar por jornada y
       por sede + menu del dia, con selector de fecha. Reemplazo el panel
       viejo (reporte de desperdicio, plan 7 dias, lista con asistencia).
-- [ ] Marcar asistencia: se quito del panel por ahora (la columna
-      `asistio` sigue existiendo). Pendiente decidir como se implementa.
 
 ## Profesor (hoy: beneficiarios + avisos)
 
@@ -58,9 +54,8 @@ notificaciones, mensajes)
 
 ## Prioridades tentativas
 
-1. Marcar asistencia (cocina/profesor).
-2. Tablero del dia (coordinador).
-3. Historial con estado + limite de reserva (estudiante).
+1. Tablero del dia (coordinador).
+2. Historial con estado + limite de reserva (estudiante).
 
 ## Decisiones pendientes
 
