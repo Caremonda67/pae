@@ -37,20 +37,27 @@ function validarFechaSobrantes(fecha) {
   return null;
 }
 
-// GET /api/sobrantes?fecha=YYYY-MM-DD
-// Lista los sobrantes registrados para una fecha (admin, cocina, coordinador)
+// GET /api/sobrantes
+// Lista los sobrantes registrados (admin, cocina, coordinador).
+// Filtros opcionales:
+// - ?fecha=YYYY-MM-DD (un día puntual, lo usa el panel de cocina)
+// - ?desde=YYYY-MM-DD&hasta=YYYY-MM-DD (rango para el reporte)
+// Sin filtros devuelve todo, de la fecha más reciente a la más antigua.
 router.get("/", requiereRol("admin", "cocina", "coordinador"), async (req, res) => {
-  const { fecha } = req.query;
-  if (!fecha) {
-    return res.status(400).json({ error: "Falta la fecha" });
-  }
+  const { fecha, desde, hasta } = req.query;
 
-  const { data, error } = await getSupabase()
+  let consulta = getSupabase()
     .from("sobrantes")
     .select("*")
-    .eq("fecha", fecha)
+    .order("fecha", { ascending: false })
     .order("sede", { ascending: true })
     .order("turno", { ascending: true });
+
+  if (fecha) consulta = consulta.eq("fecha", fecha);
+  if (desde) consulta = consulta.gte("fecha", desde);
+  if (hasta) consulta = consulta.lte("fecha", hasta);
+
+  const { data, error } = await consulta;
 
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
