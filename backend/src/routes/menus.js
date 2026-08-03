@@ -24,6 +24,16 @@ function diaEnEspanol(fecha) {
   return nombre;
 }
 
+// Quita las tildes de un nombre de dia: "Miércoles" -> "Miercoles".
+// En la base los dias se guardan sin tilde, asi la comparacion con
+// Supabase (exacta) siempre encuentra el plato sin importar como lo
+// escriba el usuario o el panel.
+function sinTildes(texto) {
+  return String(texto)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
 // GET /api/menus
 // Lista los menus con su valoracion promedio. Se puede filtrar por
 // semana (?semana=2) o por semana y dia (?semana=2&dia=Lunes).
@@ -104,7 +114,7 @@ router.get("/hoy", async (req, res) => {
     .from("menus")
     .select("*")
     .eq("semana", semana)
-    .eq("dia", dia)
+    .eq("dia", sinTildes(dia))
     .order("jornada", { ascending: true });
 
   if (error) return res.status(500).json({ error: error.message });
@@ -129,7 +139,8 @@ router.post("/", requiereRol("admin", "cocina"), async (req, res) => {
     .from("menus")
     .insert([{
       semana: semanaNum,
-      dia,
+      dia: sinTildes(dia),
+      jornada,
       jornada,
       platillo,
       descripcion,
