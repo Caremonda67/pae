@@ -237,6 +237,11 @@ function Admin() {
   const [sobranteError, setSobranteError] = useState("");
   const [sobranteExito, setSobranteExito] = useState("");
 
+  // historial de sobrantes del reporte: todos los registros que caen
+  // dentro del filtro de fechas elegido (sirve para ver qué días hubo
+  // desperdicio y cuánto fue)
+  const [sobrantesReporte, setSobrantesReporte] = useState<Sobrante[]>([]);
+
   // reportes tecnicos (desperdicio, tabla diaria, exportar)
   const [totales, setTotales] = useState<Record<string, { reservas: number; asistieron: number }>>({});
   const [reporte, setReporte] = useState<Reporte | null>(null);
@@ -638,13 +643,17 @@ function Admin() {
         if (hasta) parametros.set("hasta", hasta);
         const consulta = parametros.toString();
 
-        const [respTotales, respReporte] = await Promise.all([
+        const [respTotales, respReporte, respSobrantes] = await Promise.all([
           fetch(`${API_URL}/api/reservas/totales?${consulta}`),
           fetch(`${API_URL}/api/reservas/reporte?${consulta}`),
+          fetch(`${API_URL}/api/sobrantes?${consulta}`, { headers: cabeceras(false) }),
         ]);
-        if (!respTotales.ok || !respReporte.ok) throw new Error("No se pudieron cargar los reportes");
+        if (!respTotales.ok || !respReporte.ok || !respSobrantes.ok) {
+          throw new Error("No se pudieron cargar los reportes");
+        }
         setTotales(await respTotales.json());
         setReporte(await respReporte.json());
+        setSobrantesReporte(await respSobrantes.json());
       } catch (err) {
         setError(err instanceof Error ? err.message : "Error desconocido");
       }
@@ -690,6 +699,26 @@ function Admin() {
     return conteo;
   };
 
+  // Agrupa los sobrantes del reporte por fecha: para cada día en que se
+  // registró desperdicio muestra las porciones, los kilos y las sedes
+  // involucradas. Devuelve las fechas de la más reciente a la más antigua.
+  const sobrantesPorFecha = () => {
+    const porFecha: Record<
+      string,
+      { porciones: number; peso_kg: number; registros: number; sedes: string[] }
+    > = {};
+    for (const s of sobrantesReporte) {
+      const actual =
+        porFecha[s.fecha] ||
+        (porFecha[s.fecha] = { porciones: 0, peso_kg: 0, registros: 0, sedes: [] });
+      actual.porciones += s.porciones ?? 0;
+      actual.peso_kg += s.peso_kg ?? 0;
+      actual.registros += 1;
+      if (!actual.sedes.includes(s.sede)) actual.sedes.push(s.sede);
+    }
+    return Object.entries(porFecha).sort((a, b) => (a[0] < b[0] ? 1 : -1));
+  };
+
   // Descarga un Excel con el resumen de reservas por fecha y el reporte
   // Construye las secciones del reporte a partir de los datos cargados
   // (lo usan tanto la descarga como la vista previa del documento)
@@ -712,6 +741,21 @@ function Admin() {
               ["Minutas desperdiciadas", reporte.minutasDesperdiciadas],
               ["Porcentaje de desperdicio", `${reporte.porcentajeDesperdicio}%`],
             ],
+          },
+        ]
+      : []),
+    ...(sobrantesReporte.length > 0
+      ? [
+          {
+            titulo: "Sobrantes registrados (desperdicio) por fecha",
+            columnas: ["Fecha", "Sedes", "Registros", "Porciones", "Peso (kg)"],
+            filas: sobrantesPorFecha().map(([fecha, info]) => [
+              fecha,
+              info.sedes.join(", "),
+              info.registros,
+              info.porciones,
+              info.peso_kg,
+            ]),
           },
         ]
       : []),
@@ -1634,6 +1678,63 @@ function Admin() {
                 </button>
               </div>
             </div>
+          )}
+
+          {/* Sobrantes (desperdicio) registrados por cocina, agrupados por fecha */}
+          <h2 className="admin-subtitulo">Sobrantes registrados por fecha</h2>
+          <p className="subtitulo">
+            Los días en que se reportó desperdicio de comida en el período
+            elegido, con el total de porciones y de kilos por cada fecha.
+          </p>
+
+          {sobrantesReporte.length === 0 ? (
+            <p className="estado">No hay sobrantes registrados en el período seleccionado.</p>
+          ) : (
+            <>
+              <div className="reporte-cajas">
+                <div className="reporte-caja">
+                  <span className="reporte-numero">{sobrantesPorFecha().length}</span>
+                  <span className="reporte-etiqueta">Días con reporte</span>
+                </div>
+                <div className="reporte-caja">
+                  <span className="reporte-numero">
+                    {sobrantesReporte.reduce((total, s) => total + (s.porciones ?? 0), 0)}
+                  </span>
+                  <span className="reporte-etiqueta">Porciones desperdiciadas</span>
+                </div>
+                <div className="reporte-caja">
+                  <span className="reporte-numero">
+                    {sobrantesReporte.reduce((total, s) => total + (s.peso_kg ?? 0), 0)}
+                  </span>
+                  <span className="reporte-etiqueta">Peso total (kg)</span>
+                </div>
+              </div>
+
+              <div className="tabla-cocina">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Fecha</th>
+                      <th>Sedes</th>
+                      <th>Registros</th>
+                      <th>Porciones</th>
+                      <th>Peso (kg)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sobrantesPorFecha().map(([fecha, info]) => (
+                      <tr key={fecha}>
+                        <td>{fechaCorta(fecha)}</td>
+                        <td>{info.sedes.join(", ")}</td>
+                        <td>{info.registros}</td>
+                        <td>{info.porciones}</td>
+                        <td>{info.peso_kg}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
 
           {/* Vista previa del documento que se exporta */}
