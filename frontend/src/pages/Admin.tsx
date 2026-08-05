@@ -699,24 +699,38 @@ function Admin() {
     return conteo;
   };
 
-  // Agrupa los sobrantes del reporte por fecha: para cada día en que se
-  // registró desperdicio muestra las porciones, los kilos y las sedes
-  // involucradas. Devuelve las fechas de la más reciente a la más antigua.
-  const sobrantesPorFecha = () => {
-    const porFecha: Record<
+  // Agrupa los sobrantes del reporte por fecha y sede: cada sede sale con
+  // su propio total de porciones, kilos y jornadas del día. Devuelve las
+  // filas de la fecha más reciente a la más antigua (y por sede en orden).
+  const sobrantesPorFechaSede = () => {
+    const porSede: Record<
       string,
-      { porciones: number; peso_kg: number; registros: number; sedes: string[] }
+      { fecha: string; sede: string; jornadas: string[]; porciones: number; peso_kg: number }
     > = {};
     for (const s of sobrantesReporte) {
+      const clave = `${s.fecha}||${s.sede}`;
       const actual =
-        porFecha[s.fecha] ||
-        (porFecha[s.fecha] = { porciones: 0, peso_kg: 0, registros: 0, sedes: [] });
+        porSede[clave] ||
+        (porSede[clave] = {
+          fecha: s.fecha,
+          sede: s.sede,
+          jornadas: [],
+          porciones: 0,
+          peso_kg: 0,
+        });
+      if (!actual.jornadas.includes(s.turno)) actual.jornadas.push(s.turno);
       actual.porciones += s.porciones ?? 0;
       actual.peso_kg += s.peso_kg ?? 0;
-      actual.registros += 1;
-      if (!actual.sedes.includes(s.sede)) actual.sedes.push(s.sede);
     }
-    return Object.entries(porFecha).sort((a, b) => (a[0] < b[0] ? 1 : -1));
+    return Object.values(porSede).sort((a, b) =>
+      a.fecha === b.fecha
+        ? a.sede < b.sede
+          ? -1
+          : 1
+        : a.fecha < b.fecha
+          ? 1
+          : -1
+    );
   };
 
   // Descarga un Excel con el resumen de reservas por fecha y el reporte
@@ -747,14 +761,14 @@ function Admin() {
     ...(sobrantesReporte.length > 0
       ? [
           {
-            titulo: "Sobrantes registrados (desperdicio) por fecha",
-            columnas: ["Fecha", "Sedes", "Registros", "Porciones", "Peso (kg)"],
-            filas: sobrantesPorFecha().map(([fecha, info]) => [
-              fecha,
-              info.sedes.join(", "),
-              info.registros,
-              info.porciones,
-              info.peso_kg,
+            titulo: "Sobrantes registrados (desperdicio) por fecha y sede",
+            columnas: ["Fecha", "Sede", "Jornadas", "Porciones", "Peso (kg)"],
+            filas: sobrantesPorFechaSede().map((fila) => [
+              fila.fecha,
+              fila.sede,
+              fila.jornadas.join(", "),
+              fila.porciones,
+              fila.peso_kg,
             ]),
           },
         ]
@@ -1680,11 +1694,11 @@ function Admin() {
             </div>
           )}
 
-          {/* Sobrantes (desperdicio) registrados por cocina, agrupados por fecha */}
+          {/* Sobrantes (desperdicio) registrados por cocina, agrupados por fecha y sede */}
           <h2 className="admin-subtitulo">Sobrantes registrados por fecha</h2>
           <p className="subtitulo">
             Los días en que se reportó desperdicio de comida en el período
-            elegido, con el total de porciones y de kilos por cada fecha.
+            elegido, con el total de porciones y kilos por cada sede y fecha.
           </p>
 
           {sobrantesReporte.length === 0 ? (
@@ -1693,7 +1707,9 @@ function Admin() {
             <>
               <div className="reporte-cajas">
                 <div className="reporte-caja">
-                  <span className="reporte-numero">{sobrantesPorFecha().length}</span>
+                  <span className="reporte-numero">
+                    {new Set(sobrantesReporte.map((s) => s.fecha)).size}
+                  </span>
                   <span className="reporte-etiqueta">Días con reporte</span>
                 </div>
                 <div className="reporte-caja">
@@ -1715,20 +1731,20 @@ function Admin() {
                   <thead>
                     <tr>
                       <th>Fecha</th>
-                      <th>Sedes</th>
-                      <th>Registros</th>
+                      <th>Sede</th>
+                      <th>Jornadas</th>
                       <th>Porciones</th>
                       <th>Peso (kg)</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {sobrantesPorFecha().map(([fecha, info]) => (
-                      <tr key={fecha}>
-                        <td>{fechaCorta(fecha)}</td>
-                        <td>{info.sedes.join(", ")}</td>
-                        <td>{info.registros}</td>
-                        <td>{info.porciones}</td>
-                        <td>{info.peso_kg}</td>
+                    {sobrantesPorFechaSede().map((fila) => (
+                      <tr key={`${fila.fecha}||${fila.sede}`}>
+                        <td>{fechaCorta(fila.fecha)}</td>
+                        <td>{fila.sede}</td>
+                        <td>{fila.jornadas.join(", ")}</td>
+                        <td>{fila.porciones}</td>
+                        <td>{fila.peso_kg}</td>
                       </tr>
                     ))}
                   </tbody>
