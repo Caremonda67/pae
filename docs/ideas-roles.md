@@ -9,6 +9,11 @@ seccion de abajo para decisiones pendientes.
 - [x] Reporte de sobrantes manual: el personal con rol `cocina` registra
       cuántas porciones y el peso (kg) que sobraron por jornada y sede en
       el panel de cocina (tabla `sobrantes`, rutas `/api/sobrantes`).
+- [x] Los sobrantes se ven en la pestaña "Reportes" (solo admin y cocina),
+      agrupados por fecha y sede con el total de porciones y kilos por día.
+      Desde ahí se pueden editar las jornadas o borrar la fila completa
+      (botones Editar/Borrar; `DELETE /api/sobrantes?fecha&sede`). También
+      se incluyen en el Excel exportado como sección propia.
 - [x] Panel compacto de cocina: cuantas minutas preparar por jornada y
       por sede + menu del dia, con selector de fecha. Reemplazo el panel
       viejo (reporte de desperdicio, plan 7 dias, lista con asistencia).
@@ -47,10 +52,11 @@ notificaciones, mensajes)
 - [ ] Configuracion del sistema: hora limite de reserva, cupos por sede
       (tabla de settings).
 - [x] Reportes tecnicos movidos al panel (pestana "Reportes" solo para
-      admin y cocina): desperdicio con desgloses, tabla diaria y exportar
-      CSV, con datos protegidos por sesion. La pagina publica Reportes
-      quedo simplificada (solo resumen y grafico). El endpoint
-      /api/reservas/diario ahora requiere rol.
+      admin y cocina): desperdicio con desgloses, sobrantes por fecha y
+      sede (con edicion/borrado), tabla diaria y exportar CSV, con datos
+      protegidos por sesion. La pagina publica Reportes quedo simplificada
+      (solo resumen y grafico). El endpoint /api/reservas/diario ahora
+      requiere rol.
 
 ## Prioridades tentativas
 

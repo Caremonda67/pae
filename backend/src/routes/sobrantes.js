@@ -134,4 +134,24 @@ router.post("/", requiereRol("admin", "cocina"), async (req, res) => {
   res.json(data);
 });
 
+// DELETE /api/sobrantes?fecha=YYYY-MM-DD&sede=Nombre
+// Borra todos los registros de sobrantes de una sede en una fecha
+// (las dos jornadas). Lo usa el panel de reportes. Solo cocina y admin.
+router.delete("/", requiereRol("admin", "cocina"), async (req, res) => {
+  const { fecha, sede } = req.query;
+  if (!fecha || !sede) {
+    return res.status(400).json({ error: "Faltan la fecha y la sede" });
+  }
+
+  const { data, error } = await getSupabase()
+    .from("sobrantes")
+    .delete()
+    .eq("fecha", fecha)
+    .eq("sede", sede)
+    .select();
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ eliminados: data?.length || 0 });
+});
+
 export default router;
