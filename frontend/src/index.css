@@ -1956,6 +1956,27 @@ h1 {
   color: #c2410c;
 }
 
+/* Miniatura de la foto adjunta a un reporte */
+.incidente-foto-mini {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 0.5rem;
+  border: 1px solid var(--borde);
+  cursor: zoom-in;
+}
+
+/* Vista previa grande de la foto mientras se escribe el reporte */
+.incidente-foto img {
+  max-width: 240px;
+  max-height: 180px;
+  object-fit: cover;
+  border-radius: 0.5rem;
+  border: 1px solid var(--borde);
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
 /* ============================================================
    Impresion: al guardar en PDF solo se ve la tabla diaria
    ============================================================ */

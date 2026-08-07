@@ -216,6 +216,10 @@ create table if not exists incidentes (
   created_at timestamptz default now()
 );
 
+-- Los reportes pueden llevar una foto adjunta (la URL la guarda el
+-- backend en Supabase Storage al subirla desde el panel).
+alter table incidentes add column if not exists imagen text;
+
 -- ============================================================
 -- 4. Politicas de acceso (RLS)
 -- ============================================================

@@ -94,9 +94,9 @@ router.get("/", requiereRol("profesor", "admin", "coordinador"), async (req, res
 
 // POST /api/incidentes
 // Reporta un incidente o alergia de un estudiante registrado.
-// Cuerpo: { tipo: "Incidente"|"Alergia", documento, descripcion, fecha? }
+// Cuerpo: { tipo: "Incidente"|"Alergia", documento, descripcion, fecha?, imagen? }
 router.post("/", requiereRol("profesor", "admin", "coordinador"), async (req, res) => {
-  const { tipo, documento, descripcion, fecha } = req.body || {};
+  const { tipo, documento, descripcion, fecha, imagen } = req.body || {};
 
   const tipoLimpio = tipo ? String(tipo).trim() : "";
   if (tipoLimpio !== "Incidente" && tipoLimpio !== "Alergia") {
@@ -135,6 +135,7 @@ router.post("/", requiereRol("profesor", "admin", "coordinador"), async (req, re
         grado: ben.grado,
         descripcion: String(descripcion).trim(),
         fecha: fechaFinal,
+        imagen: typeof imagen === "string" && imagen.trim() ? imagen.trim() : null,
         reportado_por: req.usuario.sub,
         resuelto: false,
       },
@@ -147,21 +148,80 @@ router.post("/", requiereRol("profesor", "admin", "coordinador"), async (req, re
 });
 
 // PUT /api/incidentes/:id
-// Marca un reporte como resuelto (o lo reabre). Solo coordinador o admin.
-// Cuerpo: { resuelto: boolean }
-router.put("/:id", requiereRol("admin", "coordinador"), async (req, res) => {
+// El profesor edita los datos de SUS reportes (tipo, estudiante,
+// descripcion, fecha y foto). El coordinador o el admin, en cambio,
+// marca el reporte como resuelto (o lo reabre).
+router.put("/:id", requiereRol("profesor", "admin", "coordinador"), async (req, res) => {
+  const { data: existente, error: errExistente } = await getSupabase()
+    .from("incidentes")
+    .select("*")
+    .eq("id", req.params.id)
+    .maybeSingle();
+
+  if (errExistente) return res.status(500).json({ error: errExistente.message });
+  if (!existente) return res.status(404).json({ error: "Reporte no encontrado" });
+
+  // --- Profesor: edita su propio reporte --------------------------
+  if (req.usuario.rol === "profesor") {
+    if (existente.reportado_por !== req.usuario.sub) {
+      return res.status(403).json({ error: "Solo puedes editar tus propios reportes" });
+    }
+
+    const { tipo, documento, descripcion, fecha, imagen } = req.body || {};
+
+    const tipoLimpio = tipo ? String(tipo).trim() : "";
+    if (tipoLimpio !== "Incidente" && tipoLimpio !== "Alergia") {
+      return res.status(400).json({ error: "El tipo debe ser Incidente o Alergia" });
+    }
+    if (!documento || !String(documento).trim()) {
+      return res.status(400).json({ error: "Selecciona el estudiante" });
+    }
+    if (!descripcion || !String(descripcion).trim()) {
+      return res.status(400).json({ error: "Escribe qué ocurrió" });
+    }
+
+    const fechaFinal = fecha || existente.fecha;
+    if (!fechaValida(fechaFinal)) {
+      return res.status(400).json({ error: "Fecha no válida" });
+    }
+
+    // Revalidamos el estudiante por si cambió el documento
+    const { data: ben } = await getSupabase()
+      .from("beneficiarios")
+      .select("documento, nombre, sede, grado")
+      .eq("documento", String(documento).trim())
+      .maybeSingle();
+    if (!ben) {
+      return res.status(404).json({ error: "Ese documento no está registrado como beneficiario" });
+    }
+
+    const cambios = {
+      tipo: tipoLimpio,
+      estudiante: ben.nombre,
+      documento: ben.documento,
+      sede: ben.sede,
+      grado: ben.grado,
+      descripcion: String(descripcion).trim(),
+      fecha: fechaFinal,
+      imagen: typeof imagen === "string" && imagen.trim() ? imagen.trim() : null,
+    };
+
+    const { data, error } = await getSupabase()
+      .from("incidentes")
+      .update(cambios)
+      .eq("id", req.params.id)
+      .select()
+      .single();
+
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json(data);
+  }
+
+  // --- Coordinador / admin: cambiar el estado resuelto -------------
   const { resuelto } = req.body || {};
   if (typeof resuelto !== "boolean") {
     return res.status(400).json({ error: "El campo resuelto debe ser verdadero o falso" });
   }
-
-  const { data: existente } = await getSupabase()
-    .from("incidentes")
-    .select("id")
-    .eq("id", req.params.id)
-    .maybeSingle();
-
-  if (!existente) return res.status(404).json({ error: "Reporte no encontrado" });
 
   const cambios = { resuelto };
   if (resuelto) {
@@ -181,6 +241,31 @@ router.put("/:id", requiereRol("admin", "coordinador"), async (req, res) => {
 
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
+});
+
+// DELETE /api/incidentes/:id
+// El profesor borra sus propios reportes; coordinador o admin cualquiera.
+router.delete("/:id", requiereRol("profesor", "admin", "coordinador"), async (req, res) => {
+  const { data: existente, error: errExistente } = await getSupabase()
+    .from("incidentes")
+    .select("id, reportado_por")
+    .eq("id", req.params.id)
+    .maybeSingle();
+
+  if (errExistente) return res.status(500).json({ error: errExistente.message });
+  if (!existente) return res.status(404).json({ error: "Reporte no encontrado" });
+
+  if (req.usuario.rol === "profesor" && existente.reportado_por !== req.usuario.sub) {
+    return res.status(403).json({ error: "Solo puedes borrar tus propios reportes" });
+  }
+
+  const { error } = await getSupabase()
+    .from("incidentes")
+    .delete()
+    .eq("id", req.params.id);
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.status(204).end();
 });
 
 export default router;

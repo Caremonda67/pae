@@ -29,11 +29,13 @@ seccion de abajo para decisiones pendientes.
       las marcas se guardan en `reservas.asistio`). Requiere correr la
       migracion de columnas sede/turno/grado en `usuarios` (setup.sql).
 - [x] Incidentes / alergias: el profesor reporta un incidente o alergia de
-      un estudiante de su grupo (elige al estudiante de una lista; rutas
-      `/api/incidentes`). El reporte llega al coordinador (y al admin),
-      que lo ve en su pestana "Incidentes" con filtro por estado y lo
-      marca como resuelto. Tabla nueva `incidentes` (setup.sql), el
-      profesor solo ve los que el mismo registró.
+      un estudiante de su grupo con foto adjunta opcional (elige al
+      estudiante de una lista; rutas `/api/incidentes`). Puede editar o
+      borrar SUS reportes (botones Editar/Borrar con formulario inline).
+      El reporte llega al coordinador (y al admin), que lo ve en su pestaña
+      "Incidentes" con filtros por estado, rango de fechas y búsqueda por
+      estudiante, lo marca como resuelto o lo reabre, y también puede
+      borrarlo. Tabla nueva `incidentes` (setup.sql).
 - [ ] Ver el menu de la semana de su sede (la data ya existe).
 
 ## Coordinador (hoy: avisos, galeria, instituciones, colaboradores,
