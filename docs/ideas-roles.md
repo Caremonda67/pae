@@ -20,8 +20,14 @@ seccion de abajo para decisiones pendientes.
 
 ## Profesor (hoy: beneficiarios + avisos)
 
-- [ ] Asistencia de su grupo: ver los reservados de su sede/turno/grado
-      y marcar quien asistio buscando un orden y que ellos sepan de manera optima quienes asistieron.
+- [x] Asistencia de su grupo: cada profesor tiene un grupo asignado
+      (sede + turno + grado, lo configura el admin al crear/editar la
+      cuenta). En la pestana "Asistencia" ve solo los reservados de su
+      grupo para la fecha elegida (ordenados por grado y nombre), los
+      marca como asistieron con un clic, tiene "Marcar todos" y un
+      contador de asistidos. Rutas `/api/asistencia` (solo rol profesor;
+      las marcas se guardan en `reservas.asistio`). Requiere correr la
+      migracion de columnas sede/turno/grado en `usuarios` (setup.sql).
 - [ ] Incidentes / alergias: reportar un incidente o alergia de un
       estudiante, llega al coordinador (hay tabla `notificaciones`).
 - [ ] Ver el menu de la semana de su sede (la data ya existe).

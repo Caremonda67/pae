@@ -19,13 +19,27 @@ import { hashClave } from "../config/password.js";
 
 const router = Router();
 
+// Turnos validos del servicio (mismos del panel de cocina)
+const TURNOS = ["Almuerzo", "Refrigerio"];
+
+// Valida que el grupo de un profesor (sede + turno + grado) este completo
+function errorGrupoProfesor(cuenta) {
+  const { rol, sede, turno, grado } = cuenta || {};
+  if (rol === "profesor") {
+    if (!sede || !String(sede).trim()) return "Un profesor necesita una sede asignada.";
+    if (!turno || !TURNOS.includes(turno)) return "Un profesor necesita un turno válido (Almuerzo o Refrigerio).";
+    if (!grado || !String(grado).trim()) return "Un profesor necesita un grado asignado.";
+  }
+  return null;
+}
+
 // GET /api/usuarios
 // Lista las cuentas (con la clave en texto plano para que el admin
 // la vea). Solo admin.
 router.get("/", requiereRol("admin"), async (_req, res) => {
   const { data, error } = await getSupabase()
     .from("usuarios")
-    .select("id, nombre, usuario, clave, rol, activo, created_at")
+    .select("id, nombre, usuario, clave, rol, activo, sede, turno, grado, created_at")
     .order("nombre", { ascending: true });
 
   if (error) return res.status(500).json({ error: error.message });
@@ -33,10 +47,11 @@ router.get("/", requiereRol("admin"), async (_req, res) => {
 });
 
 // POST /api/usuarios
-// Crea una cuenta. Cuerpo: { nombre, usuario, clave, rol }
+// Crea una cuenta. Cuerpo: { nombre, usuario, clave, rol, sede?, turno?, grado? }
 // Para un estudiante, usuario = su documento y clave = su PIN.
+// Para un profesor, sede + turno + grado son obligatorios (su grupo).
 router.post("/", requiereRol("admin"), async (req, res) => {
-  const { nombre, usuario, clave, rol } = req.body || {};
+  const { nombre, usuario, clave, rol, sede, turno, grado } = req.body || {};
 
   if (!nombre || !String(nombre).trim()) {
     return res.status(400).json({ error: "Falta el nombre" });
@@ -50,6 +65,9 @@ router.post("/", requiereRol("admin"), async (req, res) => {
   if (!ROLES.includes(rol)) {
     return res.status(400).json({ error: `Rol invalido. Usa uno de: ${ROLES.join(", ")}` });
   }
+
+  const errorGrupo = errorGrupoProfesor({ rol, sede, turno, grado });
+  if (errorGrupo) return res.status(400).json({ error: errorGrupo });
 
   // El usuario no se debe repetir (documento de estudiante unico)
   const { data: existente, error: errExiste } = await getSupabase()
@@ -72,9 +90,12 @@ router.post("/", requiereRol("admin"), async (req, res) => {
         clave: String(clave),
         clave_hash: hashClave(clave),
         rol,
+        sede: rol === "profesor" ? String(sede).trim() : null,
+        turno: rol === "profesor" ? turno : null,
+        grado: rol === "profesor" ? String(grado).trim() : null,
       },
     ])
-    .select("id, nombre, usuario, clave, rol, activo, created_at")
+    .select("id, nombre, usuario, clave, rol, activo, sede, turno, grado, created_at")
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
@@ -82,11 +103,11 @@ router.post("/", requiereRol("admin"), async (req, res) => {
 });
 
 // PUT /api/usuarios/:id
-// Edita los datos de una cuenta (nombre, usuario, rol), la activa o
-// desactiva, o cambia su clave/PIN. Solo admin.
-// Cuerpo: { activo?, clave?, nombre?, usuario?, rol? }
+// Edita los datos de una cuenta (nombre, usuario, rol, grupo del
+// profesor), la activa o desactiva, o cambia su clave/PIN. Solo admin.
+// Cuerpo: { activo?, clave?, nombre?, usuario?, rol?, sede?, turno?, grado? }
 router.put("/:id", requiereRol("admin"), async (req, res) => {
-  const { activo, clave, nombre, usuario, rol } = req.body || {};
+  const { activo, clave, nombre, usuario, rol, sede, turno, grado } = req.body || {};
 
   // Validamos cada campo antes de armar la actualizacion
   if (usuario !== undefined && !String(usuario).trim()) {
@@ -98,6 +119,10 @@ router.put("/:id", requiereRol("admin"), async (req, res) => {
   if (clave !== undefined && String(clave).length < 4) {
     return res.status(400).json({ error: "La clave o PIN debe tener al menos 4 caracteres" });
   }
+  if (rol !== undefined) {
+    const errorGrupo = errorGrupoProfesor({ rol, sede, turno, grado });
+    if (errorGrupo) return res.status(400).json({ error: errorGrupo });
+  }
 
   const cambios = {};
   if (typeof activo === "boolean") cambios.activo = activo;
@@ -108,6 +133,18 @@ router.put("/:id", requiereRol("admin"), async (req, res) => {
     cambios.clave = String(clave);
     cambios.clave_hash = hashClave(clave);
   }
+  // El grupo del profesor: solo se guarda cuando llega (para un profesor
+  // son obligatorios; para otros roles se limpia). Si no se pasa el rol,
+  // se usa el de la cuenta actual.
+  const { data: cuentaActual } = await getSupabase()
+    .from("usuarios")
+    .select("rol")
+    .eq("id", req.params.id)
+    .maybeSingle();
+  const esProfesor = (rol ?? cuentaActual?.rol) === "profesor";
+  if (sede !== undefined) cambios.sede = esProfesor ? String(sede).trim() : null;
+  if (turno !== undefined) cambios.turno = esProfesor ? turno : null;
+  if (grado !== undefined) cambios.grado = esProfesor ? String(grado).trim() : null;
 
   if (Object.keys(cambios).length === 0) {
     return res.status(400).json({ error: "No hay nada que actualizar" });
@@ -131,7 +168,7 @@ router.put("/:id", requiereRol("admin"), async (req, res) => {
     .from("usuarios")
     .update(cambios)
     .eq("id", req.params.id)
-    .select("id, nombre, usuario, clave, rol, activo, created_at")
+    .select("id, nombre, usuario, clave, rol, activo, sede, turno, grado, created_at")
     .single();
 
   if (error) return res.status(500).json({ error: error.message });

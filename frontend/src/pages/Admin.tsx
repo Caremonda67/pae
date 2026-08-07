@@ -92,6 +92,16 @@ interface ReservaDiaria {
   asistio: boolean;
 }
 
+// un estudiante reservado del grupo de un profesor (ruta /api/asistencia)
+interface ReservaAsistencia {
+  id: number;
+  estudiante: string;
+  documento: string;
+  grado?: string | null;
+  turno: string;
+  asistio: boolean;
+}
+
 // dia de la semana con su lista de platos
 interface MenuDia {
   dia: string;
@@ -169,12 +179,16 @@ interface Usuario {
   rol: string;
   activo: boolean;
   clave?: string | null;
+  sede?: string | null;
+  turno?: string | null;
+  grado?: string | null;
 }
 
 // pestañas del panel
 type Pestana =
   | "panel"
   | "beneficiarios"
+  | "asistencia"
   | "menu"
   | "avisos"
   | "galeria"
@@ -267,6 +281,9 @@ function Admin() {
   const [usuarioUsu, setUsuarioUsu] = useState("");
   const [rolUsu, setRolUsu] = useState("cocina");
   const [claveUsu, setClaveUsu] = useState("");
+  const [sedeUsu, setSedeUsu] = useState("");
+  const [turnoUsu, setTurnoUsu] = useState("Almuerzo");
+  const [gradoUsu, setGradoUsu] = useState("");
   const [usuError, setUsuError] = useState("");
   const [usuExito, setUsuExito] = useState("");
   const [busquedaUsuarios, setBusquedaUsuarios] = useState("");
@@ -277,6 +294,21 @@ function Admin() {
   const [editUsuario, setEditUsuario] = useState("");
   const [editRol, setEditRol] = useState("cocina");
   const [editClave, setEditClave] = useState("");
+  const [editSede, setEditSede] = useState("");
+  const [editTurno, setEditTurno] = useState("Almuerzo");
+  const [editGrado, setEditGrado] = useState("");
+
+  // asistencia del profesor: fecha elegida, grupo en sesion y reservados
+  const [asistenciaFecha, setAsistenciaFecha] = useState(() => hoyLocal());
+  const [asistenciaGrupo, setAsistenciaGrupo] = useState<{
+    sede: string;
+    turno: string;
+    grado: string;
+  } | null>(null);
+  const [asistenciaReservas, setAsistenciaReservas] = useState<ReservaAsistencia[]>([]);
+  const [asistenciaCargando, setAsistenciaCargando] = useState(false);
+  const [asistenciaError, setAsistenciaError] = useState("");
+  const [asistenciaExito, setAsistenciaExito] = useState("");
 
   // chat de contacto: hilos abiertos, mensajes cargados y borradores.
   // Con el chat el admin puede responder varias veces (no solo una).
@@ -685,6 +717,14 @@ function Admin() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autenticado, pestana]);
 
+  // Al abrir la pestana Asistencia, cargamos el grupo del profesor y
+  // sus reservados del dia (con la fecha que este elegida).
+  useEffect(() => {
+    if (!autenticado || pestana !== "asistencia") return;
+    cargarAsistencia(asistenciaFecha);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autenticado, pestana]);
+
   // Carga la tabla diaria de cocina para una fecha (protegida)
   const cargarDiaria = async (fecha: string) => {
     setDiariaCargada(false);
@@ -710,6 +750,75 @@ function Admin() {
       conteo[r.turno] = (conteo[r.turno] || 0) + 1;
     }
     return conteo;
+  };
+
+  // Carga los reservados del grupo del profesor para la fecha elegida
+  // (solo los de su sede, turno y grado). Ruta /api/asistencia/grupo.
+  const cargarAsistencia = async (fecha: string) => {
+    setAsistenciaCargando(true);
+    setAsistenciaError("");
+    setAsistenciaExito("");
+    try {
+      const respuesta = await fetch(
+        `${API_URL}/api/asistencia/grupo?fecha=${fecha}`,
+        { headers: cabeceras(false) }
+      );
+      const datos = await respuesta.json().catch(() => null);
+      if (!respuesta.ok) {
+        throw new Error(datos?.error || "No se pudo cargar la asistencia");
+      }
+      setAsistenciaGrupo(datos.grupo);
+      setAsistenciaReservas(datos.reservas || []);
+    } catch (err) {
+      setAsistenciaError(err instanceof Error ? err.message : "Error desconocido");
+      setAsistenciaReservas([]);
+      setAsistenciaGrupo(null);
+    } finally {
+      setAsistenciaCargando(false);
+    }
+  };
+
+  // Marca si un estudiante del grupo asistio (o no) y actualiza la lista
+  const marcarAsistencia = async (reserva: ReservaAsistencia) => {
+    const nuevoEstado = !reserva.asistio;
+    setAsistenciaError("");
+    setAsistenciaExito("");
+    try {
+      const respuesta = await fetch(`${API_URL}/api/asistencia/${reserva.id}`, {
+        method: "PUT",
+        headers: cabeceras(true),
+        body: JSON.stringify({ asistio: nuevoEstado }),
+      });
+      if (!respuesta.ok) throw new Error("No se pudo marcar la asistencia");
+      setAsistenciaReservas((lista) =>
+        lista.map((r) => (r.id === reserva.id ? { ...r, asistio: nuevoEstado } : r))
+      );
+    } catch (err) {
+      setAsistenciaError(err instanceof Error ? err.message : "Error desconocido");
+    }
+  };
+
+  // Marca (o desmarca) a todos los reservados del día de una vez
+  const marcarTodosAsistencia = async (asistio: boolean) => {
+    setAsistenciaError("");
+    setAsistenciaExito("");
+    try {
+      await Promise.all(
+        asistenciaReservas
+          .filter((r) => r.asistio !== asistio)
+          .map((r) =>
+            fetch(`${API_URL}/api/asistencia/${r.id}`, {
+              method: "PUT",
+              headers: cabeceras(true),
+              body: JSON.stringify({ asistio }),
+            })
+          )
+      );
+      setAsistenciaReservas((lista) => lista.map((r) => ({ ...r, asistio })));
+      setAsistenciaExito(asistio ? "✅ Todos marcados como asistieron." : "Asistencia desmarcada.");
+    } catch (err) {
+      setAsistenciaError(err instanceof Error ? err.message : "Error desconocido");
+    }
   };
 
   // Agrupa los sobrantes del reporte por fecha y sede: cada sede sale con
@@ -1273,6 +1382,9 @@ function Admin() {
           usuario: usuarioUsu,
           rol: rolUsu,
           clave: claveUsu,
+          sede: rolUsu === "profesor" ? sedeUsu : undefined,
+          turno: rolUsu === "profesor" ? turnoUsu : undefined,
+          grado: rolUsu === "profesor" ? gradoUsu : undefined,
         }),
       });
       const datos = await respuesta.json().catch(() => null);
@@ -1282,6 +1394,8 @@ function Admin() {
       setNombreUsu("");
       setUsuarioUsu("");
       setClaveUsu("");
+      setSedeUsu("");
+      setGradoUsu("");
       setUsuExito("✅ Cuenta creada. Ese usuario ya puede entrar al panel.");
       cargarDatos();
     } catch (err) {
@@ -1439,6 +1553,9 @@ function Admin() {
     setEditUsuario(u.usuario);
     setEditRol(u.rol);
     setEditClave(u.clave || "");
+    setEditSede(u.sede || "");
+    setEditTurno(u.turno || "Almuerzo");
+    setEditGrado(u.grado || "");
   };
 
   // Guarda los cambios de una cuenta editada (solo admin)
@@ -1453,6 +1570,12 @@ function Admin() {
       };
       // Si dejan la clave vacia, no se cambia la actual
       if (editClave) cuerpo.clave = editClave;
+      // El grupo del profesor se envia junto al rol
+      if (editRol === "profesor") {
+        cuerpo.sede = editSede;
+        cuerpo.turno = editTurno;
+        cuerpo.grado = editGrado;
+      }
       const respuesta = await fetch(`${API_URL}/api/usuarios/${editandoUsuario}`, {
         method: "PUT",
         headers: cabeceras(),
@@ -1531,6 +1654,7 @@ function Admin() {
       { id: "reportes", etiqueta: "📊 Reportes" },
     ],
     profesor: [
+      { id: "asistencia", etiqueta: "📋 Asistencia" },
       { id: "beneficiarios", etiqueta: "🎓 Beneficiarios" },
       { id: "avisos", etiqueta: "📢 Avisos" },
     ],
@@ -2211,6 +2335,127 @@ function Admin() {
               </article>
              ))}
           </div>
+        </div>
+      )}
+
+      {!cargando && !error && pestanaActiva === "asistencia" && (
+        <div id="panel-asistencia" role="tabpanel" aria-labelledby="tab-asistencia">
+          <h2 className="admin-subtitulo">Asistencia de mi grupo</h2>
+          <p className="subtitulo">
+            Solo ves los reservados de tu grupo (sede, turno y grado).
+            Marca quién asistió para que el reporte de desperdicio sea
+            más exacto.
+          </p>
+
+          <form
+            className="formulario formulario-fila"
+            onSubmit={(e) => {
+              e.preventDefault();
+              cargarAsistencia(asistenciaFecha);
+            }}
+          >
+            <label htmlFor="fecha-asistencia">
+              Fecha
+              <input
+                id="fecha-asistencia"
+                type="date"
+                value={asistenciaFecha}
+                onChange={(e) => setAsistenciaFecha(e.target.value)}
+              />
+            </label>
+            <button type="submit" className="boton boton-primario">
+              Ver grupo
+            </button>
+          </form>
+
+          {asistenciaCargando && <p className="estado">Cargando…</p>}
+          {asistenciaError && (
+            <p className="estado error" role="alert">⚠️ {asistenciaError}</p>
+          )}
+          {asistenciaExito && (
+            <p className="estado exito" aria-live="polite">{asistenciaExito}</p>
+          )}
+
+          {asistenciaGrupo && !asistenciaCargando && !asistenciaError && (
+            <>
+              <div className="reporte-desglose">
+                <div className="reporte-caja">
+                  <span className="reporte-numero">{asistenciaGrupo.sede}</span>
+                  <span className="reporte-etiqueta">Sede</span>
+                </div>
+                <div className="reporte-caja">
+                  <span className="reporte-numero">{asistenciaGrupo.turno}</span>
+                  <span className="reporte-etiqueta">Turno</span>
+                </div>
+                <div className="reporte-caja">
+                  <span className="reporte-numero">Grado {asistenciaGrupo.grado}</span>
+                  <span className="reporte-etiqueta">Grupo</span>
+                </div>
+                <div className="reporte-caja">
+                  <span className="reporte-numero">
+                    {asistenciaReservas.filter((r) => r.asistio).length} de{" "}
+                    {asistenciaReservas.length}
+                  </span>
+                  <span className="reporte-etiqueta">Asistieron</span>
+                </div>
+              </div>
+
+              {asistenciaReservas.length === 0 ? (
+                <p className="estado">
+                  No hay reservas de tu grupo para el {fechaCorta(asistenciaFecha)}.
+                </p>
+              ) : (
+                <>
+                  <div className="formulario-fila">
+                    <button
+                      type="button"
+                      className="boton boton-secundario"
+                      onClick={() => marcarTodosAsistencia(true)}
+                    >
+                      ✓ Marcar todos
+                    </button>
+                    <button
+                      type="button"
+                      className="boton boton-secundario"
+                      onClick={() => marcarTodosAsistencia(false)}
+                    >
+                      Desmarcar todos
+                    </button>
+                  </div>
+
+                  <div className="tabla-cocina">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Estudiante</th>
+                          <th>Documento</th>
+                          <th>Grado</th>
+                          <th>Asistió</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {asistenciaReservas.map((r) => (
+                          <tr key={r.id} className={r.asistio ? "fila-asistio" : undefined}>
+                            <td>{r.estudiante}</td>
+                            <td>{r.documento}</td>
+                            <td>{r.grado ? `Grado ${r.grado}` : "—"}</td>
+                            <td>
+                              <input
+                                type="checkbox"
+                                checked={r.asistio}
+                                onChange={() => marcarAsistencia(r)}
+                                aria-label={`Marcar asistencia de ${r.estudiante}`}
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+            </>
+          )}
         </div>
       )}
 
@@ -2986,6 +3231,49 @@ function Admin() {
                 </select>
               </label>
             </div>
+            {rolUsu === "profesor" && (
+              <div className="formulario-fila formulario-fila-grid">
+                <label htmlFor="sede-usu">
+                  Sede
+                  <select
+                    id="sede-usu"
+                    value={sedeUsu}
+                    onChange={(e) => setSedeUsu(e.target.value)}
+                    required
+                  >
+                    <option value="">Elige una sede</option>
+                    {sedes.map((s) => (
+                      <option key={s.id} value={s.nombre}>{s.nombre}</option>
+                    ))}
+                  </select>
+                </label>
+                <label htmlFor="turno-usu">
+                  Turno
+                  <select
+                    id="turno-usu"
+                    value={turnoUsu}
+                    onChange={(e) => setTurnoUsu(e.target.value)}
+                  >
+                    <option>Almuerzo</option>
+                    <option>Refrigerio</option>
+                  </select>
+                </label>
+                <label htmlFor="grado-usu">
+                  Grado
+                  <select
+                    id="grado-usu"
+                    value={gradoUsu}
+                    onChange={(e) => setGradoUsu(e.target.value)}
+                    required
+                  >
+                    <option value="">Elige un grado</option>
+                    {GRADOS.map((grado) => (
+                      <option key={grado} value={grado}>{grado}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            )}
             <label htmlFor="clave-usu">
               Clave
               <input
@@ -3101,6 +3389,35 @@ function Admin() {
                         </select>
                       </label>
                     </div>
+                    {editRol === "profesor" && (
+                      <div className="formulario-fila formulario-fila-grid">
+                        <label>
+                          Sede
+                          <select value={editSede} onChange={(e) => setEditSede(e.target.value)} required>
+                            <option value="">Elige una sede</option>
+                            {sedes.map((s) => (
+                              <option key={s.id} value={s.nombre}>{s.nombre}</option>
+                            ))}
+                          </select>
+                        </label>
+                        <label>
+                          Turno
+                          <select value={editTurno} onChange={(e) => setEditTurno(e.target.value)}>
+                            <option>Almuerzo</option>
+                            <option>Refrigerio</option>
+                          </select>
+                        </label>
+                        <label>
+                          Grado
+                          <select value={editGrado} onChange={(e) => setEditGrado(e.target.value)} required>
+                            <option value="">Elige un grado</option>
+                            {GRADOS.map((grado) => (
+                              <option key={grado} value={grado}>{grado}</option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+                    )}
                     <label>
                       Clave / PIN (déjala vacía para no cambiarla)
                       <input

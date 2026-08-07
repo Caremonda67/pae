@@ -187,6 +187,13 @@ create table if not exists usuarios (
 -- usandose en el login, esta columna es solo de consulta/edicion.
 alter table usuarios add column if not exists clave text;
 
+-- 10.2 Grupo asignado a cada profesor: sede + turno + grado. Con estos
+-- datos la pestana Asistencia le muestra SOLO los reservados de su grupo
+-- (los estudiantes de esa sede, turno y grado) para marcar quien asistio.
+alter table usuarios add column if not exists sede text;
+alter table usuarios add column if not exists turno text;
+alter table usuarios add column if not exists grado text;
+
 -- ============================================================
 -- 4. Politicas de acceso (RLS)
 -- ============================================================
