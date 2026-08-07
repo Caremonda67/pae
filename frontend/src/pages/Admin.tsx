@@ -241,6 +241,17 @@ function Admin() {
   // dentro del filtro de fechas elegido (sirve para ver qué días hubo
   // desperdicio y cuánto fue)
   const [sobrantesReporte, setSobrantesReporte] = useState<Sobrante[]>([]);
+  // edicion de sobrantes desde el reporte: la sede + fecha en edicion,
+  // con los valores de cada jornada para poder corregirlos
+  const [editandoSobrantes, setEditandoSobrantes] = useState<{
+    fecha: string;
+    sede: string;
+    jornadas: Record<string, { porciones: string; peso_kg: string }>;
+  } | null>(null);
+  const [sobrantesReporteMensaje, setSobrantesReporteMensaje] = useState<{
+    tipo: "exito" | "error";
+    texto: string;
+  } | null>(null);
 
   // reportes tecnicos (desperdicio, tabla diaria, exportar)
   const [totales, setTotales] = useState<Record<string, { reservas: number; asistieron: number }>>({});
@@ -633,31 +644,33 @@ function Admin() {
     }
   };
 
-  // Carga los reportes tecnicos (totales y desperdicio). Se recargan
-  // cuando cambia el filtro de fechas (semana, mes o rango personalizado).
-  useEffect(() => {
-    const cargarReportes = async () => {
-      try {
-        const parametros = new URLSearchParams();
-        if (desde) parametros.set("desde", desde);
-        if (hasta) parametros.set("hasta", hasta);
-        const consulta = parametros.toString();
+  // Carga los reportes tecnicos (totales, desperdicio y sobrantes). Se
+  // recargan cuando cambia el filtro de fechas (semana, mes o rango
+  // personalizado) y tambien tras actualizar o borrar sobrantes.
+  const cargarReportes = async () => {
+    try {
+      const parametros = new URLSearchParams();
+      if (desde) parametros.set("desde", desde);
+      if (hasta) parametros.set("hasta", hasta);
+      const consulta = parametros.toString();
 
-        const [respTotales, respReporte, respSobrantes] = await Promise.all([
-          fetch(`${API_URL}/api/reservas/totales?${consulta}`),
-          fetch(`${API_URL}/api/reservas/reporte?${consulta}`),
-          fetch(`${API_URL}/api/sobrantes?${consulta}`, { headers: cabeceras(false) }),
-        ]);
-        if (!respTotales.ok || !respReporte.ok || !respSobrantes.ok) {
-          throw new Error("No se pudieron cargar los reportes");
-        }
-        setTotales(await respTotales.json());
-        setReporte(await respReporte.json());
-        setSobrantesReporte(await respSobrantes.json());
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Error desconocido");
+      const [respTotales, respReporte, respSobrantes] = await Promise.all([
+        fetch(`${API_URL}/api/reservas/totales?${consulta}`),
+        fetch(`${API_URL}/api/reservas/reporte?${consulta}`),
+        fetch(`${API_URL}/api/sobrantes?${consulta}`, { headers: cabeceras(false) }),
+      ]);
+      if (!respTotales.ok || !respReporte.ok || !respSobrantes.ok) {
+        throw new Error("No se pudieron cargar los reportes");
       }
-    };
+      setTotales(await respTotales.json());
+      setReporte(await respReporte.json());
+      setSobrantesReporte(await respSobrantes.json());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error desconocido");
+    }
+  };
+
+  useEffect(() => {
     if (autenticado) cargarReportes();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autenticado, desde, hasta]);
@@ -731,6 +744,104 @@ function Admin() {
           ? 1
           : -1
     );
+  };
+
+  // Abre el formulario para corregir los sobrantes de una sede en una
+  // fecha: rellena las jornadas con los valores ya guardados.
+  const abrirEdicionSobrantes = (fecha: string, sede: string) => {
+    const jornadas: Record<string, { porciones: string; peso_kg: string }> = {};
+    for (const s of sobrantesReporte) {
+      if (s.fecha === fecha && s.sede === sede) {
+        jornadas[s.turno] = {
+          porciones: s.porciones?.toString() ?? "",
+          peso_kg: s.peso_kg?.toString() ?? "",
+        };
+      }
+    }
+    setEditandoSobrantes({ fecha, sede, jornadas });
+    setSobrantesReporteMensaje(null);
+  };
+
+  // Cambia un campo (porciones o peso) de una jornada del formulario de
+  // edicion del reporte.
+  const cambiarSobranteReporte = (
+    turno: string,
+    campo: "porciones" | "peso_kg",
+    valor: string
+  ) => {
+    setEditandoSobrantes((prev) => {
+      if (!prev) return prev;
+      const actual = prev.jornadas[turno] || { porciones: "", peso_kg: "" };
+      return {
+        ...prev,
+        jornadas: {
+          ...prev.jornadas,
+          [turno]: { ...actual, [campo]: valor },
+        },
+      };
+    });
+  };
+
+  // Guarda los cambios de las jornadas editadas (upsert por sede+jornada)
+  const guardarSobrantesEditados = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editandoSobrantes) return;
+    setSobrantesReporteMensaje(null);
+    try {
+      for (const turno of TURNOS_SOBRANTES) {
+        const datos = editandoSobrantes.jornadas[turno];
+        if (!datos) continue;
+        const respuesta = await fetch(`${API_URL}/api/sobrantes`, {
+          method: "POST",
+          headers: cabeceras(true),
+          body: JSON.stringify({
+            fecha: editandoSobrantes.fecha,
+            sede: editandoSobrantes.sede,
+            turno,
+            porciones: datos.porciones,
+            peso_kg: datos.peso_kg,
+          }),
+        });
+        if (!respuesta.ok) {
+          throw new Error("No se pudieron guardar los cambios");
+        }
+      }
+      setEditandoSobrantes(null);
+      setSobrantesReporteMensaje({
+        tipo: "exito",
+        texto: "Sobrantes actualizados correctamente.",
+      });
+      cargarReportes();
+    } catch (err) {
+      setSobrantesReporteMensaje({
+        tipo: "error",
+        texto: err instanceof Error ? err.message : "Error al guardar",
+      });
+    }
+  };
+
+  // Borra todos los sobrantes de una sede en una fecha (las dos jornadas)
+  const borrarSobrantes = async (fecha: string, sede: string) => {
+    if (!window.confirm(`¿Borrar los sobrantes del ${fechaCorta(fecha)} de ${sede}?`)) return;
+    setSobrantesReporteMensaje(null);
+    try {
+      const respuesta = await fetch(
+        `${API_URL}/api/sobrantes?fecha=${encodeURIComponent(fecha)}&sede=${encodeURIComponent(sede)}`,
+        { method: "DELETE", headers: cabeceras(false) }
+      );
+      if (!respuesta.ok) throw new Error("No se pudieron borrar los sobrantes");
+      setEditandoSobrantes(null);
+      setSobrantesReporteMensaje({
+        tipo: "exito",
+        texto: "Sobrantes eliminados correctamente.",
+      });
+      cargarReportes();
+    } catch (err) {
+      setSobrantesReporteMensaje({
+        tipo: "error",
+        texto: err instanceof Error ? err.message : "Error al borrar",
+      });
+    }
   };
 
   // Descarga un Excel con el resumen de reservas por fecha y el reporte
@@ -1701,6 +1812,13 @@ function Admin() {
             elegido, con el total de porciones y kilos por cada sede y fecha.
           </p>
 
+          {sobrantesReporteMensaje && (
+            <p className={`estado ${sobrantesReporteMensaje.tipo === "exito" ? "" : "error"}`}>
+              {sobrantesReporteMensaje.tipo === "exito" ? "✅ " : "⚠️ "}
+              {sobrantesReporteMensaje.texto}
+            </p>
+          )}
+
           {sobrantesReporte.length === 0 ? (
             <p className="estado">No hay sobrantes registrados en el período seleccionado.</p>
           ) : (
@@ -1735,6 +1853,7 @@ function Admin() {
                       <th>Jornadas</th>
                       <th>Porciones</th>
                       <th>Peso (kg)</th>
+                      {(rol === "admin" || rol === "cocina") && <th>Acciones</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -1745,12 +1864,86 @@ function Admin() {
                         <td>{fila.jornadas.join(", ")}</td>
                         <td>{fila.porciones}</td>
                         <td>{fila.peso_kg}</td>
+                        {(rol === "admin" || rol === "cocina") && (
+                          <td className="sobrante-acciones">
+                            <button
+                              type="button"
+                              className="boton boton-secundario"
+                              onClick={() => abrirEdicionSobrantes(fila.fecha, fila.sede)}
+                            >
+                              ✏️ Editar
+                            </button>
+                            <button
+                              type="button"
+                              className="boton boton-peligro"
+                              onClick={() => borrarSobrantes(fila.fecha, fila.sede)}
+                            >
+                              🗑️ Borrar
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             </>
+          )}
+
+          {/* Formulario para corregir los sobrantes de una sede en una fecha */}
+          {editandoSobrantes && (
+            <form className="formulario" onSubmit={guardarSobrantesEditados}>
+              <h3 className="admin-subtitulo">
+                Editar sobrantes · {fechaCorta(editandoSobrantes.fecha)} ·{" "}
+                {editandoSobrantes.sede}
+              </h3>
+              {TURNOS_SOBRANTES.map((turno) => {
+                const valores = editandoSobrantes.jornadas[turno] || {
+                  porciones: "",
+                  peso_kg: "",
+                };
+                return (
+                  <div key={turno} className="sobrante-fila">
+                    <span className="sobrante-turno">{turno}</span>
+                    <label>
+                      Porciones
+                      <input
+                        type="number"
+                        min="0"
+                        value={valores.porciones}
+                        onChange={(e) =>
+                          cambiarSobranteReporte(turno, "porciones", e.target.value)
+                        }
+                      />
+                    </label>
+                    <label>
+                      Peso (kg)
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        value={valores.peso_kg}
+                        onChange={(e) =>
+                          cambiarSobranteReporte(turno, "peso_kg", e.target.value)
+                        }
+                      />
+                    </label>
+                  </div>
+                );
+              })}
+              <div className="sobrante-acciones">
+                <button type="submit" className="boton boton-primario">
+                  Guardar cambios
+                </button>
+                <button
+                  type="button"
+                  className="boton boton-secundario"
+                  onClick={() => setEditandoSobrantes(null)}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
           )}
 
           {/* Vista previa del documento que se exporta */}
