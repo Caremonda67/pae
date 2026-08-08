@@ -45,8 +45,7 @@ Proyecto final de la **Ruta Avanzada** (Frontend + Backend + IA).
 │       ├── config/        # Conexión a Supabase
 │       └── routes/        # reservas, menus, contacto, chat
 ├── .github/workflows/     # Despliegue automático a GitHub Pages
-├── render.yaml            # Configuración del despliegue en Render
-└── EQUIPO.md              # Guía de tareas del equipo
+└── render.yaml            # Configuración del despliegue en Render
 ```
 
 ## 🚀 Cómo correrlo en local
@@ -80,25 +79,25 @@ El bot usa la API de Google Gemini. La clave vive en `backend/.env` (`GEMINI_API
 
 Por defecto: `pae2026` 
 
-## 🧑‍🤝‍🧑 Equipo
+## 👥 Equipo
 
-Proyecto desarrollado en pareja como proyecto final de la Ruta Avanzada.
+Proyecto final de la Ruta Avanzada, hecho por Luis y Mariana.
 
-| Integrante | Usuario GitHub | Correo |
-|---|---|---|
-| A | `Caremonda67` | `3167373525luis@gmail.com` |
-| B | `marianasalinasmss-stack` | `marianasalinasmss@gmail.com` |
+| Usuario GitHub | Correo |
+|---|---|
+| `Caremonda67` | `3167373525luis@gmail.com` |
+| `marianasalinasmss-stack` | `marianasalinasmss@gmail.com` |
 
-### Identidad Git por integrante
+### Identidad de Git
 
-Cada integrante configura su identidad en la PC donde vaya a programar:
+Cada uno usa su cuenta en la PC donde programa:
 
 ```bash
-# En la PC del integrante A
+# Luis
 git config user.name "Caremonda67"
 git config user.email "3167373525luis@gmail.com"
 
-# En la PC del integrante B
+# Mariana
 git config user.name "marianasalinasmss-stack"
 git config user.email "marianasalinasmss@gmail.com"
 ```
