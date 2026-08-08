@@ -1908,6 +1908,11 @@ h1 {
   font-weight: 700;
 }
 
+/* Fila de la tabla de asistencia cuando el estudiante asistio */
+.fila-asistio td {
+  background-color: #eaf7ef;
+}
+
 /* ============================================================
    Impresion: al guardar en PDF solo se ve la tabla diaria
    ============================================================ */
