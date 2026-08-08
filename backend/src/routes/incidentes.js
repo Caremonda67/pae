@@ -51,19 +51,28 @@ router.get("/estudiantes", requiereRol("profesor"), async (req, res) => {
     });
   }
 
+  // Un estudiante con turno "Ambas jornadas" pertenece al grupo del
+  // profesor en cualquier jornada; si el profesor cubre ambas jornadas,
+  // ve a todos los beneficiarios de su sede y grado.
   const { data, error } = await getSupabase()
     .from("beneficiarios")
     .select("documento, nombre, sede, turno, grado")
     .eq("sede", cuenta.sede)
-    .eq("turno", cuenta.turno)
     .eq("grado", cuenta.grado)
     .order("nombre", { ascending: true });
 
   if (error) return res.status(500).json({ error: error.message });
 
+  const estudiantes = (data || []).filter(
+    (b) =>
+      cuenta.turno === "Ambas jornadas" ||
+      b.turno === cuenta.turno ||
+      b.turno === "Ambas jornadas"
+  );
+
   res.json({
     grupo: { sede: cuenta.sede, turno: cuenta.turno, grado: cuenta.grado },
-    estudiantes: data,
+    estudiantes,
   });
 });
 

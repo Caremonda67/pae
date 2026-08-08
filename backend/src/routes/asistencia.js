@@ -56,13 +56,18 @@ router.get("/grupo", requiereRol("profesor"), async (req, res) => {
     return res.status(400).json({ error: "Fecha no válida" });
   }
 
-  const { data, error } = await getSupabase()
+  // Las reservas guardan siempre una jornada puntual, así que si el
+  // profesor cubre "Ambas jornadas" no filtramos por turno.
+  let query = getSupabase()
     .from("reservas")
     .select("id, estudiante, documento, grado, turno, asistio")
     .eq("fecha", fecha)
     .eq("sede", cuenta.sede)
-    .eq("turno", cuenta.turno)
-    .eq("grado", cuenta.grado)
+    .eq("grado", cuenta.grado);
+  if (cuenta.turno !== "Ambas jornadas") {
+    query = query.eq("turno", cuenta.turno);
+  }
+  const { data, error } = await query
     .order("grado", { ascending: true })
     .order("estudiante", { ascending: true });
 
@@ -109,9 +114,14 @@ router.put("/:id", requiereRol("profesor"), async (req, res) => {
   if (errReserva) return res.status(500).json({ error: errReserva.message });
   if (!reserva) return res.status(404).json({ error: "Reserva no encontrada" });
 
+  // El profesor con "Ambas jornadas" puede marcar reservas de cualquier
+  // turno de su sede y grado.
+  const turnoCoincide =
+    cuenta.turno === "Ambas jornadas" || reserva.turno === cuenta.turno;
+
   if (
     reserva.sede !== cuenta.sede ||
-    reserva.turno !== cuenta.turno ||
+    !turnoCoincide ||
     reserva.grado !== cuenta.grado
   ) {
     return res.status(403).json({ error: "Esa reserva no es de tu grupo" });

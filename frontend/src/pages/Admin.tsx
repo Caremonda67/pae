@@ -346,6 +346,7 @@ function Admin() {
     { documento: string; nombre: string; grado?: string }[]
   >([]);
   const [incidenteDoc, setIncidenteDoc] = useState("");
+  const [incidenteBusqueda, setIncidenteBusqueda] = useState("");
   const [incidenteTipo, setIncidenteTipo] = useState("Incidente");
   const [incidenteDescripcion, setIncidenteDescripcion] = useState("");
   const [incidenteFecha, setIncidenteFecha] = useState(() => hoyLocal());
@@ -779,11 +780,12 @@ function Admin() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autenticado, pestana]);
 
-  // Al abrir la pestana Asistencia, cargamos el grupo del profesor y
-  // sus reservados del dia (con la fecha que este elegida).
+  // Al abrir la pestana Asistencia cargamos el grupo del profesor y sus
+  // reservados del dia. Al volver de otra pestana no se vuelve a recargar
+  // (se conservan las marcas ya hechas); para refrescar se usa "Ver grupo".
   useEffect(() => {
     if (!autenticado || pestana !== "asistencia") return;
-    cargarAsistencia(asistenciaFecha);
+    if (asistenciaGrupo === null) cargarAsistencia(asistenciaFecha);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autenticado, pestana]);
 
@@ -2772,6 +2774,15 @@ function Admin() {
                   </label>
                 </div>
                 <label>
+                  Buscar estudiante
+                  <input
+                    type="text"
+                    value={incidenteBusqueda}
+                    onChange={(e) => setIncidenteBusqueda(e.target.value)}
+                    placeholder="Filtra por nombre o documento…"
+                  />
+                </label>
+                <label>
                   Estudiante
                   <select
                     value={incidenteDoc}
@@ -2779,11 +2790,20 @@ function Admin() {
                     required
                   >
                     <option value="">Elige un estudiante de tu grupo</option>
-                    {incidenteEstudiantes.map((est) => (
-                      <option key={est.documento} value={est.documento}>
-                        {est.nombre} {est.grado ? `· Grado ${est.grado}` : ""}
-                      </option>
-                    ))}
+                    {incidenteEstudiantes
+                      .filter(
+                        (est) =>
+                          !incidenteBusqueda.trim() ||
+                          est.nombre
+                            .toLowerCase()
+                            .includes(incidenteBusqueda.trim().toLowerCase()) ||
+                          est.documento.includes(incidenteBusqueda.trim())
+                      )
+                      .map((est) => (
+                        <option key={est.documento} value={est.documento}>
+                          {est.nombre} {est.grado ? `· Grado ${est.grado}` : ""}
+                        </option>
+                      ))}
                   </select>
                 </label>
                 <label>
@@ -2923,6 +2943,15 @@ function Admin() {
                 </label>
               </div>
               <label>
+                Buscar estudiante
+                <input
+                  type="text"
+                  value={incidenteBusqueda}
+                  onChange={(e) => setIncidenteBusqueda(e.target.value)}
+                  placeholder="Filtra por nombre o documento…"
+                />
+              </label>
+              <label>
                 Estudiante
                 <select
                   value={editIncidenteDoc}
@@ -2930,11 +2959,21 @@ function Admin() {
                   required
                 >
                   <option value="">Elige un estudiante de tu grupo</option>
-                  {incidenteEstudiantes.map((est) => (
-                    <option key={est.documento} value={est.documento}>
-                      {est.nombre} {est.grado ? `· Grado ${est.grado}` : ""}
-                    </option>
-                  ))}
+                  {incidenteEstudiantes
+                    .filter(
+                      (est) =>
+                        est.documento === editIncidenteDoc ||
+                        !incidenteBusqueda.trim() ||
+                        est.nombre
+                          .toLowerCase()
+                          .includes(incidenteBusqueda.trim().toLowerCase()) ||
+                        est.documento.includes(incidenteBusqueda.trim())
+                    )
+                    .map((est) => (
+                      <option key={est.documento} value={est.documento}>
+                        {est.nombre} {est.grado ? `· Grado ${est.grado}` : ""}
+                      </option>
+                    ))}
                 </select>
               </label>
               <label>
@@ -3903,6 +3942,7 @@ function Admin() {
                   >
                     <option>Almuerzo</option>
                     <option>Refrigerio</option>
+                    <option>Ambas jornadas</option>
                   </select>
                 </label>
                 <label htmlFor="grado-usu">
@@ -4052,6 +4092,7 @@ function Admin() {
                           <select value={editTurno} onChange={(e) => setEditTurno(e.target.value)}>
                             <option>Almuerzo</option>
                             <option>Refrigerio</option>
+                            <option>Ambas jornadas</option>
                           </select>
                         </label>
                         <label>
