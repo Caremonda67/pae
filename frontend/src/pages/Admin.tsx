@@ -637,9 +637,10 @@ function Admin() {
     }
   };
 
-  // Carga el panel cada vez que cambia la fecha o al entrar
+  // Carga el panel cada vez que cambia la fecha o al entrar. El panel de
+  // cocina (minutas por jornada/sede) es solo para admin y cocina.
   useEffect(() => {
-    if (autenticado) cargarPanel(fechaPanel);
+    if (autenticado && (rol === "admin" || rol === "cocina")) cargarPanel(fechaPanel);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autenticado, fechaPanel]);
 
@@ -670,8 +671,10 @@ function Admin() {
     }
   };
 
+  // Carga los sobrantes del panel de cocina (solo admin y cocina pueden
+  // leerlos) cada vez que cambia la fecha o al entrar.
   useEffect(() => {
-    if (autenticado) cargarSobrantes(fechaPanel);
+    if (autenticado && (rol === "admin" || rol === "cocina")) cargarSobrantes(fechaPanel);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autenticado, fechaPanel]);
 
@@ -760,7 +763,9 @@ function Admin() {
   };
 
   useEffect(() => {
-    if (autenticado) cargarReportes();
+    // Solo admin y cocina ven los reportes tecnicos (sobrantes incluidos);
+    // los demás roles no tienen permiso para leer /api/sobrantes.
+    if (autenticado && (rol === "admin" || rol === "cocina")) cargarReportes();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autenticado, desde, hasta]);
 

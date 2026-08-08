@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import InstalarApp from "./InstalarApp";
-import { leerSesion, ROLES_LABEL } from "../config/sesion";
+import { leerSesion, suscribirseASesion, ROLES_LABEL } from "../config/sesion";
 
 function Sidebar() {
   // abierto controla el menu en pantallas moviles
@@ -13,6 +13,9 @@ function Sidebar() {
   const [esMovil, setEsMovil] = useState(
     () => typeof window !== "undefined" && window.matchMedia("(max-width: 900px)").matches
   );
+  // La sesion se guarda en un estado para que el boton del panel cambie
+  // al instante cuando se entra o se sale (login/logout en cualquier rol)
+  const [sesion, setSesion] = useState(() => leerSesion());
 
   // Escucha los cambios de tamaño de pantalla para saber si es movil
   useEffect(() => {
@@ -22,12 +25,14 @@ function Sidebar() {
     return () => consulta.removeEventListener("change", alCambiar);
   }, []);
 
+  // Se actualiza cuando la sesion cambia (misma pestana u otras abiertas)
+  useEffect(() => suscribirseASesion(() => setSesion(leerSesion())), []);
+
   const cerrar = () => setAbierto(false);
   const toggle = () => setAbierto((a) => !a);
 
   // Si hay una sesión activa (admin, cocina, etc.) mostramos el
   // enlace al panel con el nombre del rol en lugar de "Administrador"
-  const sesion = leerSesion();
   const etiquetaPanel = sesion
     ? `⚙️ ${ROLES_LABEL[sesion.rol] || sesion.rol}`
     : "⚙️ Administrador";

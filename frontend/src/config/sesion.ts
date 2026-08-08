@@ -15,6 +15,11 @@ export interface Sesion {
 
 const SESION_KEY = "pae_sesion";
 
+// Nombre del evento que se dispara cuando la sesion cambia (entrar o
+// salir). La sidebar lo escucha para actualizar su boton al instante,
+// sin necesidad de recargar la pagina.
+const EVENTO_SESION = "pae_sesion_cambio";
+
 export const ROLES_LABEL: Record<string, string> = {
   admin: "Administrador",
   cocina: "Cocina",
@@ -22,6 +27,25 @@ export const ROLES_LABEL: Record<string, string> = {
   coordinador: "Coordinador",
   estudiante: "Estudiante",
 };
+
+// Avisa a los componentes que escuchan (misma pestana y otras pestanas
+// abiertas) que la sesion guardada cambio.
+function notificarCambioSesion() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(EVENTO_SESION));
+}
+
+// Se suscribe a los cambios de sesion. Devuelve una funcion para dejar
+// de escuchar. También reacciona a los cambios de otras pestanas.
+export function suscribirseASesion(alCambiar: () => void): () => void {
+  const escuchar = () => alCambiar();
+  window.addEventListener(EVENTO_SESION, escuchar);
+  window.addEventListener("storage", escuchar);
+  return () => {
+    window.removeEventListener(EVENTO_SESION, escuchar);
+    window.removeEventListener("storage", escuchar);
+  };
+}
 
 // Lee la sesion guardada (o null si no hay sesion valida)
 export function leerSesion(): Sesion | null {
@@ -39,11 +63,13 @@ export function leerSesion(): Sesion | null {
 // Guarda la sesion tras un login correcto
 export function guardarSesion(sesion: Sesion) {
   localStorage.setItem(SESION_KEY, JSON.stringify(sesion));
+  notificarCambioSesion();
 }
 
 // Cierra la sesion (borra todo lo guardado)
 export function cerrarSesion() {
   localStorage.removeItem(SESION_KEY);
+  notificarCambioSesion();
 }
 
 // Cabeceras con el token para llamar a las rutas protegidas
