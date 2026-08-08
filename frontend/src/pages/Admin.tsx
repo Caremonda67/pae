@@ -346,7 +346,6 @@ function Admin() {
     { documento: string; nombre: string; grado?: string }[]
   >([]);
   const [incidenteDoc, setIncidenteDoc] = useState("");
-  const [incidenteBusqueda, setIncidenteBusqueda] = useState("");
   const [incidenteTipo, setIncidenteTipo] = useState("Incidente");
   const [incidenteDescripcion, setIncidenteDescripcion] = useState("");
   const [incidenteFecha, setIncidenteFecha] = useState(() => hoyLocal());
@@ -934,6 +933,10 @@ function Admin() {
     e.preventDefault();
     setIncidenteError("");
     setIncidenteExito("");
+    if (!incidenteDoc) {
+      setIncidenteError("Elige al estudiante de tu grupo.");
+      return;
+    }
     setIncidenteEnviando(true);
     try {
       const respuesta = await fetch(`${API_URL}/api/incidentes`, {
@@ -1023,6 +1026,10 @@ function Admin() {
     if (!editandoIncidente) return;
     setIncidenteError("");
     setIncidenteExito("");
+    if (!editIncidenteDoc) {
+      setIncidenteError("Elige al estudiante de tu grupo.");
+      return;
+    }
     setEditIncidenteEnviando(true);
     try {
       const respuesta = await fetch(`${API_URL}/api/incidentes/${editandoIncidente.id}`, {
@@ -2774,37 +2781,13 @@ function Admin() {
                   </label>
                 </div>
                 <label>
-                  Buscar estudiante
-                  <input
-                    type="text"
-                    value={incidenteBusqueda}
-                    onChange={(e) => setIncidenteBusqueda(e.target.value)}
-                    placeholder="Filtra por nombre o documento…"
-                  />
-                </label>
-                <label>
                   Estudiante
-                  <select
+                  <ComboEstudiante
+                    estudiantes={incidenteEstudiantes}
                     value={incidenteDoc}
-                    onChange={(e) => setIncidenteDoc(e.target.value)}
-                    required
-                  >
-                    <option value="">Elige un estudiante de tu grupo</option>
-                    {incidenteEstudiantes
-                      .filter(
-                        (est) =>
-                          !incidenteBusqueda.trim() ||
-                          est.nombre
-                            .toLowerCase()
-                            .includes(incidenteBusqueda.trim().toLowerCase()) ||
-                          est.documento.includes(incidenteBusqueda.trim())
-                      )
-                      .map((est) => (
-                        <option key={est.documento} value={est.documento}>
-                          {est.nombre} {est.grado ? `· Grado ${est.grado}` : ""}
-                        </option>
-                      ))}
-                  </select>
+                    onChange={setIncidenteDoc}
+                    placeholder="Escribe el nombre del estudiante…"
+                  />
                 </label>
                 <label>
                   Descripción
@@ -2943,38 +2926,13 @@ function Admin() {
                 </label>
               </div>
               <label>
-                Buscar estudiante
-                <input
-                  type="text"
-                  value={incidenteBusqueda}
-                  onChange={(e) => setIncidenteBusqueda(e.target.value)}
-                  placeholder="Filtra por nombre o documento…"
-                />
-              </label>
-              <label>
                 Estudiante
-                <select
+                <ComboEstudiante
+                  estudiantes={incidenteEstudiantes}
                   value={editIncidenteDoc}
-                  onChange={(e) => setEditIncidenteDoc(e.target.value)}
-                  required
-                >
-                  <option value="">Elige un estudiante de tu grupo</option>
-                  {incidenteEstudiantes
-                    .filter(
-                      (est) =>
-                        est.documento === editIncidenteDoc ||
-                        !incidenteBusqueda.trim() ||
-                        est.nombre
-                          .toLowerCase()
-                          .includes(incidenteBusqueda.trim().toLowerCase()) ||
-                        est.documento.includes(incidenteBusqueda.trim())
-                    )
-                    .map((est) => (
-                      <option key={est.documento} value={est.documento}>
-                        {est.nombre} {est.grado ? `· Grado ${est.grado}` : ""}
-                      </option>
-                    ))}
-                </select>
+                  onChange={setEditIncidenteDoc}
+                  placeholder="Escribe el nombre del estudiante…"
+                />
               </label>
               <label>
                 Descripción
@@ -4128,6 +4086,90 @@ function Admin() {
         </div>
       )}
     </section>
+  );
+}
+
+// Combo para elegir un estudiante del grupo: se escribe y filtra la lista
+// al instante, sin tener que recorrer el select de opciones largas.
+interface ComboEstudianteProps {
+  estudiantes: { documento: string; nombre: string; grado?: string }[];
+  value: string;
+  onChange: (doc: string) => void;
+  placeholder?: string;
+}
+
+function ComboEstudiante({
+  estudiantes,
+  value,
+  onChange,
+  placeholder = "Escribe el nombre del estudiante…",
+}: ComboEstudianteProps) {
+  const [texto, setTexto] = useState("");
+  const [abierto, setAbierto] = useState(false);
+
+  // Cuando el valor elegido cambia desde fuera (nuevo reporte, edición,
+  // borrado) el campo muestra el nombre del estudiante seleccionado.
+  const seleccionado = estudiantes.find((e) => e.documento === value);
+  useEffect(() => {
+    if (seleccionado) setTexto(seleccionado.nombre);
+    else if (value === "") setTexto("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, seleccionado?.documento]);
+
+  const filtrados = estudiantes.filter(
+    (e) =>
+      !texto.trim() ||
+      e.nombre.toLowerCase().includes(texto.trim().toLowerCase()) ||
+      e.documento.includes(texto.trim())
+  );
+
+  return (
+    <div className="combo-estudiante">
+      <input
+        type="text"
+        value={texto}
+        placeholder={placeholder}
+        onChange={(e) => {
+          setTexto(e.target.value);
+          setAbierto(true);
+          if (value) onChange("");
+        }}
+        onFocus={() => setAbierto(true)}
+        onBlur={() => setTimeout(() => setAbierto(false), 150)}
+        aria-label="Escribe para filtrar estudiantes"
+        autoComplete="off"
+      />
+      {abierto && (
+        <ul className="combo-lista" role="listbox">
+          {filtrados.length === 0 ? (
+            <li className="combo-vacio">No se encontraron estudiantes</li>
+          ) : (
+            filtrados.map((e) => (
+              <li key={e.documento}>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={e.documento === value}
+                  className={e.documento === value ? "combo-seleccionado" : undefined}
+                  onMouseDown={(ev) => {
+                    ev.preventDefault();
+                    onChange(e.documento);
+                    setTexto(e.nombre);
+                    setAbierto(false);
+                  }}
+                >
+                  <span>
+                    {e.nombre}
+                    {e.grado ? ` · Grado ${e.grado}` : ""}
+                  </span>
+                  <small>Doc {e.documento}</small>
+                </button>
+              </li>
+            ))
+          )}
+        </ul>
+      )}
+    </div>
   );
 }
 

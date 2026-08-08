@@ -3089,3 +3089,66 @@ img {
     text-align: center;
   }
 }
+
+/* Combo para elegir un estudiante del grupo (filtra al escribir) */
+.combo-estudiante {
+  position: relative;
+  width: 100%;
+}
+
+.combo-estudiante input {
+  width: 100%;
+}
+
+.combo-lista {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--blanco);
+  border: 1px solid var(--verde-claro);
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.combo-lista button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--texto);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.combo-lista button:hover {
+  background: var(--verde-suave);
+}
+
+.combo-lista .combo-seleccionado {
+  background: var(--verde-claro);
+}
+
+.combo-lista small {
+  color: var(--texto-suave);
+  white-space: nowrap;
+}
+
+.combo-vacio {
+  padding: 10px;
+  color: var(--texto-suave);
+  text-align: center;
+}
+
