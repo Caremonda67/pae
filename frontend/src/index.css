@@ -1913,6 +1913,49 @@ h1 {
   background-color: #eaf7ef;
 }
 
+/* Fila de un reporte de incidente ya resuelto */
+.fila-resuelto td {
+  opacity: 0.65;
+}
+
+/* Etiqueta del estado de un reporte de incidente */
+.incidente-estado {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.incidente-estado.pendiente {
+  background-color: #fdf0d8;
+  color: #b45309;
+}
+
+.incidente-estado.resuelto {
+  background-color: #eaf7ef;
+  color: #166534;
+}
+
+/* Etiqueta del tipo de reporte (Incidente o Alergia) */
+.chip {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.chip-incidente {
+  background-color: #fee2e2;
+  color: #b91c1c;
+}
+
+.chip-alergia {
+  background-color: #fde9d2;
+  color: #c2410c;
+}
+
 /* ============================================================
    Impresion: al guardar en PDF solo se ve la tabla diaria
    ============================================================ */

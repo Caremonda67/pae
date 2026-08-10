@@ -18,7 +18,7 @@ seccion de abajo para decisiones pendientes.
       por sede + menu del dia, con selector de fecha. Reemplazo el panel
       viejo (reporte de desperdicio, plan 7 dias, lista con asistencia).
 
-## Profesor (hoy: beneficiarios + avisos)
+## Profesor (hoy: asistencia, incidentes, beneficiarios + avisos)
 
 - [x] Asistencia de su grupo: cada profesor tiene un grupo asignado
       (sede + turno + grado, lo configura el admin al crear/editar la
@@ -28,8 +28,12 @@ seccion de abajo para decisiones pendientes.
       contador de asistidos. Rutas `/api/asistencia` (solo rol profesor;
       las marcas se guardan en `reservas.asistio`). Requiere correr la
       migracion de columnas sede/turno/grado en `usuarios` (setup.sql).
-- [ ] Incidentes / alergias: reportar un incidente o alergia de un
-      estudiante, llega al coordinador (hay tabla `notificaciones`).
+- [x] Incidentes / alergias: el profesor reporta un incidente o alergia de
+      un estudiante de su grupo (elige al estudiante de una lista; rutas
+      `/api/incidentes`). El reporte llega al coordinador (y al admin),
+      que lo ve en su pestana "Incidentes" con filtro por estado y lo
+      marca como resuelto. Tabla nueva `incidentes` (setup.sql), el
+      profesor solo ve los que el mismo registró.
 - [ ] Ver el menu de la semana de su sede (la data ya existe).
 
 ## Coordinador (hoy: avisos, galeria, instituciones, colaboradores,

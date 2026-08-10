@@ -102,6 +102,23 @@ interface ReservaAsistencia {
   asistio: boolean;
 }
 
+// un reporte de incidente o alergia de un estudiante (ruta /api/incidentes)
+interface Incidente {
+  id: number;
+  tipo: string;
+  estudiante: string;
+  documento?: string | null;
+  sede: string;
+  grado?: string | null;
+  descripcion: string;
+  fecha: string;
+  reportado_por: string;
+  resuelto: boolean;
+  resuelto_por?: string | null;
+  resuelto_at?: string | null;
+  created_at: string;
+}
+
 // dia de la semana con su lista de platos
 interface MenuDia {
   dia: string;
@@ -189,6 +206,7 @@ type Pestana =
   | "panel"
   | "beneficiarios"
   | "asistencia"
+  | "incidentes"
   | "menu"
   | "avisos"
   | "galeria"
@@ -203,6 +221,12 @@ type Pestana =
 function hoyLocal() {
   const ahora = new Date();
   return `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, "0")}-${String(ahora.getDate()).padStart(2, "0")}`;
+}
+
+// Fecha YYYY-MM-DD -> "12/08/2026" (sin desfase de zona horaria)
+function fechaCortaDia(fecha: string) {
+  const [año, mes, dia] = fecha.split("-");
+  return `${dia}/${mes}/${año}`;
 }
 
 // Convierte un archivo de imagen a base64 para mandarlo en el JSON
@@ -309,6 +333,23 @@ function Admin() {
   const [asistenciaCargando, setAsistenciaCargando] = useState(false);
   const [asistenciaError, setAsistenciaError] = useState("");
   const [asistenciaExito, setAsistenciaExito] = useState("");
+
+  // incidentes / alergias: reportes del profesor que ve el coordinador
+  const [incidentes, setIncidentes] = useState<Incidente[]>([]);
+  const [incidentesFiltro, setIncidentesFiltro] = useState<"todos" | "pendientes" | "resueltos">("todos");
+  const [incidenteCargando, setIncidenteCargando] = useState(false);
+  const [incidenteError, setIncidenteError] = useState("");
+  const [incidenteExito, setIncidenteExito] = useState("");
+  // formulario del profesor: estudiantes de su grupo + datos del reporte
+  const [incidenteEstudiantes, setIncidenteEstudiantes] = useState<
+    { documento: string; nombre: string; grado?: string }[]
+  >([]);
+  const [incidenteDoc, setIncidenteDoc] = useState("");
+  const [incidenteTipo, setIncidenteTipo] = useState("Incidente");
+  const [incidenteDescripcion, setIncidenteDescripcion] = useState("");
+  const [incidenteFecha, setIncidenteFecha] = useState(() => hoyLocal());
+  const [incidenteEnviando, setIncidenteEnviando] = useState(false);
+  const [incidenteResolviendo, setIncidenteResolviendo] = useState<number | null>(null);
 
   // chat de contacto: hilos abiertos, mensajes cargados y borradores.
   // Con el chat el admin puede responder varias veces (no solo una).
@@ -725,6 +766,15 @@ function Admin() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autenticado, pestana]);
 
+  // Al abrir la pestana Incidentes, cargamos los reportes (y, si es
+  // profesor, los estudiantes de su grupo para el formulario).
+  useEffect(() => {
+    if (!autenticado || pestana !== "incidentes") return;
+    cargarIncidentes();
+    if (rol === "profesor") cargarEstudiantesIncidente();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autenticado, pestana]);
+
   // Carga la tabla diaria de cocina para una fecha (protegida)
   const cargarDiaria = async (fecha: string) => {
     setDiariaCargada(false);
@@ -820,6 +870,109 @@ function Admin() {
       setAsistenciaError(err instanceof Error ? err.message : "Error desconocido");
     }
   };
+
+  // Carga los reportes de incidentes. El profesor solo ve los que el
+  // mismo registro; el coordinador y el admin ven todos.
+  const cargarIncidentes = async () => {
+    setIncidenteCargando(true);
+    setIncidenteError("");
+    try {
+      const respuesta = await fetch(`${API_URL}/api/incidentes`, {
+        headers: cabeceras(false),
+      });
+      const datos = await respuesta.json().catch(() => null);
+      if (!respuesta.ok) {
+        throw new Error(datos?.error || "No se pudieron cargar los reportes");
+      }
+      setIncidentes(datos || []);
+    } catch (err) {
+      setIncidenteError(err instanceof Error ? err.message : "Error desconocido");
+    } finally {
+      setIncidenteCargando(false);
+    }
+  };
+
+  // Si es profesor, carga los estudiantes de su grupo para poder
+  // elegirlos en el formulario sin escribirlos a mano.
+  const cargarEstudiantesIncidente = async () => {
+    try {
+      const respuesta = await fetch(`${API_URL}/api/incidentes/estudiantes`, {
+        headers: cabeceras(false),
+      });
+      const datos = await respuesta.json().catch(() => null);
+      if (respuesta.ok) setIncidenteEstudiantes(datos?.estudiantes || []);
+    } catch {
+      setIncidenteEstudiantes([]);
+    }
+  };
+
+  // Registra un reporte de incidente o alergia (llega al coordinador)
+  const reportarIncidente = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIncidenteError("");
+    setIncidenteExito("");
+    setIncidenteEnviando(true);
+    try {
+      const respuesta = await fetch(`${API_URL}/api/incidentes`, {
+        method: "POST",
+        headers: cabeceras(true),
+        body: JSON.stringify({
+          tipo: incidenteTipo,
+          documento: incidenteDoc,
+          descripcion: incidenteDescripcion,
+          fecha: incidenteFecha,
+        }),
+      });
+      const datos = await respuesta.json().catch(() => null);
+      if (!respuesta.ok) {
+        throw new Error(datos?.error || "No se pudo registrar el reporte");
+      }
+      setIncidenteExito(
+        `✅ ${incidenteTipo} de ${datos.estudiante} reportado. El coordinador ya puede verlo.`
+      );
+      setIncidentes((lista) => [datos, ...lista]);
+      setIncidenteDoc("");
+      setIncidenteDescripcion("");
+      setIncidenteTipo("Incidente");
+    } catch (err) {
+      setIncidenteError(err instanceof Error ? err.message : "Error desconocido");
+    } finally {
+      setIncidenteEnviando(false);
+    }
+  };
+
+  // El coordinador (o el admin) marca un reporte como resuelto (o lo reabre)
+  const resolverIncidente = async (id: number, resuelto: boolean) => {
+    setIncidenteError("");
+    setIncidenteExito("");
+    setIncidenteResolviendo(id);
+    try {
+      const respuesta = await fetch(`${API_URL}/api/incidentes/${id}`, {
+        method: "PUT",
+        headers: cabeceras(true),
+        body: JSON.stringify({ resuelto }),
+      });
+      const datos = await respuesta.json().catch(() => null);
+      if (!respuesta.ok) {
+        throw new Error(datos?.error || "No se pudo actualizar el reporte");
+      }
+      setIncidentes((lista) => lista.map((i) => (i.id === id ? datos : i)));
+      setIncidenteExito(resuelto ? "✅ Reporte marcado como resuelto." : "Reporte reabierto.");
+    } catch (err) {
+      setIncidenteError(err instanceof Error ? err.message : "Error desconocido");
+    } finally {
+      setIncidenteResolviendo(null);
+    }
+  };
+
+  // Filtra los reportes segun el estado elegido en la pestana
+  const incidentesVisibles = incidentes.filter((i) =>
+    incidentesFiltro === "todos"
+      ? true
+      : incidentesFiltro === "pendientes"
+        ? !i.resuelto
+        : i.resuelto
+  );
 
   // Agrupa los sobrantes del reporte por fecha y sede: cada sede sale con
   // su propio total de porciones, kilos y jornadas del día. Devuelve las
@@ -1655,11 +1808,13 @@ function Admin() {
     ],
     profesor: [
       { id: "asistencia", etiqueta: "📋 Asistencia" },
+      { id: "incidentes", etiqueta: "🚨 Incidentes" },
       { id: "beneficiarios", etiqueta: "🎓 Beneficiarios" },
       { id: "avisos", etiqueta: "📢 Avisos" },
     ],
     coordinador: [
       { id: "avisos", etiqueta: "📢 Avisos" },
+      { id: "incidentes", etiqueta: "🚨 Incidentes" },
       { id: "galeria", etiqueta: "🖼️ Galería" },
       { id: "instituciones", etiqueta: "🏫 Instituciones" },
       { id: "notificaciones", etiqueta: "🔔 Notificaciones" },
@@ -2455,6 +2610,178 @@ function Admin() {
                 </>
               )}
             </>
+          )}
+        </div>
+      )}
+
+      {!cargando && !error && pestanaActiva === "incidentes" && (
+        <div id="panel-incidentes" role="tabpanel" aria-labelledby="tab-incidentes">
+          <h2 className="admin-subtitulo">
+            {rol === "profesor"
+              ? "Reportar incidente o alergia"
+              : "Incidentes y alergias de estudiantes"}
+          </h2>
+
+          {rol === "profesor" ? (
+            <>
+              <p className="subtitulo">
+                Reporta un incidente o una alergia de un estudiante de tu
+                grupo. El reporte queda visible para el coordinador, que
+                puede marcarlo como resuelto.
+              </p>
+
+              <form className="formulario" onSubmit={reportarIncidente}>
+                <div className="formulario-fila formulario-fila-grid">
+                  <label>
+                    Fecha
+                    <input
+                      type="date"
+                      value={incidenteFecha}
+                      onChange={(e) => setIncidenteFecha(e.target.value)}
+                    />
+                  </label>
+                  <label>
+                    Tipo
+                    <select
+                      value={incidenteTipo}
+                      onChange={(e) => setIncidenteTipo(e.target.value)}
+                    >
+                      <option>Incidente</option>
+                      <option>Alergia</option>
+                    </select>
+                  </label>
+                </div>
+                <label>
+                  Estudiante
+                  <select
+                    value={incidenteDoc}
+                    onChange={(e) => setIncidenteDoc(e.target.value)}
+                    required
+                  >
+                    <option value="">Elige un estudiante de tu grupo</option>
+                    {incidenteEstudiantes.map((est) => (
+                      <option key={est.documento} value={est.documento}>
+                        {est.nombre} {est.grado ? `· Grado ${est.grado}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Descripción
+                  <textarea
+                    value={incidenteDescripcion}
+                    onChange={(e) => setIncidenteDescripcion(e.target.value)}
+                    rows={3}
+                    required
+                    placeholder="Cuenta qué ocurrió…"
+                  />
+                </label>
+                <button
+                  type="submit"
+                  className="boton boton-primario"
+                  disabled={incidenteEnviando}
+                >
+                  {incidenteEnviando ? "Reportando…" : "Reportar"}
+                </button>
+              </form>
+            </>
+          ) : (
+            <>
+              <p className="subtitulo">
+                Reportes que dejan los profesores sobre los estudiantes de
+                su grupo. Márcalos como resueltos cuando estén atendidos.
+              </p>
+
+              <div className="formulario-fila">
+                {(["todos", "pendientes", "resueltos"] as const).map((f) => (
+                  <button
+                    key={f}
+                    type="button"
+                    className={`boton ${
+                      incidentesFiltro === f ? "boton-primario" : "boton-secundario"
+                    }`}
+                    onClick={() => setIncidentesFiltro(f)}
+                  >
+                    {f === "todos" ? "Todos" : f === "pendientes" ? "Pendientes" : "Resueltos"}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {incidenteCargando && <p className="estado">Cargando reportes…</p>}
+          {incidenteError && (
+            <p className="estado error" role="alert">⚠️ {incidenteError}</p>
+          )}
+          {incidenteExito && (
+            <p className="estado exito" aria-live="polite">{incidenteExito}</p>
+          )}
+
+          {!incidenteCargando && !incidenteError && incidentesVisibles.length === 0 ? (
+            <p className="estado">
+              {rol === "profesor"
+                ? "Todavía no has reportado nada."
+                : "No hay reportes en este estado."}
+            </p>
+          ) : (
+            <div className="tabla-cocina">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Tipo</th>
+                    <th>Estudiante</th>
+                    {rol !== "profesor" && <th>Sede</th>}
+                    <th>Descripción</th>
+                    <th>Estado</th>
+                    {rol !== "profesor" && <th>Acción</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {incidentesVisibles.map((inc) => (
+                    <tr key={inc.id} className={inc.resuelto ? "fila-resuelto" : undefined}>
+                      <td>{fechaCortaDia(inc.fecha)}</td>
+                      <td>
+                        <span className={`chip chip-${inc.tipo.toLowerCase()}`}>
+                          {inc.tipo}
+                        </span>
+                      </td>
+                      <td>
+                        {inc.estudiante}
+                        {inc.grado ? ` · Grado ${inc.grado}` : ""}
+                      </td>
+                      {rol !== "profesor" && <td>{inc.sede}</td>}
+                      <td>{inc.descripcion}</td>
+                      <td>
+                        <span
+                          className={`incidente-estado ${
+                            inc.resuelto ? "resuelto" : "pendiente"
+                          }`}
+                        >
+                          {inc.resuelto ? "Resuelto" : "Pendiente"}
+                        </span>
+                      </td>
+                      {rol !== "profesor" && (
+                        <td>
+                          <button
+                            type="button"
+                            className="boton boton-secundario"
+                            onClick={() => resolverIncidente(inc.id, !inc.resuelto)}
+                            disabled={incidenteResolviendo === inc.id}
+                          >
+                            {incidenteResolviendo === inc.id
+                              ? "Guardando…"
+                              : inc.resuelto
+                                ? "Reabrir"
+                                : "Marcar resuelto"}
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )}
