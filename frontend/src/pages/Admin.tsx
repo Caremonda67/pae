@@ -112,6 +112,7 @@ interface Incidente {
   grado?: string | null;
   descripcion: string;
   fecha: string;
+  imagen?: string | null;
   reportado_por: string;
   resuelto: boolean;
   resuelto_por?: string | null;
@@ -348,8 +349,23 @@ function Admin() {
   const [incidenteTipo, setIncidenteTipo] = useState("Incidente");
   const [incidenteDescripcion, setIncidenteDescripcion] = useState("");
   const [incidenteFecha, setIncidenteFecha] = useState(() => hoyLocal());
+  const [incidenteImagen, setIncidenteImagen] = useState("");
+  const [incidenteSubiendoFoto, setIncidenteSubiendoFoto] = useState(false);
   const [incidenteEnviando, setIncidenteEnviando] = useState(false);
   const [incidenteResolviendo, setIncidenteResolviendo] = useState<number | null>(null);
+  // edicion inline de un reporte del profesor
+  const [editandoIncidente, setEditandoIncidente] = useState<Incidente | null>(null);
+  const [editIncidenteTipo, setEditIncidenteTipo] = useState("Incidente");
+  const [editIncidenteDoc, setEditIncidenteDoc] = useState("");
+  const [editIncidenteDescripcion, setEditIncidenteDescripcion] = useState("");
+  const [editIncidenteFecha, setEditIncidenteFecha] = useState(() => hoyLocal());
+  const [editIncidenteImagen, setEditIncidenteImagen] = useState("");
+  const [editIncidenteSubiendoFoto, setEditIncidenteSubiendoFoto] = useState(false);
+  const [editIncidenteEnviando, setEditIncidenteEnviando] = useState(false);
+  // filtros del coordinador: rango de fechas y busqueda por estudiante
+  const [incidentesDesde, setIncidentesDesde] = useState("");
+  const [incidentesHasta, setIncidentesHasta] = useState("");
+  const [incidentesBusqueda, setIncidentesBusqueda] = useState("");
 
   // chat de contacto: hilos abiertos, mensajes cargados y borradores.
   // Con el chat el admin puede responder varias veces (no solo una).
@@ -921,6 +937,7 @@ function Admin() {
           documento: incidenteDoc,
           descripcion: incidenteDescripcion,
           fecha: incidenteFecha,
+          imagen: incidenteImagen || null,
         }),
       });
       const datos = await respuesta.json().catch(() => null);
@@ -934,10 +951,28 @@ function Admin() {
       setIncidenteDoc("");
       setIncidenteDescripcion("");
       setIncidenteTipo("Incidente");
+      setIncidenteImagen("");
     } catch (err) {
       setIncidenteError(err instanceof Error ? err.message : "Error desconocido");
     } finally {
       setIncidenteEnviando(false);
+    }
+  };
+
+  // Sube una foto adjunta de un reporte y guarda su URL en el estado
+  const adjuntarFotoIncidente = async (
+    archivo: File,
+    setter: (url: string) => void,
+    setSubiendo: (b: boolean) => void
+  ) => {
+    setSubiendo(true);
+    try {
+      const url = await subirImagen(archivo, setter);
+      if (!url) throw new Error("No se pudo subir la foto");
+    } catch (err) {
+      setIncidenteError(err instanceof Error ? err.message : "Error al subir la foto");
+    } finally {
+      setSubiendo(false);
     }
   };
 
@@ -965,14 +1000,94 @@ function Admin() {
     }
   };
 
-  // Filtra los reportes segun el estado elegido en la pestana
-  const incidentesVisibles = incidentes.filter((i) =>
-    incidentesFiltro === "todos"
-      ? true
-      : incidentesFiltro === "pendientes"
-        ? !i.resuelto
-        : i.resuelto
-  );
+  // Abre el formulario para editar un reporte propio del profesor
+  const abrirEdicionIncidente = (inc: Incidente) => {
+    setEditandoIncidente(inc);
+    setEditIncidenteTipo(inc.tipo);
+    setEditIncidenteDoc(inc.documento || "");
+    setEditIncidenteDescripcion(inc.descripcion);
+    setEditIncidenteFecha(inc.fecha);
+    setEditIncidenteImagen(inc.imagen || "");
+  };
+
+  // Guarda los cambios de un reporte que el profesor está editando
+  const guardarIncidenteEditado = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editandoIncidente) return;
+    setIncidenteError("");
+    setIncidenteExito("");
+    setEditIncidenteEnviando(true);
+    try {
+      const respuesta = await fetch(`${API_URL}/api/incidentes/${editandoIncidente.id}`, {
+        method: "PUT",
+        headers: cabeceras(true),
+        body: JSON.stringify({
+          tipo: editIncidenteTipo,
+          documento: editIncidenteDoc,
+          descripcion: editIncidenteDescripcion,
+          fecha: editIncidenteFecha,
+          imagen: editIncidenteImagen || null,
+        }),
+      });
+      const datos = await respuesta.json().catch(() => null);
+      if (!respuesta.ok) {
+        throw new Error(datos?.error || "No se pudo guardar el reporte");
+      }
+      setIncidentes((lista) => lista.map((i) => (i.id === editandoIncidente.id ? datos : i)));
+      setEditandoIncidente(null);
+      setIncidenteExito("✅ Reporte actualizado.");
+    } catch (err) {
+      setIncidenteError(err instanceof Error ? err.message : "Error desconocido");
+    } finally {
+      setEditIncidenteEnviando(false);
+    }
+  };
+
+  // Borra un reporte (el profesor solo los suyos; coordinador/admin cualquiera)
+  const borrarIncidente = async (inc: Incidente) => {
+    if (
+      !window.confirm(
+        `¿Borrar el ${inc.tipo.toLowerCase()} de ${inc.estudiante} del ${fechaCortaDia(inc.fecha)}?`
+      )
+    ) {
+      return;
+    }
+    setIncidenteError("");
+    setIncidenteExito("");
+    try {
+      const respuesta = await fetch(`${API_URL}/api/incidentes/${inc.id}`, {
+        method: "DELETE",
+        headers: cabeceras(false),
+      });
+      if (!respuesta.ok) {
+        const datos = await respuesta.json().catch(() => null);
+        throw new Error(datos?.error || "No se pudo borrar el reporte");
+      }
+      setIncidentes((lista) => lista.filter((i) => i.id !== inc.id));
+      setIncidenteExito("🗑️ Reporte borrado.");
+    } catch (err) {
+      setIncidenteError(err instanceof Error ? err.message : "Error desconocido");
+    }
+  };
+
+  // Filtra los reportes segun el estado, el rango de fechas (coordinador)
+  // y la busqueda por estudiante. La fecha se compara como texto YYYY-MM-DD.
+  const incidentesVisibles = incidentes.filter((i) => {
+    const porEstado =
+      incidentesFiltro === "todos"
+        ? true
+        : incidentesFiltro === "pendientes"
+          ? !i.resuelto
+          : i.resuelto;
+    const enRango =
+      (!incidentesDesde || i.fecha >= incidentesDesde) &&
+      (!incidentesHasta || i.fecha <= incidentesHasta);
+    const coincideBusqueda =
+      !incidentesBusqueda.trim() ||
+      i.estudiante.toLowerCase().includes(incidentesBusqueda.trim().toLowerCase()) ||
+      (i.documento || "").toLowerCase().includes(incidentesBusqueda.trim().toLowerCase());
+    return porEstado && enRango && coincideBusqueda;
+  });
 
   // Agrupa los sobrantes del reporte por fecha y sede: cada sede sale con
   // su propio total de porciones, kilos y jornadas del día. Devuelve las
@@ -2626,8 +2741,8 @@ function Admin() {
             <>
               <p className="subtitulo">
                 Reporta un incidente o una alergia de un estudiante de tu
-                grupo. El reporte queda visible para el coordinador, que
-                puede marcarlo como resuelto.
+                grupo (puedes adjuntar una foto). El reporte queda visible
+                para el coordinador, que puede marcarlo como resuelto.
               </p>
 
               <form className="formulario" onSubmit={reportarIncidente}>
@@ -2676,12 +2791,42 @@ function Admin() {
                     placeholder="Cuenta qué ocurrió…"
                   />
                 </label>
+                <label>
+                  Foto adjunta
+                  <input
+                    type="file"
+                    accept="image/*"
+                    disabled={incidenteSubiendoFoto}
+                    onChange={(e) => {
+                      const archivo = e.target.files?.[0];
+                      if (archivo) {
+                        adjuntarFotoIncidente(archivo, setIncidenteImagen, setIncidenteSubiendoFoto);
+                      }
+                    }}
+                  />
+                </label>
+                {incidenteImagen ? (
+                  <div className="incidente-foto">
+                    <img src={incidenteImagen} alt="Foto del reporte" />
+                    <button
+                      type="button"
+                      className="boton boton-secundario"
+                      onClick={() => setIncidenteImagen("")}
+                    >
+                      Quitar foto
+                    </button>
+                  </div>
+                ) : null}
                 <button
                   type="submit"
                   className="boton boton-primario"
-                  disabled={incidenteEnviando}
+                  disabled={incidenteEnviando || incidenteSubiendoFoto}
                 >
-                  {incidenteEnviando ? "Reportando…" : "Reportar"}
+                  {incidenteEnviando
+                    ? "Reportando…"
+                    : incidenteSubiendoFoto
+                      ? "Subiendo foto…"
+                      : "Reportar"}
                 </button>
               </form>
             </>
@@ -2689,7 +2834,8 @@ function Admin() {
             <>
               <p className="subtitulo">
                 Reportes que dejan los profesores sobre los estudiantes de
-                su grupo. Márcalos como resueltos cuando estén atendidos.
+                su grupo. Filtra por estado, rango de fechas o estudiante y
+                márcalos como resueltos cuando estén atendidos.
               </p>
 
               <div className="formulario-fila">
@@ -2706,6 +2852,34 @@ function Admin() {
                   </button>
                 ))}
               </div>
+
+              <div className="formulario-fila formulario-fila-grid">
+                <label>
+                  Desde
+                  <input
+                    type="date"
+                    value={incidentesDesde}
+                    onChange={(e) => setIncidentesDesde(e.target.value)}
+                  />
+                </label>
+                <label>
+                  Hasta
+                  <input
+                    type="date"
+                    value={incidentesHasta}
+                    onChange={(e) => setIncidentesHasta(e.target.value)}
+                  />
+                </label>
+                <label>
+                  Buscar estudiante
+                  <input
+                    type="text"
+                    value={incidentesBusqueda}
+                    onChange={(e) => setIncidentesBusqueda(e.target.value)}
+                    placeholder="Nombre o documento…"
+                  />
+                </label>
+              </div>
             </>
           )}
 
@@ -2717,11 +2891,110 @@ function Admin() {
             <p className="estado exito" aria-live="polite">{incidenteExito}</p>
           )}
 
+          {/* Formulario para corregir un reporte propio del profesor */}
+          {rol === "profesor" && editandoIncidente && (
+            <form className="formulario" onSubmit={guardarIncidenteEditado}>
+              <h3 className="admin-subtitulo">
+                Editar reporte · {editandoIncidente.estudiante}
+              </h3>
+              <div className="formulario-fila formulario-fila-grid">
+                <label>
+                  Fecha
+                  <input
+                    type="date"
+                    value={editIncidenteFecha}
+                    onChange={(e) => setEditIncidenteFecha(e.target.value)}
+                  />
+                </label>
+                <label>
+                  Tipo
+                  <select
+                    value={editIncidenteTipo}
+                    onChange={(e) => setEditIncidenteTipo(e.target.value)}
+                  >
+                    <option>Incidente</option>
+                    <option>Alergia</option>
+                  </select>
+                </label>
+              </div>
+              <label>
+                Estudiante
+                <select
+                  value={editIncidenteDoc}
+                  onChange={(e) => setEditIncidenteDoc(e.target.value)}
+                  required
+                >
+                  <option value="">Elige un estudiante de tu grupo</option>
+                  {incidenteEstudiantes.map((est) => (
+                    <option key={est.documento} value={est.documento}>
+                      {est.nombre} {est.grado ? `· Grado ${est.grado}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Descripción
+                <textarea
+                  value={editIncidenteDescripcion}
+                  onChange={(e) => setEditIncidenteDescripcion(e.target.value)}
+                  rows={3}
+                  required
+                />
+              </label>
+              <label>
+                Foto adjunta
+                <input
+                  type="file"
+                  accept="image/*"
+                  disabled={editIncidenteSubiendoFoto}
+                  onChange={(e) => {
+                    const archivo = e.target.files?.[0];
+                    if (archivo) {
+                      adjuntarFotoIncidente(
+                        archivo,
+                        setEditIncidenteImagen,
+                        setEditIncidenteSubiendoFoto
+                      );
+                    }
+                  }}
+                />
+              </label>
+              {editIncidenteImagen ? (
+                <div className="incidente-foto">
+                  <img src={editIncidenteImagen} alt="Foto del reporte" />
+                  <button
+                    type="button"
+                    className="boton boton-secundario"
+                    onClick={() => setEditIncidenteImagen("")}
+                  >
+                    Quitar foto
+                  </button>
+                </div>
+              ) : null}
+              <div className="formulario-fila">
+                <button
+                  type="submit"
+                  className="boton boton-primario"
+                  disabled={editIncidenteEnviando || editIncidenteSubiendoFoto}
+                >
+                  {editIncidenteEnviando ? "Guardando…" : "Guardar cambios"}
+                </button>
+                <button
+                  type="button"
+                  className="boton boton-secundario"
+                  onClick={() => setEditandoIncidente(null)}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          )}
+
           {!incidenteCargando && !incidenteError && incidentesVisibles.length === 0 ? (
             <p className="estado">
               {rol === "profesor"
                 ? "Todavía no has reportado nada."
-                : "No hay reportes en este estado."}
+                : "No hay reportes con esos filtros."}
             </p>
           ) : (
             <div className="tabla-cocina">
@@ -2733,8 +3006,9 @@ function Admin() {
                     <th>Estudiante</th>
                     {rol !== "profesor" && <th>Sede</th>}
                     <th>Descripción</th>
+                    <th>Foto</th>
                     <th>Estado</th>
-                    {rol !== "profesor" && <th>Acción</th>}
+                    <th>Acción</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2753,6 +3027,19 @@ function Admin() {
                       {rol !== "profesor" && <td>{inc.sede}</td>}
                       <td>{inc.descripcion}</td>
                       <td>
+                        {inc.imagen ? (
+                          <a href={inc.imagen} target="_blank" rel="noreferrer">
+                            <img
+                              className="incidente-foto-mini"
+                              src={inc.imagen}
+                              alt={`Foto de ${inc.estudiante}`}
+                            />
+                          </a>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      <td>
                         <span
                           className={`incidente-estado ${
                             inc.resuelto ? "resuelto" : "pendiente"
@@ -2761,22 +3048,50 @@ function Admin() {
                           {inc.resuelto ? "Resuelto" : "Pendiente"}
                         </span>
                       </td>
-                      {rol !== "profesor" && (
-                        <td>
-                          <button
-                            type="button"
-                            className="boton boton-secundario"
-                            onClick={() => resolverIncidente(inc.id, !inc.resuelto)}
-                            disabled={incidenteResolviendo === inc.id}
-                          >
-                            {incidenteResolviendo === inc.id
-                              ? "Guardando…"
-                              : inc.resuelto
-                                ? "Reabrir"
-                                : "Marcar resuelto"}
-                          </button>
-                        </td>
-                      )}
+                      <td>
+                        <div className="formulario-fila">
+                          {rol === "profesor" ? (
+                            <>
+                              <button
+                                type="button"
+                                className="boton boton-secundario"
+                                onClick={() => abrirEdicionIncidente(inc)}
+                              >
+                                ✏️ Editar
+                              </button>
+                              <button
+                                type="button"
+                                className="boton boton-peligro"
+                                onClick={() => borrarIncidente(inc)}
+                              >
+                                🗑️ Borrar
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                className="boton boton-secundario"
+                                onClick={() => resolverIncidente(inc.id, !inc.resuelto)}
+                                disabled={incidenteResolviendo === inc.id}
+                              >
+                                {incidenteResolviendo === inc.id
+                                  ? "Guardando…"
+                                  : inc.resuelto
+                                    ? "Reabrir"
+                                    : "Marcar resuelto"}
+                              </button>
+                              <button
+                                type="button"
+                                className="boton boton-peligro"
+                                onClick={() => borrarIncidente(inc)}
+                              >
+                                🗑️ Borrar
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
