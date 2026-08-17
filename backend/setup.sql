@@ -220,6 +220,9 @@ create table if not exists incidentes (
 -- backend en Supabase Storage al subirla desde el panel).
 alter table incidentes add column if not exists imagen text;
 
+
+
+
 -- ============================================================
 -- 4. Politicas de acceso (RLS)
 -- ============================================================
@@ -317,6 +320,9 @@ alter table incidentes enable row level security;
 drop policy if exists "incidentes_lectura_publica" on incidentes;
 create policy "incidentes_lectura_publica" on incidentes
   for select using (false);
+
+
+
 
 -- ============================================================
 -- 4.1 Bucket de imagenes (Supabase Storage)
