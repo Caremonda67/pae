@@ -220,6 +220,24 @@ create table if not exists incidentes (
 -- backend en Supabase Storage al subirla desde el panel).
 alter table incidentes add column if not exists imagen text;
 
+-- 10.5 Tabla de settings: configuracion del sistema que se cambia desde
+-- el panel sin tocar el codigo. Guarda pares clave-valor:
+--   hora_limite_reserva: "08:00" (a esa hora se cierran las reservas y
+--     cancelaciones para el MISMO dia).
+--   cupos_sede: JSON con el cupo maximo de reservas por sede y fecha,
+--     ej: {"Sede A": 50, "Sede B": 40}.
+create table if not exists settings (
+  clave text primary key,
+  valor text,
+  updated_at timestamptz default now()
+);
+
+-- Valores por defecto: limite de reserva a las 8am y sin cupos. El
+-- admin los cambia desde el panel (pestana Configuracion).
+insert into settings (clave, valor) values
+  ('hora_limite_reserva', '08:00'),
+  ('cupos_sede', '{}')
+on conflict (clave) do nothing;
 
 
 
@@ -321,6 +339,11 @@ drop policy if exists "incidentes_lectura_publica" on incidentes;
 create policy "incidentes_lectura_publica" on incidentes
   for select using (false);
 
+-- settings: configuracion interna, no se lee con el anon key
+alter table settings enable row level security;
+drop policy if exists "settings_lectura_publica" on settings;
+create policy "settings_lectura_publica" on settings
+  for select using (false);
 
 
 
