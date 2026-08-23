@@ -29,6 +29,7 @@ import asistenciaRouter from "./routes/asistencia.js";
 import incidentesRouter from "./routes/incidentes.js";
 import settingsRouter from "./routes/settings.js";
 import turnosRouter from "./routes/turnos.js";
+import auditoriaRouter from "./routes/auditoria.js";
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -67,6 +68,7 @@ app.use("/api/asistencia", asistenciaRouter);
 app.use("/api/incidentes", incidentesRouter);
 app.use("/api/settings", settingsRouter);
 app.use("/api/turnos", turnosRouter);
+app.use("/api/auditoria", auditoriaRouter);
 
 // Middleware para rutas no encontradas (error 404)
 app.use((_req, res) => {
