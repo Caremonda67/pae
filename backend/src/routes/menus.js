@@ -1,8 +1,12 @@
-﻿// rutas del menu del PAE y valoraciones de platos
+// rutas del menu del PAE y valoraciones de platos
 // el menu rota por semana del mes (1-4) y cada dia tiene una comida
 // diferente por jornada (Almuerzo y Refrigerio). Los estudiantes
 // puntuan los platos (1 a 5 estrellas) y esa retroalimentacion le
 // sirve a la cocina para mejorar el menu.
+//
+// La web (Home, pagina de Menu) solo muestra los platos PUBLICADOS.
+// Los borradores los ve el panel (admin/cocina/coordinador) y sirven
+// para planear la semana sin que los estudiantes la vean todavia.
 
 import { Router } from "express";
 import { getSupabase } from "../config/supabase.js";
@@ -35,12 +39,13 @@ function sinTildes(texto) {
 }
 
 // GET /api/menus
-// Lista los menus con su valoracion promedio. Se puede filtrar por
-// semana (?semana=2) o por semana y dia (?semana=2&dia=Lunes).
+// Lista los menus PUBLICADOS con su valoracion promedio. Se puede
+// filtrar por semana (?semana=2) o por semana y dia (?semana=2&dia=Lunes).
 router.get("/", async (req, res) => {
   let consulta = getSupabase()
     .from("menus")
     .select("*")
+    .eq("estado", "publicado")
     .order("semana", { ascending: true })
     .order("dia", { ascending: true })
     .order("jornada", { ascending: true });
@@ -88,6 +93,29 @@ router.get("/", async (req, res) => {
   res.json(menusConValoracion);
 });
 
+// GET /api/menus/todos
+// Todos los menus, incluidos los borradores (para el panel: admin,
+// cocina y coordinador).
+router.get("/todos", requiereRol("admin", "cocina", "coordinador"), async (req, res) => {
+  let consulta = getSupabase()
+    .from("menus")
+    .select("*")
+    .order("semana", { ascending: true })
+    .order("dia", { ascending: true })
+    .order("jornada", { ascending: true });
+
+  if (req.query.semana) {
+    consulta = consulta.eq("semana", Number(req.query.semana));
+  }
+  if (req.query.dia) {
+    consulta = consulta.eq("dia", req.query.dia);
+  }
+
+  const { data, error } = await consulta;
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
 // GET /api/menus/hoy
 // La comida del dia actual (zona horaria de Colombia): todas las
 // jornadas de HOY de la semana del mes vigente. La usa la Home.
@@ -115,6 +143,7 @@ router.get("/hoy", async (req, res) => {
     .select("*")
     .eq("semana", semana)
     .eq("dia", sinTildes(dia))
+    .eq("estado", "publicado")
     .order("jornada", { ascending: true });
 
   if (error) return res.status(500).json({ error: error.message });
@@ -122,12 +151,12 @@ router.get("/hoy", async (req, res) => {
 });
 
 // POST /api/menus
-// Crea una comida del menu (solo admin)
-// Cuerpo esperado: { semana, dia, jornada, platillo, descripcion, calorias, imagen }
-//   - semana: 1 a 4 (semana del mes)
-//   - jornada: "Almuerzo" o "Refrigerio" (una comida DIFERENTE por jornada)
+// Crea una comida del menu (solo admin o cocina).
+// Cuerpo: { semana, dia, jornada, platillo, descripcion?, calorias?, imagen?, estado? }
+// Si estado es "borrador" no se ve en la web hasta publicarlo.
 router.post("/", requiereRol("admin", "cocina"), async (req, res) => {
   const { semana, dia, jornada, platillo, descripcion, calorias, imagen } = req.body;
+  const estado = req.body.estado === "borrador" ? "borrador" : "publicado";
 
   if (!dia || !platillo || !jornada) {
     return res.status(400).json({ error: "Faltan datos obligatorios" });
@@ -141,11 +170,11 @@ router.post("/", requiereRol("admin", "cocina"), async (req, res) => {
       semana: semanaNum,
       dia: sinTildes(dia),
       jornada,
-      jornada,
       platillo,
       descripcion,
       calorias: calorias || null,
       imagen: imagen || null,
+      estado,
     }])
     .select()
     .single();
@@ -154,8 +183,43 @@ router.post("/", requiereRol("admin", "cocina"), async (req, res) => {
   res.status(201).json(data);
 });
 
+// PUT /api/menus/:id
+// Edita un plato o cambia su estado (publicar / pasar a borrador).
+// Solo admin o cocina.
+router.put("/:id", requiereRol("admin", "cocina"), async (req, res) => {
+  const { semana, dia, jornada, platillo, descripcion, calorias, imagen } = req.body;
+  const { estado } = req.body;
+
+  const cambios = {};
+  if (semana !== undefined) cambios.semana = Math.min(4, Math.max(1, Number(semana) || 1));
+  if (dia !== undefined) cambios.dia = sinTildes(dia);
+  if (jornada !== undefined) cambios.jornada = jornada;
+  if (platillo !== undefined) cambios.platillo = platillo;
+  if (descripcion !== undefined) cambios.descripcion = descripcion;
+  if (calorias !== undefined) cambios.calorias = calorias;
+  if (imagen !== undefined) cambios.imagen = imagen;
+  if (estado !== undefined) {
+    if (!["borrador", "publicado"].includes(estado)) {
+      return res.status(400).json({ error: "Estado inválido" });
+    }
+    cambios.estado = estado;
+  }
+
+  if (Object.keys(cambios).length === 0) {
+    return res.status(400).json({ error: "No hay nada que actualizar" });
+  }
+
+  const { error } = await getSupabase()
+    .from("menus")
+    .update(cambios)
+    .eq("id", req.params.id);
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ ok: true });
+});
+
 // DELETE /api/menus/:id
-// Elimina un plato del menu (solo admin)
+// Elimina un plato del menu (solo admin o cocina)
 router.delete("/:id", requiereRol("admin", "cocina"), async (req, res) => {
   const { error } = await getSupabase()
     .from("menus")
