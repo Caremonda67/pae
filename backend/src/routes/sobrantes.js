@@ -7,6 +7,7 @@
 import { Router } from "express";
 import { getSupabase } from "../config/supabase.js";
 import { requiereRol } from "../config/auth.js";
+import { auditar } from "../config/auditoria.js";
 
 const router = Router();
 const TURNOS = ["Almuerzo", "Refrigerio"];
@@ -60,6 +61,7 @@ router.get("/", requiereRol("admin", "cocina", "coordinador"), async (req, res) 
   const { data, error } = await consulta;
 
   if (error) return res.status(500).json({ error: error.message });
+  auditar(req, "sobrantes:guardar", `${fecha} | ${sede} | ${turno} | porciones ${porciones ?? "-"} | ${peso_kg ?? "-"} kg`);
   res.json(data);
 });
 
@@ -131,6 +133,7 @@ router.post("/", requiereRol("admin", "cocina"), async (req, res) => {
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
+  auditar(req, "sobrantes:guardar", `${fecha} | ${sede} | ${turno} | porciones ${porciones ?? "-"} | ${peso_kg ?? "-"} kg`);
   res.json(data);
 });
 
@@ -151,6 +154,7 @@ router.delete("/", requiereRol("admin", "cocina"), async (req, res) => {
     .select();
 
   if (error) return res.status(500).json({ error: error.message });
+  auditar(req, "sobrantes:borrar", `${fecha} | ${sede} | ${data?.length || 0} registro(s)`);
   res.json({ eliminados: data?.length || 0 });
 });
 

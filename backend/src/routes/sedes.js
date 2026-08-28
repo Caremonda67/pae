@@ -5,6 +5,7 @@
 import { Router } from "express";
 import { getSupabase } from "../config/supabase.js";
 import { requiereRol } from "../config/auth.js";
+import { auditar } from "../config/auditoria.js";
 
 const router = Router();
 
@@ -37,6 +38,7 @@ router.post("/", requiereRol("admin"), async (req, res) => {
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
+  auditar(req, "sedes:crear", `"${nombre.trim()}"`);
   res.status(201).json(data);
 });
 
@@ -76,6 +78,7 @@ router.put("/:id", requiereRol("admin"), async (req, res) => {
   await getSupabase().from("reservas").update({ sede: nuevo }).eq("sede", viejo);
   await getSupabase().from("sobrantes").update({ sede: nuevo }).eq("sede", viejo);
 
+  auditar(req, "sedes:renombrar", `"${viejo}" → "${nuevo}"`);
   res.json(data);
 });
 
@@ -109,6 +112,7 @@ router.delete("/:id", requiereRol("admin"), async (req, res) => {
     .delete()
     .eq("id", req.params.id);
   if (error) return res.status(500).json({ error: error.message });
+  auditar(req, "sedes:borrar", `"${sede.nombre}"`);
   res.status(204).end();
 });
 
