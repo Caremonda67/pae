@@ -35,6 +35,7 @@ interface Aviso {
   texto: string;
   fecha?: string;
   imagen?: string;
+  estado?: string;
 }
 
 // un plato del menu que llega del backend
@@ -47,6 +48,40 @@ interface MenuItem {
   descripcion: string;
   calorias?: number;
   imagen?: string;
+  estado?: string;
+}
+
+// configuracion del sistema (ruta /api/settings)
+interface Configuracion {
+  hora_limite_reserva: string | null;
+  cupos_sede: Record<string, number>;
+}
+
+// un turno de cocina asignado (ruta /api/turnos)
+interface TurnoCocina {
+  id: number;
+  fecha: string;
+  usuario: string;
+  sede: string;
+  creado_por?: string | null;
+}
+
+// cuenta con rol cocina para asignar turnos (ruta /api/usuarios/cocina)
+interface UsuarioCocina {
+  id: number;
+  usuario: string;
+  nombre: string;
+  sede?: string | null;
+}
+
+// una accion registrada en la auditoria (ruta /api/auditoria)
+interface AuditoriaEntrada {
+  id: number;
+  usuario?: string | null;
+  rol?: string | null;
+  accion: string;
+  detalle?: string | null;
+  created_at: string;
 }
 
 // resumen del panel compacto de cocina (ruta /api/reservas/panel)
@@ -90,6 +125,19 @@ interface ReservaDiaria {
   turno: string;
   fecha: string;
   asistio: boolean;
+  grado?: string | null;
+}
+
+// tablero del dia para el coordinador (ruta /api/reservas/tablero)
+interface TableroDia {
+  fecha: string;
+  total: number;
+  asistidos: number;
+  sinMarcar: number;
+  porSede: Record<string, { total: number; asistidos: number }>;
+  porTurno: Record<string, { total: number; asistidos: number }>;
+  porSedeTurno: { sede: string; turno: string; total: number; asistidos: number }[];
+  reservas: ReservaDiaria[];
 }
 
 // un estudiante reservado del grupo de un profesor (ruta /api/asistencia)
@@ -205,6 +253,7 @@ interface Usuario {
 // pestañas del panel
 type Pestana =
   | "panel"
+  | "tablero"
   | "beneficiarios"
   | "asistencia"
   | "incidentes"
@@ -216,7 +265,10 @@ type Pestana =
   | "notificaciones"
   | "mensajes"
   | "reportes"
-  | "usuarios";
+  | "usuarios"
+  | "config"
+  | "turnos"
+  | "auditoria";
 
 // Fecha de hoy en formato YYYY-MM-DD (hora local del navegador)
 function hoyLocal() {
@@ -260,11 +312,37 @@ function Admin() {
   const [sedes, setSedes] = useState<Sede[]>([]);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
 
+  // configuracion del sistema (hora limite y cupos por sede)
+  const [config, setConfig] = useState<Configuracion>({
+    hora_limite_reserva: null,
+    cupos_sede: {},
+  });
+  const [horaLimite, setHoraLimite] = useState("");
+  const [cupos, setCupos] = useState<Record<string, string>>({});
+  const [configMensaje, setConfigMensaje] = useState<{ tipo: "exito" | "error"; texto: string } | null>(null);
+
+  // turnos de cocina
+  const [turnos, setTurnos] = useState<TurnoCocina[]>([]);
+  const [listaCocina, setListaCocina] = useState<UsuarioCocina[]>([]);
+  const [fechaTurno, setFechaTurno] = useState(() => hoyLocal());
+  const [usuarioTurno, setUsuarioTurno] = useState("");
+  const [sedeTurno, setSedeTurno] = useState("");
+  const [turnosMensaje, setTurnosMensaje] = useState<{ tipo: "exito" | "error"; texto: string } | null>(null);
+
+  // auditoria
+  const [auditoria, setAuditoria] = useState<AuditoriaEntrada[]>([]);
+  const [filtroAuditoria, setFiltroAuditoria] = useState("");
+
   // panel compacto de cocina
   const [fechaPanel, setFechaPanel] = useState(() => hoyLocal());
   const [panelDia, setPanelDia] = useState<PanelCocina | null>(null);
   const [menuDia, setMenuDia] = useState<MenuItem[]>([]);
   const [panelCargando, setPanelCargando] = useState(false);
+
+  // tablero del dia (coordinador)
+  const [fechaTablero, setFechaTablero] = useState(() => hoyLocal());
+  const [tablero, setTablero] = useState<TableroDia | null>(null);
+  const [tableroCargando, setTableroCargando] = useState(false);
 
   // reporte de sobrantes del panel de cocina. El borrador guarda los
   // valores escritos por sede + jornada: "Sede||Almuerzo" -> {porciones, peso_kg}
@@ -407,6 +485,7 @@ function Admin() {
   const [fechaAviso, setFechaAviso] = useState("");
   const [imagenAviso, setImagenAviso] = useState("");
   const [subiendoImagenAviso, setSubiendoImagenAviso] = useState(false);
+  const [publicarAvisoAhora, setPublicarAvisoAhora] = useState(true);
   const [avisoError, setAvisoError] = useState("");
   const [avisoExito, setAvisoExito] = useState("");
 
@@ -419,6 +498,7 @@ function Admin() {
   const [caloriasMenu, setCaloriasMenu] = useState("");
   const [imagenMenu, setImagenMenu] = useState("");
   const [subiendoImagenMenu, setSubiendoImagenMenu] = useState(false);
+  const [publicarMenuAhora, setPublicarMenuAhora] = useState(true);
   const [menuError, setMenuError] = useState("");
   const [menuExito, setMenuExito] = useState("");
 
@@ -503,11 +583,11 @@ function Admin() {
         respInstituciones,
         respSedes,
       ] = await Promise.all([
-        fetch(`${API_URL}/api/avisos`),
+        fetch(`${API_URL}/api/avisos/todos`, { headers: cabeceras(false) }),
         fetch(`${API_URL}/api/contacto`, { headers: cabeceras(false) }),
         fetch(`${API_URL}/api/beneficiarios`),
         fetch(`${API_URL}/api/notificaciones`, { headers: cabeceras(false) }),
-        fetch(`${API_URL}/api/menus`),
+        fetch(`${API_URL}/api/menus/todos`, { headers: cabeceras(false) }),
         fetch(`${API_URL}/api/galeria`),
         fetch(`${API_URL}/api/instituciones`),
         fetch(`${API_URL}/api/sedes`),
@@ -579,6 +659,50 @@ function Admin() {
       setInstituciones(respInstituciones.ok ? await respInstituciones.json() : []);
       setSedes(respSedes.ok ? await respSedes.json() : []);
 
+      // La configuracion (hora limite + cupos) la ve y edita el admin
+      if (leerSesion()?.rol === "admin") {
+        const respConfig = await fetch(`${API_URL}/api/settings`, {
+          headers: cabeceras(false),
+        });
+        if (respConfig.ok) {
+          const datosConfig = (await respConfig.json()) as Configuracion;
+          setConfig(datosConfig);
+          setHoraLimite(datosConfig.hora_limite_reserva || "");
+          const cuposIniciales: Record<string, string> = {};
+          for (const [sede, cupo] of Object.entries(datosConfig.cupos_sede || {})) {
+            cuposIniciales[sede] = String(cupo);
+          }
+          setCupos(cuposIniciales);
+        }
+      }
+
+      // Turnos de cocina: los gestionan admin y coordinador
+      if (rol === "admin" || rol === "coordinador") {
+        const respTurnos = await fetch(`${API_URL}/api/turnos`, {
+          headers: cabeceras(false),
+        });
+        if (respTurnos.ok) setTurnos(await respTurnos.json());
+
+        const respCocina = await fetch(`${API_URL}/api/usuarios/cocina`, {
+          headers: cabeceras(false),
+        });
+        if (respCocina.ok) {
+          const cocina = (await respCocina.json()) as UsuarioCocina[];
+          setListaCocina(cocina);
+          if (cocina.length > 0 && !cocina.some((c) => c.usuario === usuarioTurno)) {
+            setUsuarioTurno(cocina[0].usuario);
+          }
+        }
+      }
+
+      // Auditoria: solo el admin la consulta
+      if (leerSesion()?.rol === "admin") {
+        const respAuditoria = await fetch(`${API_URL}/api/auditoria?limite=150`, {
+          headers: cabeceras(false),
+        });
+        if (respAuditoria.ok) setAuditoria(await respAuditoria.json());
+      }
+
       // Solo el admin ve las cuentas de usuario del panel
       if (leerSesion()?.rol === "admin") {
         const respUsuarios = await fetch(`${API_URL}/api/usuarios`, {
@@ -643,6 +767,32 @@ function Admin() {
     if (autenticado && (rol === "admin" || rol === "cocina")) cargarPanel(fechaPanel);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autenticado, fechaPanel]);
+
+  // Carga el tablero del dia (coordinador y admin) para la fecha elegida.
+  const cargarTablero = async (fecha: string) => {
+    setTableroCargando(true);
+    try {
+      const respuesta = await fetch(
+        `${API_URL}/api/reservas/tablero?fecha=${fecha}`,
+        { headers: cabeceras(false) }
+      );
+      if (!respuesta.ok) throw new Error("No se pudo cargar el tablero del día");
+      setTablero((await respuesta.json()) as TableroDia);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error desconocido");
+    } finally {
+      setTableroCargando(false);
+    }
+  };
+
+  // Carga el tablero cada vez que cambia la fecha o al entrar. Es una
+  // pestaña del coordinador (y del admin), no se muestra para otros roles.
+  useEffect(() => {
+    if (autenticado && (rol === "admin" || rol === "coordinador")) {
+      cargarTablero(fechaTablero);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autenticado, fechaTablero]);
 
   // Carga los sobrantes guardados de la fecha elegida en el panel de
   // cocina y los deja en el borrador para poder editarlos.
@@ -1318,6 +1468,7 @@ function Admin() {
           texto: textoAviso,
           fecha: fechaAviso,
           imagen: imagenAviso || null,
+          estado: publicarAvisoAhora ? "publicado" : "borrador",
         }),
       });
       if (!respuesta.ok) {
@@ -1328,10 +1479,29 @@ function Admin() {
       setTextoAviso("");
       setFechaAviso("");
       setImagenAviso("");
-      setAvisoExito("✅ Aviso publicado. Ya aparece en la página y el bot lo conoce.");
+      setAvisoExito(
+        publicarAvisoAhora
+          ? "✅ Aviso publicado. Ya aparece en la página y el bot lo conoce."
+          : "✅ Aviso guardado como borrador. Se verá cuando alguien lo publique."
+      );
       cargarDatos();
     } catch (err) {
       setAvisoError(err instanceof Error ? err.message : "Error desconocido");
+    }
+  };
+
+  // Publica o pasa a borrador un aviso existente (PUT /api/avisos/:id)
+  const cambiarEstadoAviso = async (id: number, estado: string) => {
+    try {
+      const respuesta = await fetch(`${API_URL}/api/avisos/${id}`, {
+        method: "PUT",
+        headers: cabeceras(),
+        body: JSON.stringify({ estado }),
+      });
+      if (!respuesta.ok) throw new Error("No se pudo cambiar el estado del aviso");
+      cargarDatos();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error desconocido");
     }
   };
 
@@ -1398,6 +1568,7 @@ function Admin() {
           descripcion: descripcionMenu,
           calorias: caloriasMenu ? Number(caloriasMenu) : null,
           imagen: imagenMenu || null,
+          estado: publicarMenuAhora ? "publicado" : "borrador",
         }),
       });
       if (!respuesta.ok) {
@@ -1408,10 +1579,29 @@ function Admin() {
       setDescripcionMenu("");
       setCaloriasMenu("");
       setImagenMenu("");
-      setMenuExito("✅ Plato agregado al menú.");
+      setMenuExito(
+        publicarMenuAhora
+          ? "✅ Plato agregado al menú y ya se ve en la web."
+          : "✅ Plato guardado como borrador. Se verá cuando alguien lo publique."
+      );
       cargarDatos();
     } catch (err) {
       setMenuError(err instanceof Error ? err.message : "Error desconocido");
+    }
+  };
+
+  // Publica o pasa a borrador un plato existente (PUT /api/menus/:id)
+  const cambiarEstadoPlato = async (id: number, estado: string) => {
+    try {
+      const respuesta = await fetch(`${API_URL}/api/menus/${id}`, {
+        method: "PUT",
+        headers: cabeceras(),
+        body: JSON.stringify({ estado }),
+      });
+      if (!respuesta.ok) throw new Error("No se pudo cambiar el estado del plato");
+      cargarDatos();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error desconocido");
     }
   };
 
@@ -1423,6 +1613,90 @@ function Admin() {
         headers: cabeceras(false),
       });
       if (!respuesta.ok) throw new Error("No se pudo borrar el plato");
+      cargarDatos();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error desconocido");
+    }
+  };
+
+  // Guarda la configuracion del sistema: hora limite y cupos por sede.
+  // El backend valida los formatos; aca solo pasamos lo que escribio el admin.
+  const guardarConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setConfigMensaje(null);
+    try {
+      // Convertimos los cupos a numeros; vacio = sin cupo (0)
+      const cuposNumero: Record<string, number> = {};
+      for (const [sede, valor] of Object.entries(cupos)) {
+        const numero = valor.trim() === "" ? 0 : Number(valor);
+        if (!Number.isInteger(numero) || numero < 0) {
+          setConfigMensaje({
+            tipo: "error",
+            texto: `El cupo de "${sede}" debe ser un número entero (0 o más).`,
+          });
+          return;
+        }
+        cuposNumero[sede] = numero;
+      }
+
+      const respuesta = await fetch(`${API_URL}/api/settings`, {
+        method: "PUT",
+        headers: cabeceras(),
+        body: JSON.stringify({
+          hora_limite_reserva: horaLimite.trim() || null,
+          cupos_sede: cuposNumero,
+        }),
+      });
+      if (!respuesta.ok) {
+        const datos = await respuesta.json().catch(() => null);
+        throw new Error(datos?.error || "No se pudo guardar la configuración");
+      }
+      setConfigMensaje({ tipo: "exito", texto: "✅ Configuración guardada." });
+      cargarDatos();
+    } catch (err) {
+      setConfigMensaje({
+        tipo: "error",
+        texto: err instanceof Error ? err.message : "Error desconocido",
+      });
+    }
+  };
+
+  // Asigna un turno de cocina (o lo mueve si ya estaba asignado)
+  const asignarTurno = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setTurnosMensaje(null);
+    if (!usuarioTurno || !sedeTurno) {
+      setTurnosMensaje({ tipo: "error", texto: "Elige el personal de cocina y la sede." });
+      return;
+    }
+    try {
+      const respuesta = await fetch(`${API_URL}/api/turnos`, {
+        method: "POST",
+        headers: cabeceras(),
+        body: JSON.stringify({ fecha: fechaTurno, usuario: usuarioTurno, sede: sedeTurno }),
+      });
+      if (!respuesta.ok) {
+        const datos = await respuesta.json().catch(() => null);
+        throw new Error(datos?.error || "No se pudo asignar el turno");
+      }
+      setTurnosMensaje({ tipo: "exito", texto: "✅ Turno asignado." });
+      cargarDatos();
+    } catch (err) {
+      setTurnosMensaje({
+        tipo: "error",
+        texto: err instanceof Error ? err.message : "Error desconocido",
+      });
+    }
+  };
+
+  // Quita un turno de cocina asignado
+  const quitarTurno = async (id: number) => {
+    try {
+      const respuesta = await fetch(`${API_URL}/api/turnos/${id}`, {
+        method: "DELETE",
+        headers: cabeceras(false),
+      });
+      if (!respuesta.ok) throw new Error("No se pudo quitar el turno");
       cargarDatos();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error desconocido");
@@ -1919,16 +2193,20 @@ function Admin() {
   const pestanasPorRol: Record<string, { id: Pestana; etiqueta: string }[]> = {
     admin: [
       { id: "panel", etiqueta: "🍳 Panel de cocina" },
+      { id: "tablero", etiqueta: "📋 Tablero del día" },
       { id: "beneficiarios", etiqueta: "🎓 Beneficiarios" },
       { id: "menu", etiqueta: "🍽️ Menú" },
       { id: "avisos", etiqueta: "📢 Avisos" },
       { id: "galeria", etiqueta: "🖼️ Galería" },
       { id: "instituciones", etiqueta: "🏫 Instituciones" },
       { id: "sedes", etiqueta: "📍 Sedes" },
+      { id: "turnos", etiqueta: "🧑‍🍳 Turnos de cocina" },
       { id: "notificaciones", etiqueta: "🔔 Notificaciones" },
       { id: "mensajes", etiqueta: `✉️ Mensajes${noLeidos > 0 ? ` (${noLeidos} sin leer)` : ""}` },
       { id: "reportes", etiqueta: "📊 Reportes" },
       { id: "usuarios", etiqueta: "🔐 Usuarios" },
+      { id: "config", etiqueta: "⚙️ Configuración" },
+      { id: "auditoria", etiqueta: "🗒️ Auditoría" },
     ],
     cocina: [
       { id: "panel", etiqueta: "🍳 Panel de cocina" },
@@ -1942,12 +2220,16 @@ function Admin() {
       { id: "avisos", etiqueta: "📢 Avisos" },
     ],
     coordinador: [
+      { id: "tablero", etiqueta: "📋 Tablero del día" },
+      { id: "beneficiarios", etiqueta: "🎓 Beneficiarios" },
+      { id: "turnos", etiqueta: "🧑‍🍳 Turnos de cocina" },
       { id: "avisos", etiqueta: "📢 Avisos" },
       { id: "incidentes", etiqueta: "🚨 Incidentes" },
       { id: "galeria", etiqueta: "🖼️ Galería" },
       { id: "instituciones", etiqueta: "🏫 Instituciones" },
       { id: "notificaciones", etiqueta: "🔔 Notificaciones" },
       { id: "mensajes", etiqueta: `✉️ Mensajes${noLeidos > 0 ? ` (${noLeidos} sin leer)` : ""}` },
+      { id: "reportes", etiqueta: "📊 Reportes" },
     ],
   };
 
@@ -2148,6 +2430,87 @@ function Admin() {
               )}
 
               {panelDia.total === 0 && (
+                <p className="estado">
+                  No hay reservas para esa fecha. Revisa que la fecha sea hábil
+                  (lunes a viernes) y que los estudiantes hayan reservado.
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {!cargando && !error && pestanaActiva === "tablero" && (
+        <div id="panel-tablero" role="tabpanel" aria-labelledby="tab-tablero">
+          {/* Selector de fecha para ver el dia que se quiere */}
+          <div className="panel-fecha">
+            <label htmlFor="fecha-tablero">Fecha</label>
+            <input
+              id="fecha-tablero"
+              type="date"
+              value={fechaTablero}
+              onChange={(e) => setFechaTablero(e.target.value)}
+            />
+          </div>
+
+          {tableroCargando && <p className="estado">Cargando tablero…</p>}
+
+          {!tableroCargando && tablero && (
+            <>
+              <h2 className="admin-subtitulo">Reservas del día</h2>
+              <div className="reporte-cajas">
+                <div className="reporte-caja">
+                  <span className="reporte-numero">{tablero.total}</span>
+                  <span className="reporte-etiqueta">Reservas</span>
+                </div>
+                <div className="reporte-caja">
+                  <span className="reporte-numero">{tablero.asistidos}</span>
+                  <span className="reporte-etiqueta">Asistieron</span>
+                </div>
+                <div className="reporte-caja">
+                  <span className="reporte-numero">{tablero.sinMarcar}</span>
+                  <span className="reporte-etiqueta">
+                    {fechaTablero < hoyLocal() ? "Ausentes" : "Sin marcar"}
+                  </span>
+                </div>
+              </div>
+
+              {tablero.porSedeTurno.length > 0 && (
+                <>
+                  <h3 className="reporte-subtitulo">Ocupación por sede y turno</h3>
+                  <div className="reporte-desglose">
+                    {tablero.porSedeTurno.map((fila) => (
+                      <div key={`${fila.sede}||${fila.turno}`} className="reporte-caja">
+                        <span className="reporte-numero">
+                          {fila.total}
+                          <small> · {fila.asistidos} asist.</small>
+                        </span>
+                        <span className="reporte-etiqueta">
+                          {fila.sede} · {fila.turno}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {tablero.reservas.length > 0 ? (
+                <>
+                  <h3 className="reporte-subtitulo">Reservados ({tablero.reservas.length})</h3>
+                  <div className="lista-totales">
+                    {tablero.reservas.map((r) => (
+                      <article key={r.id} className="total-fecha">
+                        <span className="total-fecha-nombre">{r.estudiante}</span>
+                        <span className="total-fecha-cantidad">
+                          {r.sede} · {r.turno}
+                          {r.grado ? ` · Grado ${r.grado}` : ""}
+                        </span>
+                        {r.asistio && <span className="estado exito">✔ Asistió</span>}
+                      </article>
+                    ))}
+                  </div>
+                </>
+              ) : (
                 <p className="estado">
                   No hay reservas para esa fecha. Revisa que la fecha sea hábil
                   (lunes a viernes) y que los estudiantes hayan reservado.
@@ -3189,6 +3552,14 @@ function Admin() {
                 <small className="campo-fijo">✅ Imagen lista para guardar.</small>
               )}
             </label>
+            <label className="fila-check">
+              <input
+                type="checkbox"
+                checked={publicarMenuAhora}
+                onChange={(e) => setPublicarMenuAhora(e.target.checked)}
+              />
+              Publicar de inmediato (si no, queda como borrador)
+            </label>
             {menuError && <p className="estado error" role="alert">⚠️ {menuError}</p>}
             {menuExito && <p className="estado exito" aria-live="polite">{menuExito}</p>}
             <button
@@ -3236,6 +3607,9 @@ function Admin() {
                           )}
                           <div>
                             <strong>{plato.platillo}</strong>
+                            {plato.estado === "borrador" && (
+                              <span className="etiqueta-estado borrador">Borrador</span>
+                            )}
                             <span className="fila-reserva-detalle">
                               {plato.descripcion}
                               {plato.calorias ? ` · ${plato.calorias} kcal` : ""}
@@ -3251,6 +3625,23 @@ function Admin() {
                          >
                            Borrar
                          </button>
+                         {plato.estado === "borrador" ? (
+                           <button
+                             type="button"
+                             className="boton boton-primario"
+                             onClick={() => cambiarEstadoPlato(plato.id, "publicado")}
+                           >
+                             Publicar
+                           </button>
+                         ) : (
+                           <button
+                             type="button"
+                             className="boton boton-secundario"
+                             onClick={() => cambiarEstadoPlato(plato.id, "borrador")}
+                           >
+                             Despublicar
+                           </button>
+                         )}
                       </article>
                     ))}
                   </div>
@@ -3314,6 +3705,14 @@ function Admin() {
                 <small className="campo-fijo">✅ Imagen lista para publicar.</small>
               )}
             </label>
+            <label className="fila-check">
+              <input
+                type="checkbox"
+                checked={publicarAvisoAhora}
+                onChange={(e) => setPublicarAvisoAhora(e.target.checked)}
+              />
+              Publicar de inmediato (si no, queda como borrador)
+            </label>
             {avisoError && <p className="estado error" role="alert">⚠️ {avisoError}</p>}
             {avisoExito && <p className="estado exito" aria-live="polite">{avisoExito}</p>}
             <button
@@ -3325,7 +3724,7 @@ function Admin() {
             </button>
           </form>
 
-          <h2 className="admin-subtitulo">Avisos publicados</h2>
+          <h2 className="admin-subtitulo">Avisos del programa</h2>
           {avisos.length === 0 && <p className="estado">No hay avisos.</p>}
           <Buscador
             valor={busquedaAvisos}
@@ -3351,12 +3750,32 @@ function Admin() {
                   )}
                   <div>
                     <strong>{aviso.titulo}</strong>
+                    {aviso.estado === "borrador" && (
+                      <span className="etiqueta-estado borrador">Borrador</span>
+                    )}
                     <span className="fila-reserva-detalle">
                       {aviso.fecha ? `${aviso.fecha} · ` : ""}
                       {aviso.texto}
                     </span>
                   </div>
                 </div>
+                {aviso.estado === "borrador" ? (
+                  <button
+                    type="button"
+                    className="boton boton-primario"
+                    onClick={() => cambiarEstadoAviso(aviso.id, "publicado")}
+                  >
+                    Publicar
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="boton boton-secundario"
+                    onClick={() => cambiarEstadoAviso(aviso.id, "borrador")}
+                  >
+                    Despublicar
+                  </button>
+                )}
                 <button
                   type="button"
                   className="boton boton-secundario"
@@ -4082,6 +4501,171 @@ function Admin() {
                 )}
               </article>
             ))}
+          </div>
+        </div>
+      )}
+
+      {pestana === "config" && (
+        <div className="admin-seccion">
+          <h2 className="admin-subtitulo">Configuración del programa</h2>
+          <p className="estado">
+            Hora límite actual: {config.hora_limite_reserva || "sin definir"} · Los
+            cupos 0 o vacíos significan "sin cupo".
+          </p>
+          <form className="formulario" onSubmit={guardarConfig}>
+            <label>
+              Hora límite para reservar o cancelar
+              <input
+                type="time"
+                value={horaLimite}
+                onChange={(e) => setHoraLimite(e.target.value)}
+              />
+            </label>
+            <small className="campo-fijo">
+              Antes de esta hora se permite reservar y cancelar del día actual; después, solo ver.
+            </small>
+
+            <h3 className="admin-subtitulo">Cupos de reservas por sede (por día)</h3>
+            {sedes.length === 0 && <p className="estado">Aún no hay sedes registradas.</p>}
+            {sedes.map((sede) => (
+              <label key={sede.id}>
+                Cupo de {sede.nombre}
+                <input
+                  type="number"
+                  min={0}
+                  value={cupos[sede.nombre] ?? ""}
+                  onChange={(e) =>
+                    setCupos((prev) => ({ ...prev, [sede.nombre]: e.target.value }))
+                  }
+                />
+              </label>
+            ))}
+
+            {configMensaje && (
+              <p className={`estado ${configMensaje.tipo}`} role="alert">
+                {configMensaje.texto}
+              </p>
+            )}
+            <button type="submit" className="boton boton-primario">
+              Guardar configuración
+            </button>
+          </form>
+        </div>
+      )}
+
+      {pestana === "turnos" && (
+        <div className="admin-seccion">
+          <h2 className="admin-subtitulo">Turnos de cocina</h2>
+          <form className="formulario" onSubmit={asignarTurno}>
+            <div className="formulario-fila">
+              <label>
+                Fecha
+                <input
+                  type="date"
+                  value={fechaTurno}
+                  onChange={(e) => setFechaTurno(e.target.value)}
+                  required
+                />
+              </label>
+              <label>
+                Personal de cocina
+                <select
+                  value={usuarioTurno}
+                  onChange={(e) => setUsuarioTurno(e.target.value)}
+                  required
+                >
+                  {listaCocina.length === 0 && (
+                    <option value="">No hay personal de cocina registrado</option>
+                  )}
+                  {listaCocina.map((c) => (
+                    <option key={c.id} value={c.usuario}>
+                      {c.nombre}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Sede
+                <select
+                  value={sedeTurno}
+                  onChange={(e) => setSedeTurno(e.target.value)}
+                  required
+                >
+                  <option value="">Elige una sede</option>
+                  {sedes.map((s) => (
+                    <option key={s.id} value={s.nombre}>
+                      {s.nombre}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            {turnosMensaje && (
+              <p className={`estado ${turnosMensaje.tipo}`} role="alert">
+                {turnosMensaje.texto}
+              </p>
+            )}
+            <button type="submit" className="boton boton-primario">
+              Asignar turno
+            </button>
+          </form>
+
+          <h3 className="admin-subtitulo">Turnos del día elegido</h3>
+          {turnos.filter((t) => t.fecha === fechaTurno).length === 0 && (
+            <p className="estado">No hay turnos asignados para este día.</p>
+          )}
+          <div className="lista-reservas">
+            {turnos
+              .filter((t) => t.fecha === fechaTurno)
+              .map((t) => (
+                <article key={t.id} className="fila-reserva">
+                  <div>
+                    <strong>{t.usuario}</strong>
+                    <span className="fila-reserva-detalle">{t.sede}</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="boton boton-secundario"
+                    onClick={() => quitarTurno(t.id)}
+                    aria-label={`Quitar turno de ${t.usuario}`}
+                  >
+                    Quitar
+                  </button>
+                </article>
+              ))}
+          </div>
+        </div>
+      )}
+
+      {pestana === "auditoria" && (
+        <div className="admin-seccion">
+          <h2 className="admin-subtitulo">Auditoría de acciones</h2>
+          <Buscador
+            valor={filtroAuditoria}
+            alCambiar={setFiltroAuditoria}
+            placeholder="Filtrar por acción, usuario o detalle…"
+          />
+          {auditoria.length === 0 && <p className="estado">Sin registros.</p>}
+          <div className="lista-reservas">
+            {auditoria
+              .filter((a) => {
+                if (!filtroAuditoria.trim()) return true;
+                const texto = `${a.accion} ${a.usuario || ""} ${a.detalle || ""} ${a.rol || ""}`;
+                return coincide(texto, filtroAuditoria);
+              })
+              .map((a) => (
+                <article key={a.id} className="fila-reserva">
+                  <div>
+                    <strong>{a.accion}</strong>
+                    <span className="fila-reserva-detalle">
+                      {a.detalle || ""}
+                      {a.usuario ? ` · por ${a.usuario}` : ""}
+                      {a.rol ? ` (${a.rol})` : ""}
+                      {a.created_at ? ` · ${new Date(a.created_at).toLocaleString()}` : ""}
+                    </span>
+                  </div>
+                </article>
+              ))}
           </div>
         </div>
       )}
