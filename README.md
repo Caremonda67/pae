@@ -14,12 +14,52 @@ Proyecto final de la **Ruta Avanzada** (Frontend + Backend + IA).
 
 ## ✨ Funcionalidades
 
-- **Home** con la marca y el propósito del programa.
-- **Menú semanal** (catálogo) que se carga desde el backend.
-- **Reserva de comida**: el estudiante confirma asistencia (sede, turno, fecha).
-- **Panel de administrador** con login: cuántas minutas preparar por fecha, asistencia por estudiante y **reporte de desperdicio**.
-- **Contacto** con formulario real que guarda mensajes en la base de datos.
-- **Chatbot IA** (Gemini) que responde sobre el menú y cómo reservar.
+### Estudiantes
+
+- **Reserva de minuta** con documento y PIN (autocompleta nombre, sede y turno); valida fecha y horario, sin reservas sábados/domingos.
+- **Menú semanal** por jornada y sede, con fotos opcionales, platos agrupados por día y la comida del día destacada en la home.
+- **Galería del programa** con descripción por foto, buscador y lightbox.
+- **Contacto tipo chat** con el admin: ida y vuelta, con fotos, estado leído y respuesta.
+- **PWA instalable**: botón nativo en Android y guía paso a paso en iOS.
+
+### Admin
+
+- **Login por roles**: admin, cocina y profesor.
+- **Panel con pestañas**: menú, galería, beneficiarios, sedes, usuarios, mensajes, minutas por jornada, estadísticas y reportes.
+- **Buscador** en cada pestaña y manejo claro de errores (sesión expirada, endpoint que falló).
+- **Usuarios**: asignar clave visible y renovar el PIN de los beneficiarios.
+- **Mensajes de contacto** con marcado de leído y respuesta.
+
+### Cocina
+
+- **Panel compacto** con totales por fecha y sede, y el menú del día.
+- **Registro manual de sobrantes** (porciones y kilos por sede y jornada), con edición y borrado.
+- **Reporte de desperdicio** por fecha y sede.
+
+### Profesor
+
+- **Asistencia de su grupo** (sede + turno + grado): marca los estudiantes reservados del día.
+- **Reporte de incidentes/alergias** con foto adjunta; edita y borra los propios.
+
+### Reportes y estadísticas
+
+- **Filtros** por semana, mes o rango de fechas.
+- **Exportación** a Excel (con portada y tablas formateadas) y CSV.
+
+### Generales
+
+- **Chatbot IA** (Gemini) que responde con el menú y las sedes reales.
+- **Noticias/avisos** y **sedes dinámicas**.
+- **Accesibilidad** (ARIA, focus visible, skip link) y **CI en pull requests**.
+
+## 🔐 Roles de acceso
+
+| Rol | Acceso |
+|---|---|
+| Estudiante | Reservar con documento y PIN, ver menú, galería y contactar |
+| Admin | Todo el panel: menú, galería, beneficiarios, sedes, usuarios, mensajes y reportes |
+| Cocina | Panel de cocina: totales del día, sobrantes y reportes |
+| Profesor | Asistencia de su grupo e incidentes/alergias |
 
 ## 🛠️ Tecnologías
 
@@ -29,6 +69,7 @@ Proyecto final de la **Ruta Avanzada** (Frontend + Backend + IA).
 | Backend | Node.js + Express |
 | Base de datos | Supabase (PostgreSQL en la nube) |
 | IA | Google Gemini (API) |
+| Correo | Resend (emails transaccionales) |
 | Control de versiones | Git + GitHub |
 | Despliegue | Frontend en GitHub Pages · Backend en Render |
 
@@ -36,16 +77,17 @@ Proyecto final de la **Ruta Avanzada** (Frontend + Backend + IA).
 
 ```
 /
-├── frontend/              # React + Vite + TypeScript
+├── frontend/               # React + Vite + TypeScript
 │   └── src/
-│       ├── components/    # Sidebar, Chatbot (reutilizables)
-│       └── pages/         # Home, Menu, Reserva, Contacto, Admin, etc.
-├── backend/               # Node.js + Express
+│       ├── components/     # Sidebar, Chatbot, Lightbox, InstalarApp, FiltroReportes, Buscador
+│       └── pages/          # Home, Menu, Reserva, Admin (pestañas por rol), Galeria, Estadisticas, Reportes, Contacto, Noticias, Sobre
+├── backend/                # Node.js + Express
 │   └── src/
-│       ├── config/        # Conexión a Supabase
-│       └── routes/        # reservas, menus, contacto, chat
-├── .github/workflows/     # Despliegue automático a GitHub Pages
-└── render.yaml            # Configuración del despliegue en Render
+│       ├── config/         # Conexión a Supabase, auth, email, rate limit, password
+│       └── routes/         # reservas, menus, sedes, sobrantes, asistencia, incidentes, contacto, chat, galeria, estadisticas, login, usuarios, etc.
+├── backend/setup.sql       # Tablas, políticas RLS y datos de ejemplo
+├── .github/workflows/      # CI en PRs y despliegue a GitHub Pages
+└── render.yaml             # Configuración del backend en Render
 ```
 
 ## 🚀 Cómo correrlo en local
@@ -71,13 +113,15 @@ npm run dev            # http://localhost:5173
 
 El script completo de tablas, políticas de acceso (RLS) y datos de ejemplo está en `backend/setup.sql`. Se ejecuta en Supabase → SQL Editor → New query → Run. Es seguro correrlo varias veces.
 
+La tabla de mensajes del chat de contacto está en `backend/sql/chat_mensajes.sql`.
+
 ## 🤖 Chatbot IA
 
 El bot usa la API de Google Gemini. La clave vive en `backend/.env` (`GEMINI_API_KEY`) y el backend es el único que la usa; nunca llega al navegador.
 
 ## 🔑 Clave del panel de administrador
 
-Por defecto: `pae2026` 
+Por defecto: `pae2026`
 
 ## 👥 Equipo
 

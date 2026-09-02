@@ -36,31 +36,38 @@ seccion de abajo para decisiones pendientes.
       "Incidentes" con filtros por estado, rango de fechas y búsqueda por
       estudiante, lo marca como resuelto o lo reabre, y también puede
       borrarlo. Tabla nueva `incidentes` (setup.sql).
-- [ ] Ver el menu de la semana de su sede (la data ya existe).
+- [x] Ver el menu de la semana de su sede (pagina publica de Menu; falta
+      verlo dentro del panel del profesor).
 
 ## Coordinador (hoy: avisos, galeria, instituciones, colaboradores,
 notificaciones, mensajes)
 
-- [ ] Tablero del dia: reservas de hoy, ocupacion por sede/turno, ausentes.
+- [x] Tablero del dia: pestaña "Tablero del día" para coordinador (y
+      admin). Muestra las reservas de la fecha (por defecto hoy, con
+      selector de fecha), la ocupación por sede y turno, cuántas
+      asistieron, cuántas quedan sin marcar (o ausentes si la fecha ya
+      pasó) y la lista de los reservados con su nombre, sede, turno y
+      grado. Ruta `/api/reservas/tablero?fecha=...` (rol admin o
+      coordinador).
 - [ ] Aprobacion de avisos: flujo borrador -> publicado (requiere campo
       `estado` en avisos).
 - [ ] Planificacion semanal del menu con flujo borrador -> publicado.
 - [ ] Asignar el rol de cocina por dia (turnos).
-  [ ] que ellos tambien ellos puedan meter nuevos beneficiarios asi como hace el admin 
+- [ ] que ellos tambien ellos puedan meter nuevos beneficiarios asi como hace el admin 
 
 ## Estudiante (hoy: reservar + mis reservas)
 
 - [ ] Historial con estado: reservada / servida / ausente (con los datos
       de asistencia).
 - [ ] Limite de anulacion: cerrar reservas/ediciones a una hora (mas o menos a las 8)
-- [ ] Ver el menu de la semana / del mes.
+- [x] Ver el menu de la semana (pagina publica); falta el del mes.
 - [ ] Recordatorio por notificacion: avisar "manana reserva tu almuerzo".
   [ ] en caso dado que un estudiante no vaya crear un espacio de notificacion para llamar la atencion por la no asistencia
 
 ## Admin (hoy: todo + usuarios)
 
 - [ ] Auditoria de acciones: tabla con quien hizo que y cuando.
-- [ ] Exportar datos (CSV/JSON) para reportes a la entidad.
+- [x] Exportar datos (Excel con portada + CSV) para reportes a la entidad.
 - [ ] Configuracion del sistema: hora limite de reserva, cupos por sede
       (tabla de settings).
 - [x] Reportes tecnicos movidos al panel (pestana "Reportes" solo para

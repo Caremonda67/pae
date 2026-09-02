@@ -7,8 +7,83 @@ import { getSupabase } from "../config/supabase.js";
 import { requiereRol } from "../config/auth.js";
 import { crearNotificacion } from "./notificaciones.js";
 import { limiteFormularios } from "../config/rateLimit.js";
+import { leerSettings } from "../config/settings.js";
 
 const router = Router();
+
+// ============================================================
+// Fechas y horas SIEMPRE en hora de Colombia (America/Bogota).
+// El servidor puede vivir en UTC (Render u otro hosting): si usamos
+// new Date() directo, la fecha cambia 5 horas antes que para los
+// estudiantes y la hora limite se evaluaria mal. Con Intl obtenemos
+// las partes del dia directamente en hora colombiana.
+// ============================================================
+const ZONA_HORARIA = "America/Bogota";
+
+// Partes de la fecha actual (+ desfase en dias) segun la hora de Bogota
+function partesBogota(desfaseDias = 0) {
+  const momentanea = new Date(Date.now() + desfaseDias * 24 * 60 * 60 * 1000);
+  const partes = new Intl.DateTimeFormat("es-CO", {
+    timeZone: ZONA_HORARIA,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(momentanea);
+  const tomar = (tipo) => partes.find((p) => p.type === tipo)?.value || "";
+  return {
+    anio: tomar("year"),
+    mes: tomar("month"),
+    dia: tomar("day"),
+    hora: tomar("hour"),
+    minuto: tomar("minute"),
+  };
+}
+
+function fechaDe(partes) {
+  return `${partes.anio}-${partes.mes}-${partes.dia}`;
+}
+
+// Fecha de hoy en formato YYYY-MM-DD (hora de Colombia)
+function fechaHoy() {
+  return fechaDe(partesBogota());
+}
+
+// Fecha dentro de N dias (hora de Colombia); acepta negativos
+function fechaDesdeHoy(dias) {
+  return fechaDe(partesBogota(dias));
+}
+
+// Dia de semana de una fecha YYYY-MM-DD: 0 domingo ... 6 sabado
+function diaSemana(fechaTexto) {
+  const [anio, mes, dia] = fechaTexto.split("-").map(Number);
+  return new Date(anio, mes - 1, dia).getDay();
+}
+
+// Hora actual en formato HH:MM (hora de Colombia)
+function horaActual() {
+  const p = partesBogota();
+  return `${p.hora}:${p.minuto}`;
+}
+
+// Valida contra la configuracion si ya paso la hora limite para hoy.
+// Se usa tanto para reservar como para cancelar. Devuelve null si
+// se puede seguir, o el mensaje de error si el dia ya cerro.
+async function errorSiDiaCerrado(fecha, accion) {
+  const hoy = fechaHoy();
+  if (fecha !== hoy) return null;
+
+  const settings = await leerSettings();
+  const limite = settings.hora_limite_reserva;
+  if (!limite) return null;
+
+  if (horaActual() > limite) {
+    return `El límite para ${accion} hoy es a las ${limite} y ya pasó esa hora. Intenta mañana.`;
+  }
+  return null;
+}
 
 // Valida que una fecha sea real (YYYY-MM-DD) y este dentro del rango
 // permitido (desde hoy hasta 60 dias). Devuelve un mensaje o null.
@@ -31,11 +106,9 @@ export function validarFecha(fecha) {
     return "Esa fecha no existe.";
   }
 
-  // Rango permitido: desde hoy hasta 60 dias
-  const hoy = new Date();
-  const hoyTexto = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-${String(hoy.getDate()).padStart(2, "0")}`;
-  const max = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + 60);
-  const maxTexto = `${max.getFullYear()}-${String(max.getMonth() + 1).padStart(2, "0")}-${String(max.getDate()).padStart(2, "0")}`;
+  // Rango permitido: desde hoy hasta 60 dias (hora de Colombia)
+  const hoyTexto = fechaHoy();
+  const maxTexto = fechaDesdeHoy(60);
 
   if (fecha < hoyTexto) {
     return "La fecha no puede ser anterior a hoy.";
@@ -185,13 +258,9 @@ router.get("/reporte", async (req, res) => {
 // cuanto preparar (las reservas se hacen dias antes).
 router.get("/plan", async (req, res) => {
   const dias = Math.min(14, Math.max(1, Number(req.query.dias) || 7));
-  const hoy = new Date();
   const fechas = [];
   for (let i = 0; i < dias; i++) {
-    const f = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + i);
-    fechas.push(
-      `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, "0")}-${String(f.getDate()).padStart(2, "0")}`
-    );
+    fechas.push(fechaDesdeHoy(i));
   }
 
   const primera = fechas[0];
@@ -229,7 +298,7 @@ router.get("/plan", async (req, res) => {
 // cuantas minutas preparar por turno y sede (tabla diaria).
 // Expone datos personales (nombre, documento), por eso requiere rol.
 router.get("/diario", requiereRol("admin", "cocina", "profesor", "coordinador"), async (req, res) => {
-  const fecha = req.query.fecha || new Date().toISOString().slice(0, 10);
+  const fecha = req.query.fecha || fechaHoy();
   const { data, error } = await getSupabase()
     .from("reservas")
     .select("*")
@@ -245,7 +314,7 @@ router.get("/diario", requiereRol("admin", "cocina", "profesor", "coordinador"),
 // Devuelve: { fecha, porJornada: { Almuerzo: n, Refrigerio: n },
 //             porSede: { "Sede A": n, ... }, total }
 router.get("/panel", requiereRol("admin", "cocina"), async (req, res) => {
-  const fecha = req.query.fecha || new Date().toISOString().slice(0, 10);
+  const fecha = req.query.fecha || fechaHoy();
   const { data, error } = await getSupabase()
     .from("reservas")
     .select("turno, sede")
@@ -265,6 +334,60 @@ router.get("/panel", requiereRol("admin", "cocina"), async (req, res) => {
   }
 
   res.json({ fecha, porJornada, porSede, total });
+});
+
+// GET /api/reservas/tablero?fecha=...
+// Tablero del dia para el coordinador (y el admin): cuantas reservas
+// hay para la fecha, la ocupacion por sede y turno, cuantas marcaron
+// asistencia y la lista con los nombres de los reservados.
+// Acepta ?fecha=YYYY-MM-DD; por defecto usa hoy.
+router.get("/tablero", requiereRol("admin", "coordinador"), async (req, res) => {
+  const fecha = req.query.fecha || fechaHoy();
+
+  const { data, error } = await getSupabase()
+    .from("reservas")
+    .select("id, estudiante, documento, sede, turno, grado, asistio")
+    .eq("fecha", fecha)
+    .order("sede", { ascending: true })
+    .order("turno", { ascending: true });
+
+  if (error) return res.status(500).json({ error: error.message });
+
+  const porSede = {};
+  const porTurno = {};
+  const porSedeTurno = {};
+  let asistidos = 0;
+
+  for (const r of data) {
+    const sede = r.sede || "Sin sede";
+    const turno = r.turno || "Sin turno";
+
+    if (!porSede[sede]) porSede[sede] = { total: 0, asistidos: 0 };
+    porSede[sede].total += 1;
+    if (r.asistio) porSede[sede].asistidos += 1;
+
+    if (!porTurno[turno]) porTurno[turno] = { total: 0, asistidos: 0 };
+    porTurno[turno].total += 1;
+    if (r.asistio) porTurno[turno].asistidos += 1;
+
+    const clave = `${sede}||${turno}`;
+    if (!porSedeTurno[clave]) porSedeTurno[clave] = { sede, turno, total: 0, asistidos: 0 };
+    porSedeTurno[clave].total += 1;
+    if (r.asistio) porSedeTurno[clave].asistidos += 1;
+
+    if (r.asistio) asistidos += 1;
+  }
+
+  res.json({
+    fecha,
+    total: data.length,
+    asistidos,
+    sinMarcar: data.length - asistidos,
+    porSede,
+    porTurno,
+    porSedeTurno: Object.values(porSedeTurno),
+    reservas: data,
+  });
 });
 
 // GET /api/reservas/:id
@@ -339,6 +462,31 @@ router.post("/", limiteFormularios, async (req, res) => {
       .json({ error: "Documento no registrado en el programa" });
   }
 
+  // Hora limite: si la reserva es para HOY y ya paso la hora limite
+  // configurada (settings.hora_limite_reserva), el dia se cierra y no
+  // se aceptan reservas nuevas ni cambios para hoy.
+  const errorLimite = await errorSiDiaCerrado(fecha, "reservar");
+  if (errorLimite) return res.status(400).json({ error: errorLimite });
+
+  // Cupo por sede: si la sede ya alcanzo el cupo maximo de reservas
+  // para esa fecha, no se aceptan mas (settings.cupos_sede).
+  const settings = await leerSettings();
+  const cupo = settings.cupos_sede?.[sede];
+  if (typeof cupo === "number" && cupo > 0) {
+    const { count, error: errCount } = await getSupabase()
+      .from("reservas")
+      .select("*", { count: "exact", head: true })
+      .eq("fecha", fecha)
+      .eq("sede", sede);
+
+    if (errCount) return res.status(500).json({ error: errCount.message });
+    if (count >= cupo) {
+      return res.status(400).json({
+        error: `La sede ${sede} ya alcanzó su cupo de ${cupo} reservas para ese día.`,
+      });
+    }
+  }
+
   // Si no nos pasaron el nombre, lo tomamos del registro
   const nombreFinal = estudiante || beneficiario.nombre;
 
@@ -407,6 +555,11 @@ router.delete("/mis/:id", async (req, res) => {
       .json({ error: "No puedes cancelar la reserva de otra persona" });
   }
 
+  // Limite de anulacion: las reservas de HOY no se pueden cancelar
+  // despues de la hora limite configurada en settings.
+  const errorLimite = await errorSiDiaCerrado(reserva.fecha, "cancelar");
+  if (errorLimite) return res.status(400).json({ error: errorLimite });
+
   const { error } = await getSupabase()
     .from("reservas")
     .delete()
@@ -422,9 +575,9 @@ router.delete("/mis/:id", async (req, res) => {
 router.put("/:id", requiereRol("admin", "cocina", "profesor"), async (req, res) => {
   // Filtramos campos undefined/null y convertimos asistio a booleano
   const body = {};
-  for (const [k, v] of Object.entries(req.body)) {
-    if (v !== undefined && v !== null) {
-      body[k] = v === "true" ? true : v === "false" ? false : v;
+  for (const [k, vv] of Object.entries(req.body)) {
+    if (vv !== undefined && vv !== null) {
+      body[k] = vv === "true" ? true : vv === "false" ? false : vv;
     }
   }
 
