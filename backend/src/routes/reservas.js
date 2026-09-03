@@ -390,6 +390,36 @@ router.get("/tablero", requiereRol("admin", "coordinador"), async (req, res) => 
   });
 });
 
+// GET /api/reservas/recordatorio?documento=...
+// Dice si el estudiante ya reservó para mañana, para que la Home y la
+// pagina de Reserva le avisen ("mañana no tienes reserva"). Solo se
+// considera si mañana es dia habil (lunes a viernes).
+// Devuelve: { necesita, fecha, finDeSemana }
+router.get("/recordatorio", async (req, res) => {
+  const { documento } = req.query;
+  if (!documento) {
+    return res.status(400).json({ error: "Falta el documento" });
+  }
+
+  const fecha = fechaDesdeHoy(1);
+  const esFinDeSemana = [0, 6].includes(diaSemana(fecha));
+
+  const { data, error } = await getSupabase()
+    .from("reservas")
+    .select("id")
+    .eq("documento", String(documento).trim())
+    .eq("fecha", fecha)
+    .maybeSingle();
+
+  if (error) return res.status(500).json({ error: error.message });
+
+  res.json({
+    necesita: !data && !esFinDeSemana,
+    fecha,
+    finDeSemana: esFinDeSemana,
+  });
+});
+
 // GET /api/reservas/:id
 // Busca una reserva por su id
 router.get("/:id", async (req, res) => {
