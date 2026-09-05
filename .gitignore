@@ -25,3 +25,13 @@ Thumbs.db
 
 # Notas locales de trabajo (no se publican)
 AGENTS.md
+
+# Artefactos de testing en navegador y capturas de evidencia
+.playwright-mcp/
+home-before-colorimetria.png
+reportes-colorimetria-desktop.png
+reportes-colorimetria-mobile.png
+sidebar-950.png
+
+# Documentos de otros proyectos que conviven en este repo (no se publican)
+docs/directorio-comunal/

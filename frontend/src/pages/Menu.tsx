@@ -186,7 +186,7 @@ function Menu() {
     try {
       const respuesta = await fetch(`${API_URL}/api/menus/${platoId}/valorar`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: cabeceras(),
         body: JSON.stringify({ puntos, documento: docValorar.trim() }),
       });
       if (!respuesta.ok) {

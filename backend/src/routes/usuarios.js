@@ -1,6 +1,6 @@
 // Cuentas del sistema (usuario + clave); para estudiantes el usuario es
-// su documento. Solo el admin las gestiona: GET lista (incluye la clave),
-// POST, PUT (activa/desactiva/cambia clave) y DELETE.
+// su documento. Solo el admin las gestiona: GET lista (nunca expone la
+// clave real, solo el hash), POST, PUT (activa/desactiva/cambia clave) y DELETE.
 import { Router } from "express";
 import { getSupabase } from "../config/supabase.js";
 import { requiereRol, ROLES } from "../config/auth.js";

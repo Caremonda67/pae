@@ -13,6 +13,8 @@
   --texto: #2c3e2c;
   --texto-suave: #5f6c5f;
   --naranja: #b35000;
+  /* Mantiene contraste AA como texto sobre el fondo naranja suave. */
+  --naranja-vivo: #a54200;
   --naranja-suave: #fff3e0;
   --borde: #e3e8dd;
   --radio: 14px;
@@ -142,6 +144,10 @@ body {
   gap: 1.5rem;
   z-index: 200;
   box-shadow: 4px 0 20px rgba(0, 0, 0, 0.08);
+  /* En pantallas bajas de escritorio el contenido de los enlaces puede
+     superar la altura de la sidebar; permitimos scroll aqui para que
+     ningun boton quede recortado e inaccesible. */
+  overflow-y: auto;
 }
 
 .sidebar-marca {
@@ -163,14 +169,14 @@ body {
 
 .sidebar-submarca {
   font-size: 0.72rem;
-  opacity: 0.85;
+  opacity: 1;
 }
 
 .sidebar-enlaces {
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
-  flex: 1;
+  flex: 1 0 auto;
 }
 
 .sidebar-enlaces a {
@@ -193,6 +199,11 @@ body {
 .sidebar-enlaces a.activo {
   background-color: var(--verde-oscuro);
   font-weight: 700;
+  box-shadow: inset 4px 0 0 var(--blanco);
+}
+
+.sidebar a:focus-visible {
+  outline-color: var(--blanco);
 }
 
 .nav-icono {
@@ -207,6 +218,7 @@ body {
   gap: 0.6rem;
   padding-top: 1rem;
   border-top: 1px solid rgba(255, 255, 255, 0.25);
+  flex-shrink: 0;
 }
 
 .sidebar-boton-reserva {
@@ -672,7 +684,7 @@ h1 {
 
 .aviso {
   background-color: var(--crema);
-  border-left: 5px solid var(--naranja);
+  border-left: 5px solid var(--naranja-vivo);
   border-radius: 10px;
   padding: 1rem 1.2rem;
 }
@@ -1233,6 +1245,7 @@ h1 {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 1rem;
   margin-bottom: 0.5rem;
 }
@@ -1439,7 +1452,13 @@ h1 {
 }
 
 .grafico-barra.naranja {
-  background-color: var(--naranja);
+  background-color: var(--naranja-vivo);
+  /* Las rayas distinguen asistencia de reservas aun sin percibir el color. */
+  background-image: repeating-linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.35) 0 3px,
+    transparent 3px 7px
+  );
 }
 
 .grafico-fecha {
@@ -1530,6 +1549,35 @@ h1 {
 }
 
 /* Pestañas del admin */
+.admin-grupos {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.7rem;
+}
+
+.admin-grupos .admin-grupo {
+  background-color: transparent;
+  border: 1.5px solid var(--borde);
+  border-radius: 999px;
+  padding: 0.45rem 1.1rem;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  color: var(--texto);
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.admin-grupos .admin-grupo:hover {
+  background-color: var(--verde-claro);
+}
+
+.admin-grupos .admin-grupo.activa {
+  background-color: var(--verde);
+  border-color: var(--verde);
+  color: var(--blanco);
+}
+
 .admin-pestanas {
   display: flex;
   gap: 0.6rem;
@@ -3221,7 +3269,7 @@ img {
 .etiqueta-variante.celiaco {
   background-color: var(--naranja-suave);
   color: #a24a06;
-  border-color: var(--naranja);
+  border-color: var(--naranja-vivo);
 }
 
 .etiqueta-variante.vegetariano,
@@ -3285,7 +3333,7 @@ img {
   font-weight: 700;
   background-color: var(--naranja-suave);
   color: #b24a06;
-  border: 1px solid var(--naranja);
+  border: 1px solid var(--naranja-vivo);
 }
 
 /* ==============================
@@ -3373,7 +3421,7 @@ img {
   font-size: 2rem;
   font-weight: 800;
   letter-spacing: 0.12em;
-  color: var(--naranja);
+  color: var(--naranja-vivo);
   background-color: var(--naranja-suave);
   border-radius: 10px;
   padding: 0.35rem 0.8rem;

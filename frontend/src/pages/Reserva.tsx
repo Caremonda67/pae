@@ -293,9 +293,11 @@ function Reserva() {
 
   // Si ya hay sesion al abrir la pagina (por ejemplo al recargar),
   // se rellena la informacion del beneficiario (nombre, sede, turno)
-  // ademas del documento, que ya viene precargado.
+  // ademas del documento, que ya viene precargado. Solo aplica a
+  // sesiones de estudiante: admin/cocina/profesor no tienen beneficiario
+  // asociado y su documento generaria un 404 inutil al buscarlo.
   useEffect(() => {
-    if (sesionInicial?.usuario) {
+    if (sesionInicial?.usuario && sesionInicial.rol === "estudiante") {
       buscarBeneficiario(sesionInicial.usuario);
       cargarPerfil(sesionInicial.usuario);
     }

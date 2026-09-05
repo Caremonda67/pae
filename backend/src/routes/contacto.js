@@ -8,46 +8,9 @@ import { getSupabase } from "../config/supabase.js";
 import { requiereRol, requiereSesion } from "../config/auth.js";
 import { enviarEmail, correoConfigurado } from "../config/email.js";
 import { limiteFormularios } from "../config/rateLimit.js";
+import { subirImagen } from "../config/almacenamiento.js";
 
 const router = Router();
-
-// Sube una imagen (base64) al bucket "imagenes" y devuelve su URL
-// publica. Misma logica que /api/archivos/subir, pero sin exigir
-// token: el formulario de contacto es publico (limiteFormularios
-// ya protege la ruta contra abusos).
-async function subirImagen(base64, nombre) {
-  const coincide = String(base64).match(/^data:(image\/\w+);base64,(.+)$/s);
-  const mime = coincide ? coincide[1] : "image/png";
-  const datos = coincide ? coincide[2] : String(base64);
-
-  // Tamano maximo razonable (5 MB) para evitar abusos
-  const bytes = Buffer.from(datos, "base64");
-  if (bytes.length > 5 * 1024 * 1024) {
-    throw new Error("La imagen supera los 5 MB");
-  }
-
-  // Nombre unico: fecha + numero aleatorio + extension.
-  // La extension se valida contra una lista blanca (imagenes comunes):
-  // rechaza nombres raros, rutas y caracteres problematicos del upload.
-  const extension = (String(nombre).match(/\.([a-z0-9]{1,5})$/i)?.[1] || "png").toLowerCase();
-  if (!["png", "jpg", "jpeg", "webp", "gif"].includes(extension)) {
-    throw new Error("Formato de imagen no permitido");
-  }
-  const ruta = `contacto/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${extension}`;
-
-  const { error } = await getSupabase()
-    .storage.from("imagenes")
-    .upload(ruta, bytes, { contentType: mime });
-  if (error) {
-    console.error("Error al subir imagen de contacto:", error.message);
-    throw new Error("No se pudo subir la imagen");
-  }
-
-  const { data: urlPublica } = getSupabase()
-    .storage.from("imagenes")
-    .getPublicUrl(ruta);
-  return urlPublica.publicUrl;
-}
 
 // GET /api/contacto
 // lista los mensajes recibidos (solo para el panel de administrador)
@@ -101,7 +64,7 @@ router.post("/", limiteFormularios, async (req, res) => {
   // Si el estudiante adjunta una foto, la subimos primero
   if (imagenBase64) {
     try {
-      fila.imagen = await subirImagen(imagenBase64, imagenNombre || "foto.png");
+      fila.imagen = await subirImagen(imagenBase64, imagenNombre || "foto.png", "contacto");
     } catch (err) {
       return res.status(400).json({ error: err.message });
     }

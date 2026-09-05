@@ -59,8 +59,7 @@ function Sidebar() {
       <aside
         id="sidebar-nav"
         className={`sidebar ${abierto ? "abierto" : ""}`}
-        role="navigation"
-        aria-label="Navegación principal"
+        aria-label="Menú lateral"
         inert={sinInteraccion || undefined}
       >
         <div className="sidebar-marca">
@@ -71,12 +70,9 @@ function Sidebar() {
           </div>
         </div>
 
-        <nav className="sidebar-enlaces">
+        <nav className="sidebar-enlaces" aria-label="Menú del sitio">
           <NavLink to="/" end onClick={cerrar}>
             <span className="nav-icono">🏠</span> Inicio
-          </NavLink>
-          <NavLink to="/sobre" onClick={cerrar}>
-            <span className="nav-icono">📘</span> Sobre el PAE
           </NavLink>
           <NavLink to="/menu" onClick={cerrar}>
             <span className="nav-icono">🍽️</span> Menú semanal
@@ -84,14 +80,8 @@ function Sidebar() {
           <NavLink to="/noticias" onClick={cerrar}>
             <span className="nav-icono">📰</span> Noticias
           </NavLink>
-          <NavLink to="/galeria" onClick={cerrar}>
-            <span className="nav-icono">🖼️</span> Galería
-          </NavLink>
           <NavLink to="/reportes" onClick={cerrar}>
-            <span className="nav-icono">📋</span> Reportes
-          </NavLink>
-          <NavLink to="/estadisticas" onClick={cerrar}>
-            <span className="nav-icono">📊</span> Estadísticas
+            <span className="nav-icono">📊</span> Reportes
           </NavLink>
           <NavLink to="/contacto" onClick={cerrar}>
             <span className="nav-icono">✉️</span> Contacto

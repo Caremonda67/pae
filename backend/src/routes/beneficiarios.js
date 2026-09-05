@@ -137,8 +137,11 @@ router.post("/", requiereRol("admin", "coordinador", "profesor"), async (req, re
 
   if (error) return res.status(500).json({ error: error.message });
 
-  // Si el admin/profesor da un PIN, creamos la cuenta de estudiante
-  if (pin && String(pin).trim()) {
+  // Si el admin/coordinador da un PIN, creamos la cuenta de estudiante.
+  // El profesor registra beneficiarios pero NO elige PINs: solo admin y
+  // coordinador crean/renuevan credenciales, para que un profesor no pueda
+  // suplantar a un estudiante creandole una cuenta con un PIN propio.
+  if (pin && String(pin).trim() && req.usuario.rol !== "profesor") {
     const pinLimpio = String(pin).trim();
     if (pinLimpio.length < 4) {
       return res.status(400).json({
@@ -167,9 +170,10 @@ router.post("/", requiereRol("admin", "coordinador", "profesor"), async (req, re
 // PUT /api/beneficiarios/:id/pin
 // Asigna (o renueva) el PIN de un beneficiario que ya esta registrado.
 // Crea su cuenta de estudiante si todavia no tiene, o le actualiza el
-// PIN a la existente. Solo admin, coordinador o profesor.
+// PIN a la existente. Solo admin o coordinador: el profesor no asigna
+// credenciales (evita que suplante a un estudiante eligiendo su PIN).
 // Cuerpo: { pin: "1234" }
-router.put("/:id/pin", requiereRol("admin", "coordinador", "profesor"), async (req, res) => {
+router.put("/:id/pin", requiereRol("admin", "coordinador"), async (req, res) => {
   const { pin } = req.body || {};
   const pinLimpio = pin ? String(pin).trim() : "";
   if (!pinLimpio) {

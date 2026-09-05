@@ -444,6 +444,28 @@ router.post("/:id/valorar", async (req, res) => {
       .json({ error: "Debes ingresar tu documento para valorar" });
   }
 
+  // Solo el estudiante dueno del documento puede votar: se exige su token
+  // (documento + PIN) y que coincida con el documento del voto. Sin esto,
+  // cualquiera manipula los ratings con el documento de otro beneficiario.
+  const cabecera = req.headers.authorization || "";
+  const token = cabecera.startsWith("Bearer ")
+    ? cabecera.slice("Bearer ".length)
+    : "";
+  const payload = verificarToken(token);
+  if (!payload) {
+    return res.status(401).json({
+      error: "Debes ingresar con tu documento y PIN para calificar platos.",
+    });
+  }
+  if (
+    String(payload.sub).replace(/[\s.\-]/g, "") !==
+    String(documento).replace(/[\s.\-]/g, "")
+  ) {
+    return res
+      .status(403)
+      .json({ error: "El token no coincide con el documento" });
+  }
+
   // El documento debe estar registrado (solo beneficiarios votan)
   const { data: beneficiario } = await getSupabase()
     .from("beneficiarios")

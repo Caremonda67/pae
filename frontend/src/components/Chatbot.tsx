@@ -25,6 +25,30 @@ const SALUDO_BOT: Mensaje = {
 
 const CLAVE_SESION = "pae_chat_sesion";
 
+// Guarda el historial en localStorage por conversacion, para no volver a
+// pedirlo al backend en cada pagina que se abre (evita golpes repetidos
+// de /api/chat/historial y rate-limit 429 cuando se navega rapido).
+const claveCacheSesion = (sesion: string) => `pae_chat_cache_${sesion}`;
+
+function leerCache(sesion: string): Mensaje[] | null {
+  try {
+    const crudo = localStorage.getItem(claveCacheSesion(sesion));
+    if (!crudo) return null;
+    const lista = JSON.parse(crudo);
+    return Array.isArray(lista) && lista.every((m) => m && m.rol && typeof m.texto === "string")
+      ? lista
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function guardarCache(sesion: string, mensajes: Mensaje[]) {
+  try {
+    localStorage.setItem(claveCacheSesion(sesion), JSON.stringify(mensajes));
+  } catch {}
+}
+
 // Identifica la conversacion de este navegador en la base. Si no
 // hay una guardada, crea una nueva.
 function obtenerSesion() {
@@ -55,11 +79,18 @@ function Chatbot() {
   const [error, setError] = useState("");
 
   // Al abrir la app recuperamos la conversacion guardada de este
-  // navegador para que no se pierda al recargar la pagina.
+  // navegador para que no se pierda al recargar la pagina. Si ya la
+  // tenemos en localStorage (cache) no volvemos a pedirla al backend.
   useEffect(() => {
     let activo = true;
     const sesion = obtenerSesion();
     if (!sesion) {
+      setCargando(false);
+      return;
+    }
+    const cache = leerCache(sesion);
+    if (cache) {
+      setMensajes(cache);
       setCargando(false);
       return;
     }
@@ -68,6 +99,7 @@ function Chatbot() {
       .then((lista) => {
         if (activo && Array.isArray(lista) && lista.length > 0) {
           setMensajes(lista);
+          guardarCache(sesion, lista);
         }
       })
       .catch(() => {})
@@ -79,10 +111,22 @@ function Chatbot() {
     };
   }, []);
 
+  // Mantiene la cache al dia: en cuanto cambian los mensajes guardamos
+  // la conversacion (despues de cargar o mandar un mensaje) para que la
+  // proxima pagina abra el chat sin pedir historial.
+  useEffect(() => {
+    if (cargando) return;
+    const sesion = obtenerSesion();
+    if (!sesion) return;
+    guardarCache(sesion, mensajes);
+  }, [mensajes, cargando]);
+
   // Empezar una conversacion nueva: olvida la sesion anterior y
   // limpia los mensajes en pantalla.
   function nuevaConversacion() {
     try {
+      const anterior = localStorage.getItem(CLAVE_SESION);
+      if (anterior) localStorage.removeItem(claveCacheSesion(anterior));
       localStorage.removeItem(CLAVE_SESION);
     } catch {}
     setMensajes([SALUDO_BOT]);
