@@ -249,8 +249,10 @@ router.put("/:id/favorito", async (req, res) => {
     return res.json({ ok: true, favorito: false });
   }
 
-  // Si ya estaba en el estado pedido, devolvemos ese estado
-  res.json({ ok: true, favorito: deseaActivo ? Boolean(existente) : !existente });
+  // Si ya estaba en el estado pedido, devolvemos ese estado: la respuesta
+  // debe reflejar lo que quedó (activo -> true, desactivo -> false), no
+  // inferirlo del estado previo.
+  res.json({ ok: true, favorito: Boolean(deseaActivo) });
 });
 
 // GET /api/menus/todos
