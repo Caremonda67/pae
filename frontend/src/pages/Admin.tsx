@@ -170,7 +170,7 @@ function Admin() {
     try {
       const datosPorRol: Record<string, string[]> = {
         admin: ["avisos", "mensajes", "beneficiarios", "menu", "galeria", "instituciones"],
-        cocina: ["avisos", "beneficiarios", "menu"],
+        cocina: ["menu"],
         profesor: ["avisos", "beneficiarios"],
         coordinador: ["avisos", "mensajes", "beneficiarios", "menu", "galeria", "instituciones"],
       };

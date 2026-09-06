@@ -71,17 +71,18 @@ export function useAsistencia(opts: { autenticado: boolean; pestana: string }) {
     setAsistenciaError("");
     setAsistenciaExito("");
     try {
-      await Promise.all(
-        asistenciaReservas
-          .filter((r) => r.asistio !== asistio)
-          .map((r) =>
-            fetch(`${API_URL}/api/asistencia/${r.id}`, {
-              method: "PUT",
-              headers: cabeceras(true),
-              body: JSON.stringify({ asistio }),
-            })
-          )
+      const pendientes = asistenciaReservas.filter((r) => r.asistio !== asistio);
+      const resultados = await Promise.all(
+        pendientes.map((r) =>
+          fetch(`${API_URL}/api/asistencia/${r.id}`, {
+            method: "PUT",
+            headers: cabeceras(true),
+            body: JSON.stringify({ asistio }),
+          })
+        )
       );
+      const fallo = resultados.find((r) => !r.ok);
+      if (fallo) throw new Error(`No se pudieron marcar todos (${fallo.status})`);
       setAsistenciaReservas((lista) => lista.map((r) => ({ ...r, asistio })));
       setAsistenciaExito(asistio ? "✅ Todos marcados como asistieron." : "Asistencia desmarcada.");
     } catch (err) {

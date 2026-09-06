@@ -69,7 +69,7 @@ export function useReportes(opts: {
   };
 
   useEffect(() => {
-    if (autenticado && (rol === "admin" || rol === "cocina")) cargarReportes();
+    if (autenticado && (rol === "admin" || rol === "cocina" || rol === "coordinador")) cargarReportes();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autenticado, desde, hasta]);
 
@@ -87,7 +87,7 @@ export function useReportes(opts: {
   };
 
   useEffect(() => {
-    if (autenticado && (rol === "admin" || rol === "cocina") && pestana === "reportes") {
+    if (autenticado && (rol === "admin" || rol === "cocina" || rol === "coordinador") && pestana === "reportes") {
       cargarTendencia();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

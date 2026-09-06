@@ -117,7 +117,7 @@ export function usePanelCocina(opts: {
 
     setSobrantesGuardando(true);
     try {
-      await Promise.all(
+      const resultados = await Promise.all(
         filas.map((fila) =>
           fetch(`${API_URL}/api/sobrantes`, {
             method: "POST",
@@ -132,6 +132,8 @@ export function usePanelCocina(opts: {
           })
         )
       );
+      const fallo = resultados.find((r) => !r.ok);
+      if (fallo) throw new Error(`No se pudo guardar una fila de sobrantes (${fallo.status})`);
       setSobranteExito("Sobrantes guardados correctamente.");
     } catch (err) {
       setSobranteError(err instanceof Error ? err.message : "Error al guardar");
