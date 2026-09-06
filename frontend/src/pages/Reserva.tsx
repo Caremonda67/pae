@@ -192,7 +192,7 @@ function Reserva() {
       // Al entrar, rellenamos tambien nombre, sede y turno buscando al
       // beneficiario (igual que cuando se escribe el documento a mano).
       buscarBeneficiario(datos.usuario);
-      cargarPerfil(datos.usuario);
+      cargarPerfil();
     } catch (err) {
       setErrorLogin(err instanceof Error ? err.message : "Error desconocido");
     } finally {
@@ -299,7 +299,7 @@ function Reserva() {
   useEffect(() => {
     if (sesionInicial?.usuario && sesionInicial.rol === "estudiante") {
       buscarBeneficiario(sesionInicial.usuario);
-      cargarPerfil(sesionInicial.usuario);
+      cargarPerfil();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -369,11 +369,13 @@ function Reserva() {
   }, [sesion?.usuario]);
 
   // Carga el perfil de alimento (alergias y preferencias) del estudiante
-  const cargarPerfil = async (documento: string) => {
+  // via GET /mi-perfil (solo su propio token): /buscar ya no devuelve
+  // esos datos porque es publico y son dato de salud.
+  const cargarPerfil = async () => {
     try {
-      const respuesta = await fetch(
-        `${API_URL}/api/beneficiarios/buscar?documento=${encodeURIComponent(documento)}`
-      );
+      const respuesta = await fetch(`${API_URL}/api/beneficiarios/mi-perfil`, {
+        headers: cabeceras(false),
+      });
       if (!respuesta.ok) return;
       const datos = await respuesta.json();
       setPerfil({

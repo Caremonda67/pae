@@ -46,9 +46,13 @@ router.get("/buscar", async (req, res) => {
     return res.status(400).json({ error: "Falta el documento" });
   }
 
+  // Solo campos necesarios para autocompletar la reserva: este endpoint
+  // es publico y no debe exponer datos de salud (alergias/preferencias)
+  // ni campos internos. El perfil completo lo ve el estudiante via
+  // GET /mi-perfil (con su token) y el panel via GET /.
   const { data, error } = await getSupabase()
     .from("beneficiarios")
-    .select("*")
+    .select("documento, nombre, sede, turno, grado")
     .eq("documento", String(documento).trim())
     .maybeSingle();
 
@@ -57,11 +61,27 @@ router.get("/buscar", async (req, res) => {
   if (!data) {
     return res.status(404).json({ error: "Documento no registrado" });
   }
-  // Nunca devolvemos el PIN: este endpoint es publico (autocompleta
-  // el formulario de reserva) y el PIN se valida solo en el login.
-  const copia = { ...data };
-  delete copia.pin;
-  res.json(copia);
+  res.json(data);
+});
+
+// GET /api/beneficiarios/mi-perfil
+// El estudiante lee sus propios datos (incluidas alergias y preferencias).
+// Solo devuelve la fila del documento de la sesion: el perfil de alimento
+// es dato de salud y no se expone por /buscar (que es publico).
+router.get("/mi-perfil", requiereRol("estudiante"), async (req, res) => {
+  const documento = String(req.usuario.sub || "").trim();
+  if (!documento) {
+    return res.status(400).json({ error: "No hay sesión de estudiante" });
+  }
+
+  const { data, error } = await getSupabase()
+    .from("beneficiarios")
+    .select("documento, nombre, sede, turno, grado, alergias, preferencias")
+    .eq("documento", documento)
+    .maybeSingle();
+  if (error) return res.status(500).json({ error: error.message });
+  if (!data) return res.status(404).json({ error: "Beneficiario no encontrado" });
+  res.json(data);
 });
 
 // PUT /api/beneficiarios/mi-perfil
