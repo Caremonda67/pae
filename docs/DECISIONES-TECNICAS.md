@@ -199,8 +199,7 @@ explicarse juntas:
   Hoy la semana, el día y las horas límite se calculan explícitamente con
   `America/Bogota`, en el backend y en el frontend.
 
-Y una corrección honesta de la que no me siento del todo orgulloso: en la
-revisión final de la API me di cuenta de que **las rutas de reservas no
+Una corrección que llegó tarde en la revisión de la API: **las rutas de reservas no
 verificaban que quien pedía datos fuera el mismo estudiante**; solo
 validaban el PIN del cuerpo de la petición. Blindé los cuatro endpoints de
 reservas (crear, listar, cancelar y recordatorio) para que exijan el token
@@ -225,8 +224,9 @@ Algunas funcionalidades nacieron del problema real y no del stack:
 ## Lo que haría distinto
 
 - **Empezar con TypeScript desde el día uno** y no refactorizar después.
-- Revisar los **renders y el manejo de efectos** del panel, que creció
-  desordenado, antes de congelarlo.
+- Extraer los hooks del panel desde el principio: Admin.tsx llegó a 2373
+  líneas antes del refactor; con la arquitectura de hooks hubiera crecido
+  ordenado desde el inicio.
 - Centralizar el cálculo de la semana del mes: hoy vive en el endpoint de
   menú y en el chatbot (iguales, pero duplicados).
 - Rotar las claves y dejar el `ADMIN_CLAVE` real fuera de los ejemplos
@@ -236,4 +236,4 @@ Para el alcance de un programa escolar, el balance entre lo que costó
 mantenerlo y lo que resuelve lo doy por bien pagado, y lo que queda
 documentado arriba son las decisiones que sostienen ese balance.
 
-_Escrito para acompañar la sustentación — agosto de 2026._
+_Escrito para acompañar la sustentación — septiembre de 2026._

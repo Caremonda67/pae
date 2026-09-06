@@ -28,11 +28,15 @@ Aplicación web full stack para instituciones educativas que busca reducir el de
 
 ### Admin
 
-- Login por roles: admin, cocina y profesor.
-- Panel con pestañas: menú, galería, beneficiarios, sedes, usuarios, mensajes, minutas por jornada, estadísticas y reportes.
+- Login por roles: admin, coordinador, cocina y profesor.
+- Panel con pestañas: menú, galería, beneficiarios, sedes, instituciones, usuarios, mensajes, asistencia, reportes, incidentes, turnos, auditoría, notificaciones y configuración.
 - Buscador en cada pestaña y manejo claro de errores (sesión expirada, endpoint que falló).
 - Usuarios: asignar clave visible y renovar el PIN de los beneficiarios.
 - Mensajes de contacto con marcado de leído y respuesta.
+
+### Coordinador
+
+- Panel con acceso a beneficiarios, turnos de cocina y reportes; permisos por sede.
 
 ### Cocina
 
@@ -49,11 +53,8 @@ Aplicación web full stack para instituciones educativas que busca reducir el de
 
 - Filtros por semana, mes o rango de fechas.
 - Exportación a Excel (con portada y tablas formateadas) y CSV.
+- Tendencia de demanda y sobrantes a 5 días (gráfico de pronóstico).
 
-
-Las funcionalidades de reportes y estadísticas antes dispersas en páginas separadas ahora están integradas en este panel principal, con acceso rápido a gráficos de desperdicio, asistencia por grado y métricas de cocina.
-
-*Antes seabanse secciones independientes "Sobre" y "Estadisticas", ahora reunidas en este panel principal.*
 ### Generales
 
 - Chatbot IA (Gemini) que responde con el menú y las sedes reales.
@@ -95,14 +96,14 @@ Las funcionalidades de reportes y estadísticas antes dispersas en páginas sepa
 ├── frontend/               # React + Vite + TypeScript
 │   └── src/
 │       ├── components/     # Sidebar, Chatbot, Lightbox, InstalarApp, FiltroReportes, Buscador
-│       └── pages/          # Home, Menu, Reserva, Admin (pestañas por rol), Galeria, Estadisticas, Reportes, Contacto, Noticias, Sobre
+│       └── pages/          # Home, Menu, Reserva, Admin (17 pestañas por rol), Galeria, Reportes, Contacto, Noticias
 ├── backend/                # Node.js + Express
 │   └── src/
-│       ├── config/         # Conexión a Supabase, auth, email, rate limit, password
+│       ├── config/         # Conexión a Supabase, auth, email, rate limit, almacenamiento
 │       └── routes/         # reservas, menus, sedes, sobrantes, asistencia, incidentes, contacto, chat, galeria, estadisticas, login, usuarios, etc.
 ├── backend/setup.sql       # Tablas, políticas RLS y datos de ejemplo
-├── .github/workflows/      # CI en PRs y despliegue a GitHub Pages
-└── render.yaml             # Configuración del backend en Render
+├── .github/workflows/      # CI en PRs (ci.yml) + despliegue automático a Render (deploy.yml)
+└── render.yaml             # Configuración declarativa: backend + frontend estático en Render
 ```
 
 ---
