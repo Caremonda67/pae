@@ -50,6 +50,10 @@ Aplicación web full stack para instituciones educativas que busca reducir el de
 - Filtros por semana, mes o rango de fechas.
 - Exportación a Excel (con portada y tablas formateadas) y CSV.
 
+
+Las funcionalidades de reportes y estadísticas antes dispersas en páginas separadas ahora están integradas en este panel principal, con acceso rápido a gráficos de desperdicio, asistencia por grado y métricas de cocina.
+
+*Antes seabanse secciones independientes "Sobre" y "Estadisticas", ahora reunidas en este panel principal.*
 ### Generales
 
 - Chatbot IA (Gemini) que responde con el menú y las sedes reales.
@@ -64,6 +68,7 @@ Aplicación web full stack para instituciones educativas que busca reducir el de
 |---|---|
 | Estudiante | Reservar con documento y PIN, ver menú, galería y contactar |
 | Admin | Todo el panel: menú, galería, beneficiarios, sedes, usuarios, mensajes y reportes |
+| Coordinador | Panel de coordinador: filtro de sedes y sobrantes, ruta de colaboradores, permisos sobre beneficiarios y turnos; gestiona métricas avanzadas y reportes detallados por jornada y sede
 | Cocina | Panel de cocina: totales del día, sobrantes y reportes |
 | Profesor | Asistencia de su grupo e incidentes/alergias |
 
@@ -79,7 +84,7 @@ Aplicación web full stack para instituciones educativas que busca reducir el de
 | IA | Google Gemini (API) |
 | Correo | Resend (emails transaccionales) |
 | Control de versiones | Git + GitHub |
-| Despliegue | Frontend en GitHub Pages · Backend en Render |
+| Despliegue | Frontend en Render · Backend en Render |
 
 ---
 
