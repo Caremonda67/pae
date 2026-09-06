@@ -6,7 +6,8 @@
     <link rel="apple-touch-icon" href="%BASE_URL%apple-touch-icon.png" />
     <meta name="theme-color" content="#2e9e6b" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <!-- iOS: se abre como app de pantalla completa sin navegador -->
+    <!-- App de pantalla completa sin navegador (Android/iOS) -->
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="PAE" />
@@ -32,9 +33,77 @@
     />
 
     <title>PAE | Alimentación Escolar</title>
+    <style>
+      /* Pantalla de carga inicial: se muestra apenas abre el navegador,
+         antes de que cargue React. Vive dentro de #root para que React
+         la reemplace solo al montar la app. */
+      .splash-inicio {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        background: linear-gradient(160deg, #1b5e20, #2e9e6b);
+        color: #fff;
+        font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      }
+      .splash-marca {
+        font-size: 36px;
+        font-weight: 800;
+        letter-spacing: 3px;
+      }
+      .splash-texto {
+        font-size: 14px;
+        opacity: 0.9;
+      }
+      .splash-cargando {
+        font-size: 12px;
+        opacity: 0.75;
+        animation: splash-latido 1.4s ease-in-out infinite;
+      }
+      .splash-anillo {
+        width: 56px;
+        height: 56px;
+        margin-bottom: 6px;
+        border: 5px solid rgba(255, 255, 255, 0.25);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: splash-giro 1s linear infinite;
+      }
+      @keyframes splash-giro {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @keyframes splash-latido {
+        0%,
+        100% {
+          opacity: 0.55;
+        }
+        50% {
+          opacity: 0.95;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .splash-anillo,
+        .splash-cargando {
+          animation: none;
+        }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="splash-inicio" role="status" aria-label="Cargando PAE, Alimentación Escolar">
+        <span class="splash-anillo" aria-hidden="true"></span>
+        <span class="splash-marca">PAE</span>
+        <span class="splash-texto">Alimentación Escolar</span>
+        <span class="splash-cargando" aria-hidden="true">Cargando…</span>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

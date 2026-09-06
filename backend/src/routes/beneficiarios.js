@@ -4,7 +4,7 @@ import { Router } from "express";
 import { getSupabase } from "../config/supabase.js";
 import { requiereRol } from "../config/auth.js";
 import { hashClave } from "../config/password.js";
-import { auditar } from "../config/auditoria.js";
+import { auditar, detalleCambios } from "../config/auditoria.js";
 
 const router = Router();
 
@@ -46,9 +46,13 @@ router.get("/buscar", async (req, res) => {
     return res.status(400).json({ error: "Falta el documento" });
   }
 
+  // Solo campos necesarios para autocompletar la reserva: este endpoint
+  // es publico y no debe exponer datos de salud (alergias/preferencias)
+  // ni campos internos. El perfil completo lo ve el estudiante via
+  // GET /mi-perfil (con su token) y el panel via GET /.
   const { data, error } = await getSupabase()
     .from("beneficiarios")
-    .select("*")
+    .select("documento, nombre, sede, turno, grado")
     .eq("documento", String(documento).trim())
     .maybeSingle();
 
@@ -57,11 +61,27 @@ router.get("/buscar", async (req, res) => {
   if (!data) {
     return res.status(404).json({ error: "Documento no registrado" });
   }
-  // Nunca devolvemos el PIN: este endpoint es publico (autocompleta
-  // el formulario de reserva) y el PIN se valida solo en el login.
-  const copia = { ...data };
-  delete copia.pin;
-  res.json(copia);
+  res.json(data);
+});
+
+// GET /api/beneficiarios/mi-perfil
+// El estudiante lee sus propios datos (incluidas alergias y preferencias).
+// Solo devuelve la fila del documento de la sesion: el perfil de alimento
+// es dato de salud y no se expone por /buscar (que es publico).
+router.get("/mi-perfil", requiereRol("estudiante"), async (req, res) => {
+  const documento = String(req.usuario.sub || "").trim();
+  if (!documento) {
+    return res.status(400).json({ error: "No hay sesión de estudiante" });
+  }
+
+  const { data, error } = await getSupabase()
+    .from("beneficiarios")
+    .select("documento, nombre, sede, turno, grado, alergias, preferencias")
+    .eq("documento", documento)
+    .maybeSingle();
+  if (error) return res.status(500).json({ error: error.message });
+  if (!data) return res.status(404).json({ error: "Beneficiario no encontrado" });
+  res.json(data);
 });
 
 // PUT /api/beneficiarios/mi-perfil
@@ -137,8 +157,11 @@ router.post("/", requiereRol("admin", "coordinador", "profesor"), async (req, re
 
   if (error) return res.status(500).json({ error: error.message });
 
-  // Si el admin/profesor da un PIN, creamos la cuenta de estudiante
-  if (pin && String(pin).trim()) {
+  // Si el admin/coordinador da un PIN, creamos la cuenta de estudiante.
+  // El profesor registra beneficiarios pero NO elige PINs: solo admin y
+  // coordinador crean/renuevan credenciales, para que un profesor no pueda
+  // suplantar a un estudiante creandole una cuenta con un PIN propio.
+  if (pin && String(pin).trim() && req.usuario.rol !== "profesor") {
     const pinLimpio = String(pin).trim();
     if (pinLimpio.length < 4) {
       return res.status(400).json({
@@ -167,9 +190,10 @@ router.post("/", requiereRol("admin", "coordinador", "profesor"), async (req, re
 // PUT /api/beneficiarios/:id/pin
 // Asigna (o renueva) el PIN de un beneficiario que ya esta registrado.
 // Crea su cuenta de estudiante si todavia no tiene, o le actualiza el
-// PIN a la existente. Solo admin, coordinador o profesor.
+// PIN a la existente. Solo admin o coordinador: el profesor no asigna
+// credenciales (evita que suplante a un estudiante eligiendo su PIN).
 // Cuerpo: { pin: "1234" }
-router.put("/:id/pin", requiereRol("admin", "coordinador", "profesor"), async (req, res) => {
+router.put("/:id/pin", requiereRol("admin", "coordinador"), async (req, res) => {
   const { pin } = req.body || {};
   const pinLimpio = pin ? String(pin).trim() : "";
   if (!pinLimpio) {
@@ -230,7 +254,7 @@ router.put("/:id", requiereRol("admin", "coordinador", "profesor"), async (req, 
 
   const { data: ben, error: errBen } = await getSupabase()
     .from("beneficiarios")
-    .select("id")
+    .select("id, nombre, documento, sede, turno, grado, alergias, preferencias")
     .eq("id", req.params.id)
     .maybeSingle();
   if (errBen) return res.status(500).json({ error: errBen.message });
@@ -252,7 +276,12 @@ router.put("/:id", requiereRol("admin", "coordinador", "profesor"), async (req, 
     .update(cambios)
     .eq("id", req.params.id);
   if (error) return res.status(500).json({ error: error.message });
-  auditar(req, "beneficiarios:editar", `id ${req.params.id} | cambiaron ${Object.keys(cambios).join(", ")}`);
+  const quien = ben?.nombre || ben?.documento || "beneficiario";
+  auditar(
+    req,
+    "beneficiarios:editar",
+    `"${quien}"${ben?.documento ? ` (${ben.documento})` : ""} | ${detalleCambios(cambios, ben)}`
+  );
   res.json({ ok: true });
 });
 

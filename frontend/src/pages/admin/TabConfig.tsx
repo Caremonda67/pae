@@ -16,7 +16,7 @@ export default function TabConfig({
   configMensaje, sedes, guardarConfig,
 }: Props) {
   return (
-    <div className="admin-seccion">
+    <div id="panel-config" role="tabpanel" aria-labelledby="tab-config">
       <h2 className="admin-subtitulo">Configuración del programa</h2>
       <p className="estado">
         Hora límite actual: {config.hora_limite_reserva || "sin definir"} · Los

@@ -49,6 +49,12 @@ export default function TabPanelCocina({
               <span className="reporte-numero">{panelDia.porJornada.Refrigerio || 0}</span>
               <span className="reporte-etiqueta">Refrigerios</span>
             </div>
+            {Number(panelDia.porJornada.Otros || 0) > 0 && (
+              <div className="reporte-caja">
+                <span className="reporte-numero">{panelDia.porJornada.Otros}</span>
+                <span className="reporte-etiqueta">Otros</span>
+              </div>
+            )}
             <div className="reporte-caja">
               <span className="reporte-numero">{panelDia.total}</span>
               <span className="reporte-etiqueta">Total del día</span>

@@ -13,6 +13,8 @@
   --texto: #2c3e2c;
   --texto-suave: #5f6c5f;
   --naranja: #b35000;
+  /* Mantiene contraste AA como texto sobre el fondo naranja suave. */
+  --naranja-vivo: #a54200;
   --naranja-suave: #fff3e0;
   --borde: #e3e8dd;
   --radio: 14px;
@@ -142,6 +144,10 @@ body {
   gap: 1.5rem;
   z-index: 200;
   box-shadow: 4px 0 20px rgba(0, 0, 0, 0.08);
+  /* En pantallas bajas de escritorio el contenido de los enlaces puede
+     superar la altura de la sidebar; permitimos scroll aqui para que
+     ningun boton quede recortado e inaccesible. */
+  overflow-y: auto;
 }
 
 .sidebar-marca {
@@ -163,14 +169,14 @@ body {
 
 .sidebar-submarca {
   font-size: 0.72rem;
-  opacity: 0.85;
+  opacity: 1;
 }
 
 .sidebar-enlaces {
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
-  flex: 1;
+  flex: 1 0 auto;
 }
 
 .sidebar-enlaces a {
@@ -193,6 +199,11 @@ body {
 .sidebar-enlaces a.activo {
   background-color: var(--verde-oscuro);
   font-weight: 700;
+  box-shadow: inset 4px 0 0 var(--blanco);
+}
+
+.sidebar a:focus-visible {
+  outline-color: var(--blanco);
 }
 
 .nav-icono {
@@ -207,6 +218,7 @@ body {
   gap: 0.6rem;
   padding-top: 1rem;
   border-top: 1px solid rgba(255, 255, 255, 0.25);
+  flex-shrink: 0;
 }
 
 .sidebar-boton-reserva {
@@ -672,7 +684,7 @@ h1 {
 
 .aviso {
   background-color: var(--crema);
-  border-left: 5px solid var(--naranja);
+  border-left: 5px solid var(--naranja-vivo);
   border-radius: 10px;
   padding: 1rem 1.2rem;
 }
@@ -959,6 +971,11 @@ h1 {
   gap: 1rem;
 }
 
+/* Dos tarjetas-form apiladas no deben pegarse (login->reserva, perfil->reserva) */
+form.formulario + form.formulario {
+  margin-top: 2rem;
+}
+
 .formulario label {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -1086,6 +1103,12 @@ h1 {
 .etiqueta-estado.borrador {
   background-color: #fff3e0;
   color: #e65100;
+}
+
+/* Los mensajes de estado en bloque no deben pegarse a los recuadros de alrededor */
+p.estado {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
 }
 
 /* ============================================================
@@ -1233,6 +1256,7 @@ h1 {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 1rem;
   margin-bottom: 0.5rem;
 }
@@ -1439,7 +1463,13 @@ h1 {
 }
 
 .grafico-barra.naranja {
-  background-color: var(--naranja);
+  background-color: var(--naranja-vivo);
+  /* Las rayas distinguen asistencia de reservas aun sin percibir el color. */
+  background-image: repeating-linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.35) 0 3px,
+    transparent 3px 7px
+  );
 }
 
 .grafico-fecha {
@@ -1530,6 +1560,35 @@ h1 {
 }
 
 /* Pestañas del admin */
+.admin-grupos {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.7rem;
+}
+
+.admin-grupos .admin-grupo {
+  background-color: transparent;
+  border: 1.5px solid var(--borde);
+  border-radius: 999px;
+  padding: 0.45rem 1.1rem;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  color: var(--texto);
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.admin-grupos .admin-grupo:hover {
+  background-color: var(--verde-claro);
+}
+
+.admin-grupos .admin-grupo.activa {
+  background-color: var(--verde);
+  border-color: var(--verde);
+  color: var(--blanco);
+}
+
 .admin-pestanas {
   display: flex;
   gap: 0.6rem;
@@ -3091,6 +3150,281 @@ img {
 }
 
 /* ============================================================
+   Panel: Notificaciones (confirmaciones de reserva)
+   ============================================================ */
+   Panel: Notificaciones (confirmaciones de reserva)
+   ============================================================ */
+.noti-contador {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.1rem 0.6rem;
+  border-radius: 999px;
+  background-color: var(--verde);
+  color: var(--blanco);
+  font-size: 0.76rem;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.noti-resumen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.7rem 0 1rem;
+}
+
+.noti-resumen-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.95rem;
+  border-radius: 999px;
+  border: 1px solid var(--borde);
+  background-color: var(--blanco);
+  box-shadow: var(--sombra);
+  font-size: 0.85rem;
+  color: var(--texto-suave);
+}
+
+.noti-resumen-item strong {
+  color: var(--texto);
+  font-size: 1rem;
+}
+
+.noti-resumen-item.noti-enviada strong {
+  color: var(--verde);
+}
+
+.noti-resumen-item.noti-pendiente strong {
+  color: var(--naranja);
+}
+
+.noti-fila {
+  display: flex;
+  gap: 0.9rem;
+  align-items: flex-start;
+}
+
+.noti-icono {
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  font-size: 1.15rem;
+  background-color: var(--verde-claro);
+  border: 1px solid var(--borde);
+}
+
+.noti-icono.pendiente {
+  background-color: var(--naranja-suave);
+}
+
+.noti-cuerpo {
+  flex: 1;
+  min-width: 0;
+}
+
+.noti-cabecera {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.chip-reserva {
+  background-color: var(--verde-claro);
+  color: var(--verde-oscuro);
+}
+
+.noti-estado {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.noti-estado.enviada {
+  background-color: var(--verde-claro);
+  color: var(--verde-oscuro);
+}
+
+.noti-estado.pendiente {
+  background-color: var(--naranja-suave);
+  color: var(--naranja);
+}
+
+.noti-mensaje {
+  margin: 0.35rem 0 0.45rem;
+  color: var(--texto);
+  font-size: 0.92rem;
+}
+
+.noti-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: baseline;
+}
+
+/* ============================================================
+/* ============================================================
+   Panel: Auditoria de acciones (linea de tiempo)
+   ============================================================ */
+.audit-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.9rem;
+}
+
+.audit-filtro {
+  background-color: var(--blanco);
+  border: 1.5px solid var(--borde);
+  border-radius: 999px;
+  padding: 0.45rem 1rem;
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+  color: var(--texto);
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.audit-filtro:hover {
+  background-color: var(--verde-claro);
+}
+
+.audit-filtro.activa {
+  background-color: var(--verde);
+  border-color: var(--verde);
+  color: var(--blanco);
+}
+
+.audit-dia {
+  margin: 0.4rem 0 0;
+}
+
+.audit-dia span {
+  display: inline-block;
+  padding: 0.15rem 0.7rem;
+  border-radius: 999px;
+  background-color: var(--crema);
+  border: 1px solid var(--borde);
+  color: var(--texto-suave);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.audit-lista {
+  position: relative;
+  display: grid;
+  gap: 0.7rem;
+  list-style: none;
+  margin: 0.8rem 0 0;
+  padding: 0;
+}
+
+.audit-lista::before {
+  content: "";
+  position: absolute;
+  left: 17px;
+  top: 14px;
+  bottom: 14px;
+  width: 2px;
+  background-color: var(--borde);
+}
+
+.audit-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  gap: 0.7rem;
+  align-items: start;
+}
+
+.audit-nodo {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 0.95rem;
+  background-color: var(--blanco);
+  border: 2px solid var(--borde);
+  z-index: 1;
+}
+
+.audit-nodo.crear {
+  background-color: var(--verde-claro);
+  border-color: var(--verde);
+}
+
+.audit-nodo.editar {
+  background-color: var(--naranja-suave);
+  border-color: var(--naranja);
+}
+
+.audit-nodo.borrar {
+  background-color: #fee2e2;
+  border-color: #f87171;
+}
+
+.audit-tarjeta {
+  background-color: var(--blanco);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: 0.75rem 1rem;
+  box-shadow: var(--sombra);
+}
+
+.audit-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.chip-verbo {
+  background-color: #eef0ec;
+  color: #44503f;
+}
+
+.chip-verbo.crear {
+  background-color: var(--verde-claro);
+  color: var(--verde-oscuro);
+}
+
+.chip-verbo.editar {
+  background-color: var(--naranja-suave);
+  color: var(--naranja);
+}
+
+.chip-verbo.borrar {
+  background-color: #fee2e2;
+  color: #b91c1c;
+}
+
+.audit-hora {
+  font-size: 0.78rem;
+  color: var(--texto-suave);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.audit-detalle {
+  margin: 0.4rem 0 0.35rem;
+  color: var(--texto);
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+
    Comida del dia: en movil una sola columna, centrado y sin
    desbordes. Va al final para ganarle a las reglas base.
    ============================================================ */
@@ -3221,7 +3555,7 @@ img {
 .etiqueta-variante.celiaco {
   background-color: var(--naranja-suave);
   color: #a24a06;
-  border-color: var(--naranja);
+  border-color: var(--naranja-vivo);
 }
 
 .etiqueta-variante.vegetariano,
@@ -3285,7 +3619,7 @@ img {
   font-weight: 700;
   background-color: var(--naranja-suave);
   color: #b24a06;
-  border: 1px solid var(--naranja);
+  border: 1px solid var(--naranja-vivo);
 }
 
 /* ==============================
@@ -3373,7 +3707,7 @@ img {
   font-size: 2rem;
   font-weight: 800;
   letter-spacing: 0.12em;
-  color: var(--naranja);
+  color: var(--naranja-vivo);
   background-color: var(--naranja-suave);
   border-radius: 10px;
   padding: 0.35rem 0.8rem;

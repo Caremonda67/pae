@@ -194,9 +194,9 @@ router.post("/", limiteChat, async (req, res) => {
     const hace30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
       .toISOString().slice(0, 10);
     const [menusRes, reservasRes, avisosRes, sedesRes] = await Promise.all([
-      supabase.from("menus").select("semana, dia, jornada, platillo, descripcion, calorias"),
+      supabase.from("menus").select("semana, dia, jornada, platillo, descripcion, calorias").eq("estado", "publicado"),
       supabase.from("reservas").select("fecha, asistio").gte("fecha", hace30d),
-      supabase.from("avisos").select("titulo, texto").order("created_at", { ascending: false }),
+      supabase.from("avisos").select("titulo, texto").eq("estado", "publicado").order("created_at", { ascending: false }),
       supabase.from("sedes").select("nombre"),
     ]);
 

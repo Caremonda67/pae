@@ -334,9 +334,11 @@ router.get("/panel", requiereRol("admin", "cocina"), async (req, res) => {
   const porJornada = { Almuerzo: 0, Refrigerio: 0 };
   const porSede = {};
   let total = 0;
+  const jornadasValidas = ["Almuerzo", "Refrigerio"];
   for (const reserva of data) {
     const turno = reserva.turno || "Otro";
-    porJornada[turno] = (porJornada[turno] || 0) + 1;
+    const clave = jornadasValidas.includes(turno) ? turno : "Otros";
+    porJornada[clave] = (porJornada[clave] || 0) + 1;
     const sede = reserva.sede || "Sin sede";
     porSede[sede] = (porSede[sede] || 0) + 1;
     total += 1;
@@ -572,8 +574,9 @@ router.get("/por-codigo/:codigo", requiereRol("admin", "cocina", "profesor", "co
 });
 
 // GET /api/reservas/:id
-// Busca una reserva por su id
-router.get("/:id", async (req, res) => {
+// Busca una reserva por su id. Expone datos personales (nombre,
+// documento), por eso solo lo pueden consultar roles del panel.
+router.get("/:id", requiereRol("admin", "cocina", "coordinador", "profesor"), async (req, res) => {
   const { data, error } = await getSupabase()
     .from("reservas")
     .select("*")
@@ -582,6 +585,62 @@ router.get("/:id", async (req, res) => {
   if (error) return res.status(404).json({ error: "Reserva no encontrada" });
   res.json(data);
 });
+
+// Valida cupo, hora limite y doble reserva para una fecha y, si todo
+// esta bien, inserta la reserva. La reutilizan la reserva de un dia
+// (fail-fast: devuelve el primer error) y la semanal (fail-soft: la
+// ruta omite los dias que no se puedan). settings se pasa desde afuera
+// para no releer la configuracion por cada fecha.
+// Devuelve { ok: true, data } o { ok: false, motivo, errorInterno }.
+async function crearReservaValidada(fecha, { nombre, documento, sede, turno, grado, llevar, settings }) {
+  // La fecha debe ser real y estar dentro del rango permitido
+  const errorFecha = validarFecha(fecha);
+  if (errorFecha) return { ok: false, motivo: errorFecha };
+
+  // Hora limite: si la reserva es para HOY y ya paso la hora limite
+  // configurada (settings.hora_limite_reserva), el dia se cierra y no
+  // se aceptan reservas nuevas ni cambios para hoy.
+  const errorLimite = await errorSiDiaCerrado(fecha, "reservar");
+  if (errorLimite) return { ok: false, motivo: errorLimite };
+
+  // Cupo por sede: si la sede ya alcanzo el cupo maximo de reservas
+  // para esa fecha, no se aceptan mas (settings.cupos_sede).
+  const cupo = settings.cupos_sede?.[sede];
+  if (typeof cupo === "number" && cupo > 0) {
+    const { count, error: errCount } = await getSupabase()
+      .from("reservas")
+      .select("*", { count: "exact", head: true })
+      .eq("fecha", fecha)
+      .eq("sede", sede);
+
+    if (errCount) return { ok: false, motivo: errCount.message, errorInterno: true };
+    if (count >= cupo) {
+      return {
+        ok: false,
+        motivo: `La sede ${sede} ya alcanzó su cupo de ${cupo} reservas para ese día.`,
+      };
+    }
+  }
+
+  // Evitar reservar dos veces la misma fecha y turno
+  const { data: existente } = await getSupabase()
+    .from("reservas")
+    .select("id")
+    .eq("documento", documento)
+    .eq("fecha", fecha)
+    .eq("turno", turno)
+    .maybeSingle();
+  if (existente) {
+    return { ok: false, motivo: "Ya tienes una reserva para esa fecha y ese turno." };
+  }
+
+  const { data: dataInsertada, error } = await insertarReserva(
+    nombre, documento, sede, turno, fecha, grado, llevar
+  );
+  if (error) return { ok: false, motivo: error.message, errorInterno: true };
+
+  return { ok: true, data: dataInsertada };
+}
 
 // POST /api/reservas
 // Crea una reserva nueva.
@@ -664,57 +723,24 @@ router.post("/", limiteFormularios, async (req, res) => {
   const gradoFinal = beneficiario.grado || null;
   const llevar = para_llevar === true;
 
+  // La configuracion (hora limite, cupos por sede) se lee una sola vez
+  // por request; el helper la recibe por parametro.
+  const settings = await leerSettings();
+
   // Reserva solo un dia
   if (!semanal) {
-    // La fecha debe ser real y estar dentro del rango permitido
-    const errorFecha = validarFecha(fechaBase);
-    if (errorFecha) {
-      return res.status(400).json({ error: errorFecha });
+    const { ok, data, motivo, errorInterno } = await crearReservaValidada(fechaBase, {
+      nombre: nombreFinal,
+      documento: docLimpio,
+      sede,
+      turno,
+      grado: gradoFinal,
+      llevar,
+      settings,
+    });
+    if (!ok) {
+      return res.status(errorInterno ? 500 : 400).json({ error: motivo });
     }
-
-    // Hora limite: si la reserva es para HOY y ya paso la hora limite
-    // configurada (settings.hora_limite_reserva), el dia se cierra y no
-    // se aceptan reservas nuevas ni cambios para hoy.
-    const errorLimite = await errorSiDiaCerrado(fechaBase, "reservar");
-    if (errorLimite) return res.status(400).json({ error: errorLimite });
-
-    // Cupo por sede: si la sede ya alcanzo el cupo maximo de reservas
-    // para esa fecha, no se aceptan mas (settings.cupos_sede).
-    const settings = await leerSettings();
-    const cupo = settings.cupos_sede?.[sede];
-    if (typeof cupo === "number" && cupo > 0) {
-      const { count, error: errCount } = await getSupabase()
-        .from("reservas")
-        .select("*", { count: "exact", head: true })
-        .eq("fecha", fechaBase)
-        .eq("sede", sede);
-
-      if (errCount) return res.status(500).json({ error: errCount.message });
-      if (count >= cupo) {
-        return res.status(400).json({
-          error: `La sede ${sede} ya alcanzó su cupo de ${cupo} reservas para ese día.`,
-        });
-      }
-    }
-
-    // Evitar reservar dos veces la misma fecha y turno
-    const { data: existente } = await getSupabase()
-      .from("reservas")
-      .select("id")
-      .eq("documento", docLimpio)
-      .eq("fecha", fechaBase)
-      .eq("turno", turno)
-      .maybeSingle();
-    if (existente) {
-      return res
-        .status(400)
-        .json({ error: "Ya tienes una reserva para esa fecha y ese turno." });
-    }
-
-    const { data: dataInsertada, error } = await insertarReserva(
-      nombreFinal, docLimpio, sede, turno, fechaBase, gradoFinal, llevar
-    );
-    if (error) return res.status(500).json({ error: error.message });
 
     // Registramos una notificacion de confirmacion (email si hay RESEND)
     crearNotificacion({
@@ -724,7 +750,7 @@ router.post("/", limiteFormularios, async (req, res) => {
       mensajeHtml: armarMensajeEmailHtml(nombreFinal, fechaBase, turno, sede),
     });
 
-    return res.status(201).json(dataInsertada);
+    return res.status(201).json(data);
   }
 
   // --- Reserva de TODA la semana (de una sola vez) ---
@@ -741,53 +767,19 @@ router.post("/", limiteFormularios, async (req, res) => {
       continue;
     }
 
-    const errorFecha = validarFecha(f);
-    if (errorFecha) {
-      omitidas.push({ fecha: f, motivo: errorFecha });
-      continue;
-    }
-
-    const errorLimite = await errorSiDiaCerrado(f, "reservar");
-    if (errorLimite) {
-      omitidas.push({ fecha: f, motivo: errorLimite });
-      continue;
-    }
-
-    // Evitar doble reserva de la misma fecha + turno
-    const { data: existente } = await getSupabase()
-      .from("reservas")
-      .select("id")
-      .eq("documento", docLimpio)
-      .eq("fecha", f)
-      .eq("turno", turno)
-      .maybeSingle();
-    if (existente) {
-      omitidas.push({ fecha: f, motivo: "ya tenías reserva" });
-      continue;
-    }
-
-    // Cupo por sede
-    const settings = await leerSettings();
-    const cupo = settings.cupos_sede?.[sede];
-    if (typeof cupo === "number" && cupo > 0) {
-      const { count } = await getSupabase()
-        .from("reservas")
-        .select("*", { count: "exact", head: true })
-        .eq("fecha", f)
-        .eq("sede", sede);
-      if (count >= cupo) {
-        omitidas.push({ fecha: f, motivo: `sede con cupo lleno (${cupo})` });
-        continue;
-      }
-    }
-
-    const { data: fila, error } = await insertarReserva(
-      nombreFinal, docLimpio, sede, turno, f, gradoFinal, llevar
-    );
-    if (error) {
-      omitidas.push({ fecha: f, motivo: error.message });
+    const { ok, data, motivo } = await crearReservaValidada(f, {
+      nombre: nombreFinal,
+      documento: docLimpio,
+      sede,
+      turno,
+      grado: gradoFinal,
+      llevar,
+      settings,
+    });
+    if (ok) {
+      creadas.push(data);
     } else {
-      creadas.push(fila);
+      omitidas.push({ fecha: f, motivo });
     }
   }
 

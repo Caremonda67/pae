@@ -8,8 +8,6 @@ import { API_URL } from "../config/api";
 import { fechaCorta } from "../config/fechas";
 import {
   leerSesion,
-  guardarSesion,
-  cerrarSesion,
   cabeceras,
 } from "../config/sesion";
 import type { Sesion } from "../config/sesion";
@@ -47,13 +45,7 @@ function aBase64(file: File): Promise<string> {
 function Contacto() {
   // Sesión compartida (misma que la reserva). Si el estudiante ya
   // entró en la página de reserva, aquí también está dentro.
-  const [sesion, setSesion] = useState<Sesion | null>(leerSesion());
-
-  // Login del estudiante (documento + PIN)
-  const [docLogin, setDocLogin] = useState("");
-  const [pinLogin, setPinLogin] = useState("");
-  const [entrando, setEntrando] = useState(false);
-  const [errorLogin, setErrorLogin] = useState("");
+  const [sesion] = useState<Sesion | null>(leerSesion());
 
   const [formulario, setFormulario] = useState({
     nombre: sesion?.nombre || "",
@@ -82,52 +74,6 @@ function Contacto() {
   ) => {
     const { name, value } = e.target;
     setFormulario({ ...formulario, [name]: value });
-  };
-
-  // Entra el estudiante con documento + PIN. Usa el mismo login que la
-  // reserva, así la sesión sirve en toda la aplicación.
-  const entrar = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setEntrando(true);
-    setErrorLogin("");
-    try {
-      const respuesta = await fetch(`${API_URL}/api/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ usuario: docLogin, clave: pinLogin }),
-      });
-      const datos = await respuesta.json().catch(() => null);
-      if (!respuesta.ok) {
-        throw new Error(datos?.error || "Documento o PIN incorrectos");
-      }
-      if (datos.rol !== "estudiante") {
-        throw new Error("Este documento no tiene cuenta de estudiante.");
-      }
-      const nuevaSesion: Sesion = {
-        token: datos.token,
-        rol: datos.rol,
-        usuario: datos.usuario,
-        nombre: datos.nombre,
-      };
-      guardarSesion(nuevaSesion);
-      setSesion(nuevaSesion);
-      setFormulario((f) => ({ ...f, nombre: nuevaSesion.nombre || "" }));
-      setDocLogin("");
-      setPinLogin("");
-      cargarMios();
-    } catch (err) {
-      setErrorLogin(err instanceof Error ? err.message : "Error desconocido");
-    } finally {
-      setEntrando(false);
-    }
-  };
-
-  // Cierra la sesión del estudiante
-  const salir = () => {
-    cerrarSesion();
-    setSesion(null);
-    setMios([]);
-    setFormulario((f) => ({ ...f, nombre: "" }));
   };
 
   // Carga la conversacion completa de un mensaje del estudiante
@@ -296,62 +242,6 @@ function Contacto() {
         ¿Tienes dudas sobre el programa, alergias alimentarias o sugerencias?
         Escríbenos.
       </p>
-
-      {/* Entrada del estudiante: con documento + PIN puede recibir las
-          respuestas del admin y ver el historial de sus mensajes */}
-      <hr className="separador" />
-      <h2>Estudiante: entra y recibe las respuestas</h2>
-      <p className="subtitulo">
-        Entra con tu documento y PIN para que tu mensaje quede asociado a tu
-        cuenta y aquí veas las respuestas del equipo del PAE.
-      </p>
-
-      {sesion?.rol === "estudiante" ? (
-        <div className="sesion-estudiante" aria-live="polite">
-          <p>
-            ✅ Estás como {sesion.nombre || sesion.usuario}. Ya puedes enviar tu
-            mensaje (el formulario de abajo) y ver tus respuestas en la sección
-            "Mis mensajes y respuestas".
-          </p>
-          <button type="button" className="boton boton-secundario" onClick={salir}>
-            Cerrar sesión
-          </button>
-        </div>
-      ) : (
-        <form className="formulario" onSubmit={entrar} aria-label="Entrar como estudiante">
-          <div className="formulario-fila">
-            <label htmlFor="doc-contacto">
-              Identificación
-              <input
-                id="doc-contacto"
-                type="text"
-                value={docLogin}
-                onChange={(e) => setDocLogin(e.target.value)}
-                required
-                placeholder="Tu número de documento"
-                autoComplete="username"
-              />
-            </label>
-            <label htmlFor="pin-contacto">
-              PIN
-              <input
-                id="pin-contacto"
-                type="password"
-                value={pinLogin}
-                onChange={(e) => setPinLogin(e.target.value)}
-                required
-                minLength={4}
-                placeholder="Tu PIN (te lo da el equipo del PAE)"
-                autoComplete="current-password"
-              />
-            </label>
-          </div>
-          {errorLogin && <p className="estado error" role="alert">⚠️ {errorLogin}</p>}
-          <button type="submit" className="boton boton-secundario" disabled={entrando}>
-            {entrando ? "Verificando…" : "Entrar"}
-          </button>
-        </form>
-      )}
 
       <form className="formulario" onSubmit={enviar}>
         <label>

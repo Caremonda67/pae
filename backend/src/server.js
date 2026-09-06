@@ -32,6 +32,10 @@ import auditoriaRouter from "./routes/auditoria.js";
 const app = express();
 const PORT = process.env.PORT || 4000;
 
+// Detras del proxy de Render, la IP real del cliente viene en X-Forwarded-For.
+// Sin esto, req.ip es siempre la IP del proxy y el rate limit por IP no funciona.
+app.set("trust proxy", 1);
+
 // Middlewares
 // 1. cors: permite que el frontend (en otro puerto/dominio) haga peticiones
 // 2. express.json: convierte el cuerpo de las peticiones a JSON.
@@ -47,8 +51,10 @@ app.use(rateLimit({
 }));
 
 // helmet: headers de seguridad por defecto (XSS, sniffing, frameguard...).
-//   contentSecurityPolicy se apaga porque Vite usa scripts inline en
-//   desarrollo; se activa cuando el frontend tenga dominio fijo.
+//   contentSecurityPolicy se apaga: este backend solo responde JSON (no
+//   sirve HTML), asi que la CSP no le protejeria nada. La CSP del sitio se
+//   debe definir en el deploy del frontend (SPA servido por Vercel/Render),
+//   no aqui.
 //   crossOriginResourcePolicy se apaga para que las imagenes de
 //   Supabase Storage se puedan cargar desde el navegador.
 app.use(helmet({

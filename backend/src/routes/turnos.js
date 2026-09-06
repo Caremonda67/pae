@@ -95,13 +95,23 @@ router.post("/", requiereRol("admin", "coordinador"), async (req, res) => {
 // DELETE /api/turnos/:id
 // Quita un turno asignado
 router.delete("/:id", requiereRol("admin", "coordinador"), async (req, res) => {
+  const { data: turno } = await getSupabase()
+    .from("turnos_cocina")
+    .select("fecha, usuario, sede")
+    .eq("id", req.params.id)
+    .maybeSingle();
+
   const { error } = await getSupabase()
     .from("turnos_cocina")
     .delete()
     .eq("id", req.params.id);
 
   if (error) return res.status(500).json({ error: error.message });
-  auditar(req, "turnos:quitar", `id ${req.params.id}`);
+  auditar(
+    req,
+    "turnos:quitar",
+    turno ? `${turno.fecha} | ${turno.usuario} | ${turno.sede}` : `registro interno ${req.params.id}`
+  );
   res.status(204).end();
 });
 

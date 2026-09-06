@@ -342,9 +342,9 @@ function Home() {
             <Link to="/reserva" className="boton boton-primario">
               Reservar mi comida
             </Link>
-            <Link to="/sobre" className="boton boton-secundario">
+            <a href="#sobre-pae" className="boton boton-secundario">
               Conoce más
-            </Link>
+            </a>
           </div>
         </div>
 
@@ -486,6 +486,40 @@ function Home() {
         <div className="impacto-caja">
           <span className="seccion-etiqueta">Cobertura del programa</span>
           <p>En el municipio, garantizando alimentación a la comunidad educativa.</p>
+        </div>
+      </section>
+
+      {/* Sobre el PAE */}
+      <section className="seccion-pae" id="sobre-pae">
+        <div className="seccion-titulo">
+          <h2>Sobre el PAE</h2>
+        </div>
+        <div className="tarjetas-info">
+          <article className="tarjeta-info">
+            <h3>¿Qué es?</h3>
+            <p>
+              El PAE es un programa que garantiza alimentación saludable a los
+              estudiantes durante la jornada escolar, mejorando su bienestar,
+              concentración y rendimiento académico.
+            </p>
+          </article>
+
+          <article className="tarjeta-info">
+            <h3>¿Cómo funciona?</h3>
+            <p>
+              Cada estudiante puede confirmar que recibirá su minuta mediante la
+              opción "Reservar comida". Con esas reservas, la cocina prepara
+              exactamente la cantidad necesaria y se reduce el desperdicio.
+            </p>
+          </article>
+
+          <article className="tarjeta-info">
+            <h3>Nuestro compromiso</h3>
+            <p>
+              Alimentación sana, justa y sin desperdicio. Cada minuta preparada
+              corresponde a un estudiante que confirmó que la recibirá.
+            </p>
+          </article>
         </div>
       </section>
 

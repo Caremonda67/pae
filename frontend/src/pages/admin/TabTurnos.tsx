@@ -21,7 +21,7 @@ export default function TabTurnos({
   turnosMensaje, sedes, asignarTurno, quitarTurno,
 }: Props) {
   return (
-    <div className="admin-seccion">
+    <div id="panel-turnos" role="tabpanel" aria-labelledby="tab-turnos">
       <h2 className="admin-subtitulo">Turnos de cocina</h2>
       <form className="formulario" onSubmit={asignarTurno}>
         <div className="formulario-fila">

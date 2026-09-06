@@ -54,7 +54,11 @@ router.get("/", async (req, res) => {
     .order("jornada", { ascending: true });
 
   if (req.query.semana) {
-    consulta = consulta.eq("semana", Number(req.query.semana));
+    const semana = Number(req.query.semana);
+    if (!Number.isInteger(semana) || semana < 1) {
+      return res.status(400).json({ error: "Semana no válida" });
+    }
+    consulta = consulta.eq("semana", semana);
   }
   if (req.query.dia) {
     consulta = consulta.eq("dia", req.query.dia);
@@ -245,8 +249,10 @@ router.put("/:id/favorito", async (req, res) => {
     return res.json({ ok: true, favorito: false });
   }
 
-  // Si ya estaba en el estado pedido, devolvemos ese estado
-  res.json({ ok: true, favorito: deseaActivo ? Boolean(existente) : !existente });
+  // Si ya estaba en el estado pedido, devolvemos ese estado: la respuesta
+  // debe reflejar lo que quedó (activo -> true, desactivo -> false), no
+  // inferirlo del estado previo.
+  res.json({ ok: true, favorito: Boolean(deseaActivo) });
 });
 
 // GET /api/menus/todos
@@ -261,7 +267,11 @@ router.get("/todos", requiereRol("admin", "cocina", "coordinador"), async (req, 
     .order("jornada", { ascending: true });
 
   if (req.query.semana) {
-    consulta = consulta.eq("semana", Number(req.query.semana));
+    const semana = Number(req.query.semana);
+    if (!Number.isInteger(semana) || semana < 1) {
+      return res.status(400).json({ error: "Semana no válida" });
+    }
+    consulta = consulta.eq("semana", semana);
   }
   if (req.query.dia) {
     consulta = consulta.eq("dia", req.query.dia);
@@ -427,8 +437,11 @@ router.delete("/:id", requiereRol("admin", "cocina"), async (req, res) => {
 // El documento es obligatorio (solo beneficiarios votan) y un mismo
 // documento no puede votar el mismo plato dos veces.
 router.post("/:id/valorar", async (req, res) => {
-  const menuId = req.params.id;
-  const { puntos, documento } = req.body;
+  const menuId = Number(req.params.id);
+  if (!Number.isInteger(menuId)) {
+    return res.status(404).json({ error: "Plato no encontrado" });
+  }
+  const { puntos, documento } = req.body || {};
 
   const puntosNum = Number(puntos);
   if (!Number.isInteger(puntosNum) || puntosNum < 1 || puntosNum > 5) {
@@ -442,6 +455,28 @@ router.post("/:id/valorar", async (req, res) => {
     return res
       .status(400)
       .json({ error: "Debes ingresar tu documento para valorar" });
+  }
+
+  // Solo el estudiante dueno del documento puede votar: se exige su token
+  // (documento + PIN) y que coincida con el documento del voto. Sin esto,
+  // cualquiera manipula los ratings con el documento de otro beneficiario.
+  const cabecera = req.headers.authorization || "";
+  const token = cabecera.startsWith("Bearer ")
+    ? cabecera.slice("Bearer ".length)
+    : "";
+  const payload = verificarToken(token);
+  if (!payload) {
+    return res.status(401).json({
+      error: "Debes ingresar con tu documento y PIN para calificar platos.",
+    });
+  }
+  if (
+    String(payload.sub).replace(/[\s.\-]/g, "") !==
+    String(documento).replace(/[\s.\-]/g, "")
+  ) {
+    return res
+      .status(403)
+      .json({ error: "El token no coincide con el documento" });
   }
 
   // El documento debe estar registrado (solo beneficiarios votan)
