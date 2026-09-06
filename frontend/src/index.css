@@ -971,6 +971,11 @@ h1 {
   gap: 1rem;
 }
 
+/* Dos tarjetas-form apiladas no deben pegarse (login->reserva, perfil->reserva) */
+form.formulario + form.formulario {
+  margin-top: 2rem;
+}
+
 .formulario label {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
