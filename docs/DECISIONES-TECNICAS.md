@@ -101,7 +101,7 @@ Para las claves y el token no quise meter dependencias de más:
   payload tan simple fue poco trabajo y el token queda igual de
   verificable; expira a las 12 horas.
 
-¿Por qué JWT y no sesiones? Porque la API y el frontend corren como
+JWT en vez de sesiones porque la API y el frontend corren como
 procesos independientes en el plan gratuito de Render: una sesión en
 memoria del servidor se perdería con cada reinicio y una sesión en Redis
 era **otro servidor más que pagar y operar**. El token viaja en el encabezado
@@ -151,7 +151,7 @@ quedó bloqueado. Los nombres de archivo son generados por el servidor con
 marca de tiempo + aleatorio, así nadie puede "adivinar" rutas ni chocar
 archivos iguales.
 
-¿Por qué base64 y no `multipart/form-data`? Porque me permitía que el
+Elegí base64 sobre `multipart/form-data` porque me permitía que el
 frontend comprimiera y validara la imagen antes de mandarla y porque el
 `.json` mantiene todo el contrato de la API simple de probar. Sabiendo que
 el límite por request existe, para imágenes de un menú escolar el tamaño
