@@ -1,4 +1,4 @@
-// POST /api/login — "admin" se valida contra ADMIN_CLAVE (env);
+// POST /api/login :: "admin" se valida contra ADMIN_CLAVE (env);
 // el resto contra la tabla usuarios (clave/PIN hasheado). Devuelve el token.
 import { Router } from "express";
 import { timingSafeEqual } from "node:crypto";

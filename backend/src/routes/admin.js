@@ -1,4 +1,4 @@
-// POST /api/admin/login — compara la clave con ADMIN_CLAVE y
+// POST /api/admin/login :: compara la clave con ADMIN_CLAVE y
 // devuelve un token con rol admin.
 import { Router } from "express";
 import { timingSafeEqual } from "node:crypto";
