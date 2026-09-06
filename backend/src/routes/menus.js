@@ -54,7 +54,11 @@ router.get("/", async (req, res) => {
     .order("jornada", { ascending: true });
 
   if (req.query.semana) {
-    consulta = consulta.eq("semana", Number(req.query.semana));
+    const semana = Number(req.query.semana);
+    if (!Number.isInteger(semana) || semana < 1) {
+      return res.status(400).json({ error: "Semana no válida" });
+    }
+    consulta = consulta.eq("semana", semana);
   }
   if (req.query.dia) {
     consulta = consulta.eq("dia", req.query.dia);
@@ -261,7 +265,11 @@ router.get("/todos", requiereRol("admin", "cocina", "coordinador"), async (req, 
     .order("jornada", { ascending: true });
 
   if (req.query.semana) {
-    consulta = consulta.eq("semana", Number(req.query.semana));
+    const semana = Number(req.query.semana);
+    if (!Number.isInteger(semana) || semana < 1) {
+      return res.status(400).json({ error: "Semana no válida" });
+    }
+    consulta = consulta.eq("semana", semana);
   }
   if (req.query.dia) {
     consulta = consulta.eq("dia", req.query.dia);
@@ -427,8 +435,11 @@ router.delete("/:id", requiereRol("admin", "cocina"), async (req, res) => {
 // El documento es obligatorio (solo beneficiarios votan) y un mismo
 // documento no puede votar el mismo plato dos veces.
 router.post("/:id/valorar", async (req, res) => {
-  const menuId = req.params.id;
-  const { puntos, documento } = req.body;
+  const menuId = Number(req.params.id);
+  if (!Number.isInteger(menuId)) {
+    return res.status(404).json({ error: "Plato no encontrado" });
+  }
+  const { puntos, documento } = req.body || {};
 
   const puntosNum = Number(puntos);
   if (!Number.isInteger(puntosNum) || puntosNum < 1 || puntosNum > 5) {
