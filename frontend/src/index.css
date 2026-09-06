@@ -3145,6 +3145,128 @@ img {
 }
 
 /* ============================================================
+   Panel: Notificaciones (confirmaciones de reserva)
+   ============================================================ */
+   Panel: Notificaciones (confirmaciones de reserva)
+   ============================================================ */
+.noti-contador {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.1rem 0.6rem;
+  border-radius: 999px;
+  background-color: var(--verde);
+  color: var(--blanco);
+  font-size: 0.76rem;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.noti-resumen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.7rem 0 1rem;
+}
+
+.noti-resumen-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.95rem;
+  border-radius: 999px;
+  border: 1px solid var(--borde);
+  background-color: var(--blanco);
+  box-shadow: var(--sombra);
+  font-size: 0.85rem;
+  color: var(--texto-suave);
+}
+
+.noti-resumen-item strong {
+  color: var(--texto);
+  font-size: 1rem;
+}
+
+.noti-resumen-item.noti-enviada strong {
+  color: var(--verde);
+}
+
+.noti-resumen-item.noti-pendiente strong {
+  color: var(--naranja);
+}
+
+.noti-fila {
+  display: flex;
+  gap: 0.9rem;
+  align-items: flex-start;
+}
+
+.noti-icono {
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  font-size: 1.15rem;
+  background-color: var(--verde-claro);
+  border: 1px solid var(--borde);
+}
+
+.noti-icono.pendiente {
+  background-color: var(--naranja-suave);
+}
+
+.noti-cuerpo {
+  flex: 1;
+  min-width: 0;
+}
+
+.noti-cabecera {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.chip-reserva {
+  background-color: var(--verde-claro);
+  color: var(--verde-oscuro);
+}
+
+.noti-estado {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.noti-estado.enviada {
+  background-color: var(--verde-claro);
+  color: var(--verde-oscuro);
+}
+
+.noti-estado.pendiente {
+  background-color: var(--naranja-suave);
+  color: var(--naranja);
+}
+
+.noti-mensaje {
+  margin: 0.35rem 0 0.45rem;
+  color: var(--texto);
+  font-size: 0.92rem;
+}
+
+.noti-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: baseline;
+}
+
+/* ============================================================
+/* ============================================================
    Panel: Auditoria de acciones (linea de tiempo)
    ============================================================ */
 .audit-filtros {

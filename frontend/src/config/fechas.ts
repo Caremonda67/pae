@@ -33,6 +33,33 @@ export function sumarDias(fecha: string, dias: number) {
   return `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, "0")}-${String(f.getDate()).padStart(2, "0")}`;
 }
 
+// Dia relativo de un timestamp: "Hoy", "Ayer", el dia de la semana si fue
+// esta semana o "4 sep" para fechas mas antiguas. Lo usan los listados con
+// lineas de tiempo (notificaciones, auditoria).
+export function etiquetaDia(timestamp?: string | null) {
+  if (!timestamp) return "";
+  const f = new Date(timestamp);
+  if (Number.isNaN(f.getTime())) return "";
+  const hoy = new Date();
+  const iniHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).getTime();
+  const iniF = new Date(f.getFullYear(), f.getMonth(), f.getDate()).getTime();
+  const diff = Math.round((iniHoy - iniF) / 86400000);
+  if (diff === 0) return "Hoy";
+  if (diff === 1) return "Ayer";
+  if (diff > 1 && diff < 7) {
+    return new Intl.DateTimeFormat("es-CO", { weekday: "long" }).format(f);
+  }
+  return f.toLocaleDateString("es-CO", { day: "numeric", month: "short" });
+}
+
+// Hora corta HH:MM (zona local) de un timestamp de la base de datos.
+export function horaCorta(timestamp?: string | null) {
+  if (!timestamp) return "";
+  const f = new Date(timestamp);
+  if (Number.isNaN(f.getTime())) return "";
+  return f.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
+}
+
 // Formatea una fecha YYYY-MM-DD a algo legible: "sábado, 8 de agosto"
 export function fechaLegible(fecha: string) {
   const [año, mes, dia] = fecha.split("-").map(Number);
