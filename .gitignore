@@ -1,6 +1,4 @@
-# ============================================================
 # Archivos que Git debe ignorar (no se suben al repositorio)
-# ============================================================
 
 # Dependencias de Node
 node_modules/
@@ -23,8 +21,7 @@ Thumbs.db
 *.sqlite
 *.sqlite3
 
-# Notas locales de trabajo (no se publican)
-AGENTS.md
+
 
 # Artefactos de testing en navegador y capturas de evidencia
 .playwright-mcp/
@@ -33,6 +30,3 @@ reportes-colorimetria-desktop.png
 reportes-colorimetria-mobile.png
 sidebar-950.png
 tablero-coordinador.png
-
-# Documentos de otros proyectos que conviven en este repo (no se publican)
-docs/directorio-comunal/
