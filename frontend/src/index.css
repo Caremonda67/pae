@@ -1100,6 +1100,12 @@ h1 {
   color: #e65100;
 }
 
+/* Los mensajes de estado en bloque no deben pegarse a los recuadros de alrededor */
+p.estado {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
 /* ============================================================
    Menu (pagina completa)
    ============================================================ */
@@ -3139,6 +3145,159 @@ img {
 }
 
 /* ============================================================
+   Panel: Auditoria de acciones (linea de tiempo)
+   ============================================================ */
+.audit-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.9rem;
+}
+
+.audit-filtro {
+  background-color: var(--blanco);
+  border: 1.5px solid var(--borde);
+  border-radius: 999px;
+  padding: 0.45rem 1rem;
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+  color: var(--texto);
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.audit-filtro:hover {
+  background-color: var(--verde-claro);
+}
+
+.audit-filtro.activa {
+  background-color: var(--verde);
+  border-color: var(--verde);
+  color: var(--blanco);
+}
+
+.audit-dia {
+  margin: 0.4rem 0 0;
+}
+
+.audit-dia span {
+  display: inline-block;
+  padding: 0.15rem 0.7rem;
+  border-radius: 999px;
+  background-color: var(--crema);
+  border: 1px solid var(--borde);
+  color: var(--texto-suave);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.audit-lista {
+  position: relative;
+  display: grid;
+  gap: 0.7rem;
+  list-style: none;
+  margin: 0.8rem 0 0;
+  padding: 0;
+}
+
+.audit-lista::before {
+  content: "";
+  position: absolute;
+  left: 17px;
+  top: 14px;
+  bottom: 14px;
+  width: 2px;
+  background-color: var(--borde);
+}
+
+.audit-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  gap: 0.7rem;
+  align-items: start;
+}
+
+.audit-nodo {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 0.95rem;
+  background-color: var(--blanco);
+  border: 2px solid var(--borde);
+  z-index: 1;
+}
+
+.audit-nodo.crear {
+  background-color: var(--verde-claro);
+  border-color: var(--verde);
+}
+
+.audit-nodo.editar {
+  background-color: var(--naranja-suave);
+  border-color: var(--naranja);
+}
+
+.audit-nodo.borrar {
+  background-color: #fee2e2;
+  border-color: #f87171;
+}
+
+.audit-tarjeta {
+  background-color: var(--blanco);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: 0.75rem 1rem;
+  box-shadow: var(--sombra);
+}
+
+.audit-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.chip-verbo {
+  background-color: #eef0ec;
+  color: #44503f;
+}
+
+.chip-verbo.crear {
+  background-color: var(--verde-claro);
+  color: var(--verde-oscuro);
+}
+
+.chip-verbo.editar {
+  background-color: var(--naranja-suave);
+  color: var(--naranja);
+}
+
+.chip-verbo.borrar {
+  background-color: #fee2e2;
+  color: #b91c1c;
+}
+
+.audit-hora {
+  font-size: 0.78rem;
+  color: var(--texto-suave);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.audit-detalle {
+  margin: 0.4rem 0 0.35rem;
+  color: var(--texto);
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+
    Comida del dia: en movil una sola columna, centrado y sin
    desbordes. Va al final para ganarle a las reglas base.
    ============================================================ */

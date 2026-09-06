@@ -4,7 +4,7 @@ import { Router } from "express";
 import { getSupabase } from "../config/supabase.js";
 import { requiereRol } from "../config/auth.js";
 import { hashClave } from "../config/password.js";
-import { auditar } from "../config/auditoria.js";
+import { auditar, detalleCambios } from "../config/auditoria.js";
 
 const router = Router();
 
@@ -234,7 +234,7 @@ router.put("/:id", requiereRol("admin", "coordinador", "profesor"), async (req, 
 
   const { data: ben, error: errBen } = await getSupabase()
     .from("beneficiarios")
-    .select("id")
+    .select("id, nombre, documento, sede, turno, grado, alergias, preferencias")
     .eq("id", req.params.id)
     .maybeSingle();
   if (errBen) return res.status(500).json({ error: errBen.message });
@@ -256,7 +256,12 @@ router.put("/:id", requiereRol("admin", "coordinador", "profesor"), async (req, 
     .update(cambios)
     .eq("id", req.params.id);
   if (error) return res.status(500).json({ error: error.message });
-  auditar(req, "beneficiarios:editar", `id ${req.params.id} | cambiaron ${Object.keys(cambios).join(", ")}`);
+  const quien = ben?.nombre || ben?.documento || "beneficiario";
+  auditar(
+    req,
+    "beneficiarios:editar",
+    `"${quien}"${ben?.documento ? ` (${ben.documento})` : ""} | ${detalleCambios(cambios, ben)}`
+  );
   res.json({ ok: true });
 });
 

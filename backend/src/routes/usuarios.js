@@ -5,7 +5,7 @@ import { Router } from "express";
 import { getSupabase } from "../config/supabase.js";
 import { requiereRol, ROLES } from "../config/auth.js";
 import { hashClave } from "../config/password.js";
-import { auditar } from "../config/auditoria.js";
+import { auditar, detalleCambios } from "../config/auditoria.js";
 
 const router = Router();
 
@@ -142,7 +142,7 @@ router.put("/:id", requiereRol("admin"), async (req, res) => {
   // se usa el de la cuenta actual.
   const { data: cuentaActual } = await getSupabase()
     .from("usuarios")
-    .select("rol")
+    .select("id, nombre, usuario, rol, activo, sede, turno, grado")
     .eq("id", req.params.id)
     .maybeSingle();
   const esProfesor = (rol ?? cuentaActual?.rol) === "profesor";
@@ -176,7 +176,12 @@ router.put("/:id", requiereRol("admin"), async (req, res) => {
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
-  auditar(req, "usuarios:editar", `id ${req.params.id} | ${Object.keys(cambios).join(", ")}`);
+  const quien = cuentaActual?.nombre || cuentaActual?.usuario || "cuenta";
+  auditar(
+    req,
+    "usuarios:editar",
+    `"${quien}"${cuentaActual?.usuario ? ` (${cuentaActual.usuario})` : ""} | ${detalleCambios(cambios, cuentaActual)}`
+  );
   res.json(data);
 });
 
@@ -185,7 +190,7 @@ router.put("/:id", requiereRol("admin"), async (req, res) => {
 router.delete("/:id", requiereRol("admin"), async (req, res) => {
   const { data: cuenta } = await getSupabase()
     .from("usuarios")
-    .select("usuario")
+    .select("usuario, rol")
     .eq("id", req.params.id)
     .maybeSingle();
 
@@ -194,7 +199,8 @@ router.delete("/:id", requiereRol("admin"), async (req, res) => {
     .delete()
     .eq("id", req.params.id);
   if (error) return res.status(500).json({ error: error.message });
-  auditar(req, "usuarios:borrar", `id ${req.params.id} | "${cuenta?.usuario || ""}"`);
+  const identita = cuenta?.usuario || "cuenta sin usuario";
+  auditar(req, "usuarios:borrar", `"${identita}"${cuenta?.rol ? ` (${cuenta.rol})` : ""}`);
   res.status(204).end();
 });
 

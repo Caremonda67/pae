@@ -7,7 +7,7 @@ import { Router } from "express";
 import { getSupabase } from "../config/supabase.js";
 import { invalidarSettings } from "../config/settings.js";
 import { requiereRol } from "../config/auth.js";
-import { auditar } from "../config/auditoria.js";
+import { auditar, detallesSettings } from "../config/auditoria.js";
 
 const router = Router();
 
@@ -96,11 +96,7 @@ router.put("/", requiereRol("admin"), async (req, res) => {
     if (error) return res.status(500).json({ error: error.message });
   }
 
-  auditar(
-    req,
-    "configuracion:actualizar",
-    filas.map((f) => `${f.clave}=${f.valor}`).join(" | ")
-  );
+  auditar(req, "configuracion:actualizar", detallesSettings(filas));
   invalidarSettings();
   res.json({ ok: true });
 });
