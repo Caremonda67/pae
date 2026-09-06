@@ -26,6 +26,25 @@ const TURNOS = ["Almuerzo", "Refrigerio"];
 // estudiantes y visitantes.
 const ROLES_PERSONAL = ["admin", "cocina", "profesor", "coordinador"];
 
+// Configuracion que devuelve el backend (/api/settings)
+interface ConfigSistema {
+  hora_limite_reserva: string | null;
+  cupos_sede: Record<string, number>;
+}
+
+// Respuesta de /api/reservas/recordatorio
+interface RecordatorioInfo {
+  necesita: boolean;
+  fecha: string;
+  finDeSemana: boolean;
+}
+
+// Hora local en formato HH:MM (para compararla con la hora limite)
+function horaLocal(): string {
+  const ahora = new Date();
+  return `${String(ahora.getHours()).padStart(2, "0")}:${String(ahora.getMinutes()).padStart(2, "0")}`;
+}
+
 interface MisReserva {
   id: number;
   estudiante: string;
@@ -86,6 +105,14 @@ function Reserva() {
 
   // La reserva confirmada, para mostrar el boton de WhatsApp
   const [ultimaReserva, setUltimaReserva] = useState<MisReserva | null>(null);
+
+  // Configuracion del sistema: hora limite para reservar/cancelar HOY
+  const [config, setConfig] = useState<ConfigSistema | null>(null);
+  // Reloj local HH:MM que se actualiza solo, para saber si ya paso
+  // la hora limite sin tener que recargar la pagina
+  const [ahoraHM, setAhoraHM] = useState(horaLocal());
+  // Recordatorio: avisa si manana no hay reserva hecha
+  const [recordatorio, setRecordatorio] = useState<RecordatorioInfo | null>(null);
 
   // Actualiza un campo del formulario
   const cambiar = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -243,6 +270,30 @@ function Reserva() {
       .catch(() => setSedes([]));
   }, []);
 
+  // Carga la configuracion del sistema (hora limite del panel admin)
+  useEffect(() => {
+    fetch(`${API_URL}/api/settings`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((datos) => setConfig(datos))
+      .catch(() => setConfig(null));
+  }, []);
+
+  // Mantiene la hora actualizada para compararla con la hora limite
+  useEffect(() => {
+    const t = window.setInterval(() => setAhoraHM(horaLocal()), 30000);
+    return () => window.clearInterval(t);
+  }, []);
+
+  // Con sesion activa revisa si manana ya tiene reserva (recordatorio)
+  useEffect(() => {
+    if (!sesion?.usuario) {
+      setRecordatorio(null);
+      return;
+    }
+    consultarRecordatorio(sesion.usuario);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sesion?.usuario]);
+
   // Envia la reserva al backend
   const enviar = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -274,6 +325,8 @@ function Reserva() {
 
       const guardada = await respuesta.json();
       setUltimaReserva(guardada);
+      const docUsado = formulario.documento.trim();
+      if (docUsado) consultarRecordatorio(docUsado);
       setExito(
         "✅ ¡Reserva confirmada! La cocina preparará tu minuta. Recuerda asistir para evitar desperdicio."
       );
@@ -285,6 +338,23 @@ function Reserva() {
       setError(err instanceof Error ? err.message : "Error desconocido");
     } finally {
       setEnviando(false);
+    }
+  };
+
+  // Pregunta al backend si el estudiante ya tiene reserva para manana.
+  // Alimenta el recordatorio que se muestra en "Mis reservas".
+  const consultarRecordatorio = async (documento: string) => {
+    try {
+      const respuesta = await fetch(
+        `${API_URL}/api/reservas/recordatorio?documento=${encodeURIComponent(documento)}`
+      );
+      if (!respuesta.ok) {
+        setRecordatorio(null);
+        return;
+      }
+      setRecordatorio(await respuesta.json());
+    } catch {
+      setRecordatorio(null);
     }
   };
 
@@ -303,6 +373,7 @@ function Reserva() {
         throw new Error(datos?.error || "No se pudieron cargar tus reservas");
       }
       setMisReservas(await respuesta.json());
+      consultarRecordatorio(documento);
       setConsultaHecha(true);
     } catch (err) {
       setErrorConsulta(err instanceof Error ? err.message : "Error desconocido");
@@ -326,6 +397,7 @@ function Reserva() {
         throw new Error(datos?.error || "No se pudo cancelar");
       }
       setMisReservas((lista) => lista.filter((r) => r.id !== id));
+      if (documento) consultarRecordatorio(documento);
     } catch (err) {
       setErrorConsulta(err instanceof Error ? err.message : "Error desconocido");
     }
@@ -343,6 +415,12 @@ function Reserva() {
       `¡Allí estaré para que no se desperdicie comida! 🙌`;
     return `https://wa.me/?text=${encodeURIComponent(mensaje)}`;
   };
+
+  // Hora limite configurada por el admin y si ya paso hoy. Si paso,
+  // no se puede reservar ni cancelar PARA HOY (el backend lo valida
+  // igual); para otros dias no hay limite.
+  const limite = config?.hora_limite_reserva || "";
+  const diaCerrado = Boolean(limite) && ahoraHM > limite;
 
   // El personal del PAE no usa la reserva: si entra con su sesion
   // (admin, cocina, profesor, coordinador) le mostramos un aviso.
@@ -425,6 +503,13 @@ function Reserva() {
       )}
 
       <form className="formulario" onSubmit={enviar}>
+        {limite && (
+          <p className={diaCerrado ? "estado error" : "estado"}>
+            {diaCerrado
+              ? `⏰ Hoy ya pasó la hora límite (${limite}): no puedes reservar ni cancelar para hoy, pero sí para los próximos días.`
+              : `⏰ Para reservar o cancelar para HOY tienes hasta las ${limite}. Para otros días no hay límite.`}
+          </p>
+        )}
         <label>
           Número de documento
           <input
@@ -538,7 +623,7 @@ function Reserva() {
             value={formulario.fecha}
             onChange={cambiar}
             required
-            min={hoyLocal()}
+            min={diaCerrado ? sumarDias(hoyLocal(), 1) : hoyLocal()}
             max={sumarDias(hoyLocal(), 60)}
           />
           <small className="campo-fijo">
@@ -602,6 +687,18 @@ function Reserva() {
         <p className="estado">No tienes reservas registradas con ese documento.</p>
       )}
 
+      {/* Recordatorio: avisa si manana no hay reserva hecha */}
+      {recordatorio && !recordatorio.finDeSemana && (
+        <p
+          className={recordatorio.necesita ? "estado error" : "estado exito"}
+          role="status"
+        >
+          {recordatorio.necesita
+            ? `🔔 Recordatorio: mañana (${fechaLegible(recordatorio.fecha)}) no tienes reserva. ¡Hazla ahora para que la cocina te prepare tu minuta!`
+            : `🔔 Ya tienes reserva para mañana (${fechaLegible(recordatorio.fecha)}). ¡Nos vemos!`}
+        </p>
+      )}
+
       {misReservas.length > 0 && (
         <div className="lista-reservas">
           {misReservas.map((reserva) => (
@@ -611,12 +708,21 @@ function Reserva() {
                 <span className="fila-reserva-detalle">
                   {reserva.turno} · {reserva.sede}
                   {reserva.asistio ? " · ✓ ya asististe" : ""}
+                  {!reserva.asistio && reserva.fecha < hoyLocal()
+                    ? " · ✗ no asististe"
+                    : ""}
                 </span>
               </div>
               <button
                 type="button"
                 className="boton boton-secundario"
                 onClick={() => cancelarReserva(reserva.id)}
+                disabled={reserva.fecha === hoyLocal() && diaCerrado}
+                title={
+                  reserva.fecha === hoyLocal() && diaCerrado
+                    ? `Ya pasó la hora límite (${limite}) para cancelar reservas de hoy`
+                    : undefined
+                }
               >
                 Cancelar
               </button>
