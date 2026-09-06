@@ -3152,8 +3152,6 @@ img {
 /* ============================================================
    Panel: Notificaciones (confirmaciones de reserva)
    ============================================================ */
-   Panel: Notificaciones (confirmaciones de reserva)
-   ============================================================ */
 .noti-contador {
   display: inline-block;
   margin-left: 0.5rem;
@@ -3425,6 +3423,7 @@ img {
 }
 
 
+/* ============================================================
    Comida del dia: en movil una sola columna, centrado y sin
    desbordes. Va al final para ganarle a las reglas base.
    ============================================================ */
