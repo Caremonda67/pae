@@ -1,239 +1,163 @@
 # Decisiones técnicas del PAE
 
-Este documento reúne, para la sustentación, el porqué de cada pieza del
-sistema. No es una lista teórica de "mejores prácticas": cuenta qué probé,
-qué descarté y qué aprendí en el camino, en el mismo orden en el que el
-proyecto creció.
+Notas para la sustentación sobre por qué el proyecto quedó armado así. No
+es una lista de buenas prácticas de un tutorial, es lo que fuimos
+decidiendo (y a veces corrigiendo) mientras lo construíamos.
 
-## Frontend: React + TypeScript + Vite
+## Stack
 
-El frontend fue la parte que más me costó dimensionar al principio. Lo
-empecé pensando que iba a ser "una página con un formulario", y termina
-siendo una SPA con una página pública (Home, menú, galería, reportes,
-estadísticas), el flujo de reserva del estudiante y un panel de
-administración con 17 secciones.
+React + Vite + TypeScript en el frontend, Node con Express en el backend,
+Supabase (Postgres) como base de datos. Elegimos React porque era lo que
+mejor conocíamos del equipo, y Node en el backend para no tener que saltar
+de lenguaje entre las dos partes.
 
-Elegí React porque era el stack que mejor conocía del equipo, y lo mantuve
-hibridando con TypeScript **después** de que el panel ya pesaba. Eso fue un
-error de orden: adaptar a tipos un archivo de cuatro mil líneas duele mucho
-más que empezar con ellos puestos. La lección quedó aprendida a la fuerza y
-hoy el proyecto compila con `tsc -b` y pasa `oxlint` sin un solo warning.
+TypeScript lo metimos tarde, ya con el panel de admin bastante grande, y
+eso costó: pasar a tipos un archivo de miles de líneas es mucho más
+trabajo que arrancar con ellos desde el día uno. Si lo volviéramos a
+hacer, TypeScript entra desde el primer commit.
 
-Vite lo tomé por descarte casi: en ese momento Create React App ya venía
-muy lent (cada guardado tardaba varios segundos) y el propio equipo de
-React la dejó de recomendar. Vite compila al instante, trata TypeScript
-como ciudadano de primera clase y trae el plugin de PWA con el que la app
-quedó instalable y cachea los recursos para que se abra aunque el internet
-del colegio venga lento. Ese detalle de la PWA no es cosmético: en las
-sedes el ancho de banda es limitado y la primera carga pesada se puede
-hacer "en casa".
+Vite en vez de Create React App fue casi obligado: CRA se había vuelto
+lento (varios segundos por cada guardado) y el propio equipo de React dejó
+de recomendarlo. Vite además trae el plugin de PWA, que usamos para que la
+app quede instalable y cachee recursos — en las sedes el internet no
+siempre es bueno, y que la primera carga pesada se pueda hacer con datos
+o wifi de casa ayuda.
 
-## Backend: Node.js con Express
+Dentro de Node comparamos Express, Fastify y Nest. Nest quedó descartado
+rápido: trae inyección de dependencias y bastante andamiaje pensado para
+equipos grandes, y acá el backend es simplemente un router con un archivo
+por recurso. Fastify es más rápido en benchmarks, pero ya conocíamos
+Express y su ecosistema de middlewares es más grande. Usamos módulos ES
+(`"type": "module"`) desde el inicio para no migrar `require` después.
 
-No quise cambiar de lenguaje entre frontend y backend, así que Node fue
-natural. Dentro de Node comparé Express y Fastify y consideré Nest:
+## Base de datos: Supabase
 
-- **Nest** me pareció sobredimensionado para esto: trae inyección de
-  dependencias, módulos y mucho andamiaje pensado para equipos grandes.
-  Aquí el backend es un router Express con archivos por recurso
-  (`/api/reservas`, `/api/menus`, ...), y eso es exactamente lo que el
-  proyecto necesita.
-- **Fastify** es más rápido, pero Express ya lo conocía y su ecosistema
-  es imposible de hacer tropezar (middlewares, documentación, ejemplos).
+Postgres para las reservas (integridad referencial, transacciones para la
+reserva semanal que inserta varios días de una) y para los reportes
+(joins de desperdicio por sede, tendencias). Supabase nos ahorra tener que
+levantar y pagar un servidor de base de datos aparte, y de paso trae
+storage para las imágenes y una UI de tablas que usamos bastante mientras
+probábamos consultas.
 
-Usé módulos ES (`"type": "module"`) de entrada en vez de CommonJS. En
-retrospectiva no fue una decisión heroica, pero evité el lío de ir
-migrando `require` después.
+La decisión de seguridad más importante del proyecto está acá: el
+frontend nunca habla directo con la base. Al principio pensamos en dejar
+las políticas RLS activas y que el frontend usara la key anónima —es el
+modelo que Supabase promueve—, pero eso implica validar permisos en dos
+lugares (RLS + backend), y un error de política en cualquiera de los dos
+es un hueco de seguridad. Terminamos cerrando el RLS por completo: el
+único que toca la base es el backend, con la service role key. El esquema
+vive en `backend/setup.sql` como migración, para no desincronizar
+desarrollo y producción.
 
-Los scripts de datos demo (`backend/scripts/`) los dejé re-ejecutables e
-idempotentes. Eso tampoco fue planeado: en las pruebas me tocaba resetear
-siempre lo mismo y terminé escribiendo un par de scripts que se pueden
-correr las veces que sean sin romper nada. Hoy eso me salva en cada
-demostración.
+## Autenticación: JWT propio, sin librerías de más
 
-## Base de datos: PostgreSQL vía Supabase
+Los estudiantes entran con documento + PIN (ya están en la tabla de
+beneficiarios), y el panel con usuario + clave según el rol. Descartamos
+Supabase Auth porque está pensado para confirmación por correo y magic
+links, y acá los estudiantes no tienen correo institucional.
 
-La base es PostgreSQL, manejada por Supabase. Postgres lo elegí sin dudar:
-SQL con integridad referencial para las reservas, joins para los reportes
-(desperdicio por sede, tendencias), y transacciones para cosas como la
-reserva semanal que inserta varios registros de una.
+Las claves se guardan con scrypt + salt, comparadas con
+`timingSafeEqual` para evitar ataques de tiempo. El token es un JWT
+firmado con HMAC-SHA256 usando el módulo `crypto` de Node en vez de la
+librería `jsonwebtoken` — el payload es simple y no vale la pena la
+dependencia extra. Expira a las 12 horas.
 
-Supabase, por su lado, me resuelve tres cosas con un solo proveedor y sin
-pagar servidor:
+La razón para JWT en vez de sesiones de servidor es el plan gratuito de
+Render: el backend puede reiniciarse en cualquier momento, y una sesión
+en memoria se perdería con cada reinicio. Redis para sesiones era otro
+servidor que pagar y mantener, así que el token viaja en el header
+`Authorization` y el navegador lo guarda en `localStorage`.
 
-1. El motor **PostgreSQL** alojado, con backups.
-2. **Supabase Storage** para las imágenes (bucket `imagenes`).
-3. Una **UI de tablas** con la que el desarrollo es muchísimo más rápido
-   cuando estás ensayando consultas o revisando datos sembrados.
+## Despliegue: Render
 
-La decisión más importante de seguridad de todo el proyecto está acá: **el
-frontend no habla con la base de datos**. Tardé en llegar a eso. En un
-momento pensé en tener las políticas RLS de Supabase activas y dejar que el
-frontend consultara directo con la key anónima, que es el modelo que el
-marketing de Supabase vende. Lo descarté por razón práctica: si validas
-permisos en dos lugares (frontend + RLS), un error de política en cualquiera
-es un hueco; y además el backend igual necesitaba validar quien hace cada
-cosa (rol, pertenencia de la reserva). Entonces cerré el RLS por completo
-y **el único que toca la base es el backend, con la service role key**, que
-ignora políticas. El esquema vive en `backend/setup.sql` y se aplica como
-migración, para que la base de desarrollo y la de producción no se vayan
-desincronizando.
+Backend y frontend corren en Render, plan gratuito, con `render.yaml`
+declarando ambos servicios para que el despliegue se reproduzca solo al
+importar el repo. Las variables sensibles (`SUPABASE_*`, `ADMIN_CLAVE`,
+`RESEND_API_KEY`) van como variables de entorno de Render, nunca en el
+repositorio. El repo conserva también un workflow de GitHub Pages de una
+etapa anterior del proyecto, pero ya no es el que sirve producción.
 
-## Autenticación y roles: JWT firmado a mano
+Dos cosas que aprendimos desplegando y no leyendo documentación:
 
-Los usuarios del sistema no entran con email y contraseña clásica: los
-**estudiantes entran con documento + PIN** (que ya están en la tabla de
-beneficiarios) y el panel con usuario + clave por rol (admin, coordinador,
-profesor, cocina, estudiante).
+- El puerto en Render es dinámico (`process.env.PORT`), no uno fijo.
+- Las rutas internas de una SPA (por ejemplo `/admin`) daban 404 al
+  recargar, porque ese archivo no existe de verdad — el rewrite
+  `/* → /index.html` en Render lo arregla.
 
-Descarté **Supabase Auth** por ese motivo: él está pensado para
-confirmación por email, magic links, etc. aquí los estudiantes no tienen
-correo institucional y el flujo en el colegio tenía que ser "escribe el
-documento, digita el PIN" y listo. Levantar la autenticación propia fue
-más directo y me dejó control de los roles exactos que el programa exige.
+## Imágenes
 
-Para las claves y el token no quise meter dependencias de más:
+Las fotos (platos, avisos, galería, incidentes) van al bucket `imagenes`
+de Supabase Storage y se sirven como URL pública. Se mandan como base64
+dentro del JSON en vez de `multipart/form-data`, porque así el frontend
+puede validar la imagen antes de mandarla y el contrato de la API se
+queda simple. Límites: 8 MB por request, 5 MB por archivo, y lista blanca
+de extensiones de imagen — a la subida le llegaron nombres con
+extensiones raras en pruebas y con la validación quedan bloqueados. El
+nombre final lo genera el servidor (fecha + número aleatorio), para que
+nadie adivine rutas. Esto vivía duplicado en dos rutas del backend y lo
+centralizamos en `config/almacenamiento.js`.
 
-- Las claves van con **scrypt + salt** (y comparación `timingSafeEqual`,
-  que evita el ataque de timing).
-- El token es un **JWT firmado con HMAC-SHA256** usando el módulo `crypto`
-  de Node, sin la librería `jsonwebtoken`. Sacar una dependencia de un
-  payload tan simple fue poco trabajo y el token queda igual de
-  verificable; expira a las 12 horas.
+## Correo: Resend
 
-JWT en vez de sesiones porque la API y el frontend corren como
-procesos independientes en el plan gratuito de Render: una sesión en
-memoria del servidor se perdería con cada reinicio y una sesión en Redis
-era **otro servidor más que pagar y operar**. El token viaja en el encabezado
-`Authorization` y lo conserva el navegador en `localStorage` para que la
-sesión no se caiga al recargar. Le hago control de caducidad del `exp`
-antes de usarlo, para no lanzar una lluvia de 401.
-
-## Despliegue: Render (plan gratuito) con `render.yaml`
-
-Los dos servicios (API y frontend estático) viven en Render, su plan
-gratuito para un proyecto académico es suficiente y el archivo
-`render.yaml` hace que el despliegue sea declarativo: se importa el repo y
-queda reproducido, sin apretar botones a mano. Las variables sensibles
-(`SUPABASE_*`, `ADMIN_CLAVE`, `RESEND_API_KEY`) van como variables de
-entorno, nunca en el repositorio.
-
-Dos aprendizajes concretos de desplegar:
-
-1. **El puerto es dinámico en Render** — la app escucha `process.env.PORT`
-   en vez de un puerto fijo.
-2. **Los enlaces directos de una SPA**: entrar a `/admin` daba 404 porque
-   no existe ese archivo, el que lo sirve es el index. Se arregló con un
-   rewrite de `/*` → `/index.html` en Render. Por eso el frontend se despliega
-   como **static** y no como otro servidor: no hay nada que renderizar en el
-   servidor.
-
-Y una nota de desarrollo en Windows: PowerShell tiene la ejecución de
-scripts bloqueada por política, así que `npx` no corre. Se trabaja
-llamando los binarios directo (`node .\node_modules\...\bin\...`). No es
-una decisión de arquitectura, pero explica por qué los comandos del
-proyecto están documentados así.
-
-## Imágenes: Supabase Storage (base64)
-
-El panel sube fotos (platos, avisos, galería) y probé dos caminos. Al
-principio la idea era un servicio de subida de terceros, pero agregar otra
-cuenta, otra key y otro bucket pagado no valía la pena cuando Supabase ya
-trae storage incluido. Así que las imágenes van al bucket `imagenes` de
-Supabase y se sirven como URLs públicas (el navegador las carga en una
-etiqueta `<img>` normal).
-
-El envío lo hago como **base64 dentro del JSON** con límites estrictos:
-máximo 8 MB en el cuerpo de la petición, máximo 5 MB por archivo y una
-**lista blanca de extensiones** que rechaza rutas y caracteres raros — a
-ese endpoint le pusieron un `.svg` con código arriba en las pruebas y
-quedó bloqueado. Los nombres de archivo son generados por el servidor con
-marca de tiempo + aleatorio, así nadie puede "adivinar" rutas ni chocar
-archivos iguales.
-
-Elegí base64 sobre `multipart/form-data` porque me permitía que el
-frontend comprimiera y validara la imagen antes de mandarla y porque el
-`.json` mantiene todo el contrato de la API simple de probar. Sabiendo que
-el límite por request existe, para imágenes de un menú escolar el tamaño
-nunca fue problema.
-
-## Correos: Resend
-
-El aviso de reserva y los correos del formulario de contacto salen con
-Resend vía su **API por HTTP**, y no con SMTP, porque el plan gratuito de
-Render bloquea el puerto SMTP saliente. Fue una de esas cosas que se
-descubren desplegando, no leyendo documentación.
-
-Detalle que me pareció importante: si no hay `RESEND_API_KEY` o remitente
-configurado, las funciones devuelven `false` sin romper el flujo. El
-sistema no se cae porque un correo no salga; el canal primario de
-comunicación con las familias es WhatsApp de todos modos.
+Resend por API HTTP en vez de SMTP, porque el plan gratuito de Render
+bloquea el puerto SMTP saliente. Si no hay `RESEND_API_KEY` configurada,
+las funciones de correo devuelven `false` sin romper el flujo — el correo
+es un canal secundario, el principal con las familias sigue siendo
+WhatsApp.
 
 ## Chatbot: Gemini
 
-El "PAE Bot" del chat usa **Gemini**, y no lo hice con respuestas fijas
-por palabra clave porque muy pronto se queda corto: los estudiantes
-preguntan lo mismo de mil maneras ("¿qué hay mañana?", "¿a qué hora me
-toca?"). El bot responde con **datos reales de la base** (menú de la
-semana, reservas del día, desperdicio) — el prompt se arma con fecha y
-metadatos reales, así no inventa. El historial de la conversación se
-persiste en la tabla `chatbot_mensajes` por sesión de navegador, para que
-el estudiante pueda volver atrás en su charla.
+El "PAE Bot" usa Gemini en vez de respuestas fijas por palabra clave,
+porque los estudiantes preguntan lo mismo de mil formas distintas. El
+prompt se arma con datos reales de la base (menú de la semana, avisos,
+sedes) filtrados por estado publicado, para que no responda con
+borradores ni invente información. El historial de cada conversación se
+guarda en `chatbot_mensajes` por sesión de navegador.
 
-## Seguridad transversal
+## Seguridad: lo que fuimos encontrando
 
-Varias decisiones de seguridad están repartidas en el código y merecen
-explicarse juntas:
+Helmet con los headers por defecto, salvo `contentSecurityPolicy`
+(Vite usa scripts en línea en desarrollo) y `crossOriginResourcePolicy`
+(para que el navegador cargue imágenes del storage público). CORS abierto
+en desarrollo y restringido al dominio del frontend en producción. Rate
+limits en dos niveles: uno global por IP y otros más estrictos en login,
+formularios y chat. Todo el cálculo de horas y fechas usa `America/Bogota`
+explícitamente, porque el servidor corre en UTC y la primera versión del
+menú semanal amaneció con los días cruzados.
 
-- **Helmet** con los headers de seguridad por defecto, salvo
-  `contentSecurityPolicy` (Vite usa scripts en línea en desarrollo) y
-  `crossOriginResourcePolicy` (para que el navegador cargue las imágenes
-  del storage público).
-- **CORS** entreabierto en desarrollo local y restringido al dominio del
-  frontend en producción vía `FRONTEND_URL`.
-- **Rate limits** en dos niveles: uno global (200 peticiones por minuto
-  por IP) y límites más estrictos en login, formularios y chat, para frenar
-  fuerza bruta y spam.
-- **Hora de Colombia** en todo el cálculo sensible: el servidor de Render
-  corre en UTC y la primera vez la semana del menú me amaneció cruzada.
-  Hoy la semana, el día y las horas límite se calculan explícitamente con
-  `America/Bogota`, en el backend y en el frontend.
+Encontramos y corregimos varios huecos de autorización durante el
+proyecto, no de una sola vez:
 
-Una corrección que llegó tarde en la revisión de la API: **las rutas de reservas no
-verificaban que quien pedía datos fuera el mismo estudiante**; solo
-validaban el PIN del cuerpo de la petición. Blindé los cuatro endpoints de
-reservas (crear, listar, cancelar y recordatorio) para que exijan el token
-del estudiante y que el `sub` del token coincida con el documento, y el
-frontend pasó a enviar `Authorization`. Lo probé contra la API desplegada
-y el repertorio de pruebas quedó guardado.
+- Las rutas de reservas (crear, listar, cancelar, recordatorio) solo
+  validaban el documento en el cuerpo de la petición, no que quien pedía
+  los datos fuera el mismo estudiante. Se corrigió exigiendo el token del
+  estudiante y comparando contra el documento.
+- Lo mismo pasaba con las valoraciones de platos: cualquiera podía votar
+  con el documento de otro. Mismo arreglo.
+- `GET /api/beneficiarios/buscar` es público (autocompleta el formulario
+  de reserva) y devolvía la fila completa del beneficiario, incluidas
+  alergias y preferencias. Ahora solo devuelve los campos necesarios para
+  autocompletar; el perfil completo lo lee el estudiante autenticado por
+  `/mi-perfil`.
+- Un profesor podía asignar o cambiar el PIN de un estudiante, lo que en
+  la práctica le permitía entrar como él. Esa acción quedó restringida a
+  admin y coordinador.
 
-## Decisiones de producto que se colaron en lo técnico
+## Decisiones de producto
 
-Algunas funcionalidades nacieron del problema real y no del stack:
+- Grab & Go: cada reserva genera un código corto y un QR (librería
+  `qrcode.react`) para que cocina entregue la minuta sin confusiones, y
+  también sirve para "para llevar".
+- Confirmación por WhatsApp con enlace `wa.me`, porque es el canal que
+  las familias ya usan.
+- Perfil de alimento (alergias y variante de menú: estándar, celíaco,
+  vegetariano, vegano), que llevó a crear el endpoint `mi-perfil` y a que
+  cocina vea alertas de alergias al listar los códigos de entrega del día.
 
-- **Grab & Go**: cada reserva genera un código corto y un **QR** para que
-  la cocina entregue la minuta sin confusiones, y sirve para la opción
-  "para llevar". Eso decidió la librería `qrcode.react` en el frontend.
-- **Confirmación por WhatsApp** con enlace `wa.me`: no inventamos un canal,
-  usamos el que las familias ya tienen.
-- **Perfil de alimento** (alergias y variante del menú: estándar, celíaco,
-  vegetariano, vegano), que obligó a que la API tuviera `mi-perfil` y a
-  que el panel de cocina avise con las alertas de alergias al listar los
-  códigos de entrega.
+## Pendiente / lo que haría distinto
 
-## Lo que haría distinto
-
-- **Empezar con TypeScript desde el día uno** y no refactorizar después.
-- Extraer los hooks del panel desde el principio: Admin.tsx llegó a 2373
-  líneas antes del refactor; con la arquitectura de hooks hubiera crecido
-  ordenado desde el inicio.
-- Centralizar el cálculo de la semana del mes: hoy vive en el endpoint de
-  menú y en el chatbot (iguales, pero duplicados).
-- Rotar las claves y dejar el `ADMIN_CLAVE` real fuera de los ejemplos
-  documentados.
-
-Para el alcance de un programa escolar, el balance entre lo que costó
-mantenerlo y lo que resuelve lo doy por bien pagado, y lo que queda
-documentado arriba son las decisiones que sostienen ese balance.
-
-_Escrito para acompañar la sustentación — septiembre de 2026._
+- Empezar con TypeScript desde el primer commit.
+- El cálculo de la semana del mes vive duplicado en el endpoint de menú y
+  en el chatbot; falta centralizarlo.
+- Rotar `ADMIN_CLAVE` en producción y no dejar ningún valor de ejemplo
+  parecido al real en la documentación.
