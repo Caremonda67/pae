@@ -13,18 +13,38 @@ import { Router } from "express";
 import { getSupabase } from "../config/supabase.js";
 import { requiereRol } from "../config/auth.js";
 import { hashClave } from "../config/password.js";
+import { auditar } from "../config/auditoria.js";
 
 const router = Router();
 
 // GET /api/beneficiarios
 // Lista todos los beneficiarios del programa
-router.get("/", async (_req, res) => {
+// Lista completa de beneficiarios. SOLO para el panel (admin,
+// coordinador y profesor): trae datos personales como documento y
+// PIN. La web publica usa /resumen, que devuelve solo conteos.
+router.get("/", requiereRol("admin", "coordinador", "profesor"), async (_req, res) => {
   const { data, error } = await getSupabase()
     .from("beneficiarios")
     .select("*")
     .order("nombre", { ascending: true });
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
+});
+
+// GET /api/beneficiarios/resumen
+// Conteo de beneficiarios por sede, PUBLICO. Lo usa la Home para
+// el registro por sede sin exponer nombres ni documentos.
+router.get("/resumen", async (_req, res) => {
+  const { data, error } = await getSupabase()
+    .from("beneficiarios")
+    .select("sede");
+  if (error) return res.status(500).json({ error: error.message });
+  const conteo = {};
+  for (const fila of data || []) {
+    const sede = fila.sede || "Sin sede";
+    conteo[sede] = (conteo[sede] || 0) + 1;
+  }
+  res.json(Object.entries(conteo).map(([sede, total]) => ({ sede, total })));
 });
 
 // GET /api/beneficiarios/buscar?documento=...
@@ -46,16 +66,20 @@ router.get("/buscar", async (req, res) => {
   if (!data) {
     return res.status(404).json({ error: "Documento no registrado" });
   }
-  res.json(data);
+  // Nunca devolvemos el PIN: este endpoint es publico (autocompleta
+  // el formulario de reserva) y el PIN se valida solo en el login.
+  const copia = { ...data };
+  delete copia.pin;
+  res.json(copia);
 });
 
 // POST /api/beneficiarios
-// Registra un beneficiario nuevo (admin o profesor).
+// Registra un beneficiario nuevo (admin, coordinador o profesor).
 // Si llega un PIN, tambien se crea su cuenta de estudiante
 // (usuario = documento, rol = estudiante) para que pueda entrar
 // a reservar con documento + PIN.
 // Cuerpo esperado: { documento, nombre, sede, turno, grado?, pin? }
-router.post("/", requiereRol("admin", "profesor"), async (req, res) => {
+router.post("/", requiereRol("admin", "coordinador", "profesor"), async (req, res) => {
   const { documento, nombre, sede, turno, grado, pin } = req.body;
 
   if (!documento || !nombre || !sede || !turno) {
@@ -93,7 +117,6 @@ router.post("/", requiereRol("admin", "profesor"), async (req, res) => {
       {
         nombre,
         usuario: String(documento).trim(),
-        clave: pinLimpio,
         clave_hash: hashClave(pinLimpio),
         rol: "estudiante",
       },
@@ -105,15 +128,16 @@ router.post("/", requiereRol("admin", "profesor"), async (req, res) => {
     }
   }
 
+  auditar(req, "beneficiarios:crear", `${documento} | ${nombre} | ${sede} | ${turno}`);
   res.status(201).json(data);
 });
 
 // PUT /api/beneficiarios/:id/pin
 // Asigna (o renueva) el PIN de un beneficiario que ya esta registrado.
 // Crea su cuenta de estudiante si todavia no tiene, o le actualiza el
-// PIN a la existente. Solo admin o profesor.
+// PIN a la existente. Solo admin, coordinador o profesor.
 // Cuerpo: { pin: "1234" }
-router.put("/:id/pin", requiereRol("admin", "profesor"), async (req, res) => {
+router.put("/:id/pin", requiereRol("admin", "coordinador", "profesor"), async (req, res) => {
   const { pin } = req.body || {};
   const pinLimpio = pin ? String(pin).trim() : "";
   if (!pinLimpio) {
@@ -145,7 +169,7 @@ router.put("/:id/pin", requiereRol("admin", "profesor"), async (req, res) => {
   if (existente) {
     const { error } = await getSupabase()
       .from("usuarios")
-      .update({ clave: pinLimpio, clave_hash: hashClave(pinLimpio) })
+      .update({ clave_hash: hashClave(pinLimpio) })
       .eq("id", existente.id);
     if (error) return res.status(500).json({ error: error.message });
   } else {
@@ -153,7 +177,6 @@ router.put("/:id/pin", requiereRol("admin", "profesor"), async (req, res) => {
       {
         nombre: ben.nombre,
         usuario: documento,
-        clave: pinLimpio,
         clave_hash: hashClave(pinLimpio),
         rol: "estudiante",
       },
@@ -161,17 +184,25 @@ router.put("/:id/pin", requiereRol("admin", "profesor"), async (req, res) => {
     if (error) return res.status(500).json({ error: error.message });
   }
 
+  auditar(req, "beneficiarios:pin", `documento ${documento} | nuevo PIN asignado`);
   res.json({ ok: true, documento });
 });
 
 // DELETE /api/beneficiarios/:id
 // Elimina un beneficiario (solo admin)
 router.delete("/:id", requiereRol("admin"), async (req, res) => {
+  const { data: ben } = await getSupabase()
+    .from("beneficiarios")
+    .select("documento, nombre")
+    .eq("id", req.params.id)
+    .maybeSingle();
+
   const { error } = await getSupabase()
     .from("beneficiarios")
     .delete()
     .eq("id", req.params.id);
   if (error) return res.status(500).json({ error: error.message });
+  auditar(req, "beneficiarios:borrar", `id ${req.params.id} | "${ben?.nombre || ""}" (${ben?.documento || ""})`);
   res.status(204).end();
 });
 

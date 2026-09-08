@@ -16,6 +16,7 @@ import { Router } from "express";
 import { getSupabase } from "../config/supabase.js";
 import { requiereRol, ROLES } from "../config/auth.js";
 import { hashClave } from "../config/password.js";
+import { auditar } from "../config/auditoria.js";
 
 const router = Router();
 
@@ -34,12 +35,12 @@ function errorGrupoProfesor(cuenta) {
 }
 
 // GET /api/usuarios
-// Lista las cuentas (con la clave en texto plano para que el admin
-// la vea). Solo admin.
+// Lista las cuentas. Solo admin. Nunca se devuelve ninguna clave:
+// si el admin quiere cambiarla, la edita y listo.
 router.get("/", requiereRol("admin"), async (_req, res) => {
   const { data, error } = await getSupabase()
     .from("usuarios")
-    .select("id, nombre, usuario, clave, rol, activo, sede, turno, grado, created_at")
+    .select("id, nombre, usuario, rol, activo, sede, turno, grado, created_at")
     .order("nombre", { ascending: true });
 
   if (error) return res.status(500).json({ error: error.message });
@@ -87,7 +88,6 @@ router.post("/", requiereRol("admin"), async (req, res) => {
       {
         nombre: String(nombre).trim(),
         usuario: String(usuario).trim(),
-        clave: String(clave),
         clave_hash: hashClave(clave),
         rol,
         sede: rol === "profesor" ? String(sede).trim() : null,
@@ -95,10 +95,11 @@ router.post("/", requiereRol("admin"), async (req, res) => {
         grado: rol === "profesor" ? String(grado).trim() : null,
       },
     ])
-    .select("id, nombre, usuario, clave, rol, activo, sede, turno, grado, created_at")
+    .select("id, nombre, usuario, rol, activo, sede, turno, grado, created_at")
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
+  auditar(req, "usuarios:crear", `"${String(usuario).trim()}" (${rol})`);
   res.status(201).json(data);
 });
 
@@ -130,7 +131,6 @@ router.put("/:id", requiereRol("admin"), async (req, res) => {
   if (usuario !== undefined) cambios.usuario = String(usuario).trim();
   if (rol !== undefined) cambios.rol = rol;
   if (clave !== undefined) {
-    cambios.clave = String(clave);
     cambios.clave_hash = hashClave(clave);
   }
   // El grupo del profesor: solo se guarda cuando llega (para un profesor
@@ -168,21 +168,29 @@ router.put("/:id", requiereRol("admin"), async (req, res) => {
     .from("usuarios")
     .update(cambios)
     .eq("id", req.params.id)
-    .select("id, nombre, usuario, clave, rol, activo, sede, turno, grado, created_at")
+    .select("id, nombre, usuario, rol, activo, sede, turno, grado, created_at")
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
+  auditar(req, "usuarios:editar", `id ${req.params.id} | ${Object.keys(cambios).join(", ")}`);
   res.json(data);
 });
 
 // DELETE /api/usuarios/:id
 // Borra una cuenta. Solo admin.
 router.delete("/:id", requiereRol("admin"), async (req, res) => {
+  const { data: cuenta } = await getSupabase()
+    .from("usuarios")
+    .select("usuario")
+    .eq("id", req.params.id)
+    .maybeSingle();
+
   const { error } = await getSupabase()
     .from("usuarios")
     .delete()
     .eq("id", req.params.id);
   if (error) return res.status(500).json({ error: error.message });
+  auditar(req, "usuarios:borrar", `id ${req.params.id} | "${cuenta?.usuario || ""}"`);
   res.status(204).end();
 });
 
