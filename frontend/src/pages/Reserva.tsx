@@ -16,7 +16,7 @@ import {
 
 // Turnos para reservar. Un estudiante con turno "Ambas jornadas"
 // elige aquí en cuál de las dos (Almuerzo o Refrigerio) reservar.
-const TURNOS = ["Almuerzo", "Refrigerio"];
+const TURNOS = ["Almuerzo", "Refrigerio", "Ambas jornadas"];
 
 // Variantes de menu alternativo que puede pedir el estudiante
 const VARIANTES_PERFIL = [
@@ -262,14 +262,14 @@ function Reserva() {
             ...f,
             estudiante: datos.nombre,
             sede: datos.sede,
-            turno: ambasJornadas ? "" : datos.turno,
+            turno: datos.turno,
           }));
           setBeneficiarioConfirmado(true);
           setTurnoDoble(ambasJornadas);
           setInfoBeneficiario(
             ambasJornadas
-              ? `✅ Encontrado: ${datos.nombre}. Tu sede (${datos.sede}) está registrada y puedes venir en las dos jornadas (Almuerzo y Refrigerio). Elige en cuál reservar.`
-              : `✅ Encontrado: ${datos.nombre}. Tu sede (${datos.sede}) y turno (${datos.turno}) ya están definidos.`
+              ? `? Encontrado: ${datos.nombre}. Tu sede (${datos.sede}) permite ambas jornadas. Por defecto se reservar�n ambas, pero puedes elegir solo una.`
+              : `? Encontrado: ${datos.nombre}. Tu sede (${datos.sede}) y turno (${datos.turno}) ya est�n definidos.`
           );
         } else {
           setInfoBeneficiario("ℹ️ Documento no registrado. Verifica con el equipo del PAE.");
@@ -840,11 +840,11 @@ function Reserva() {
             ))}
           </select>
           {beneficiarioConfirmado && (
-            <small className="campo-fijo">
-              {turnoDoble
-                ? "Puedes venir a Almuerzo y a Refrigerio. Elige el turno de esta reserva."
-                : "Tu turno habitual ya se seleccionó, pero puedes cambiarlo."}
-            </small>
+              <small className="campo-fijo">
+                {turnoDoble
+                  ? "Puedes reservar ambas jornadas de una vez, o elegir solo una."
+                  : "Tu turno habitual ya se seleccionó, pero puedes cambiarlo."}
+              </small>
           )}
         </label>
 

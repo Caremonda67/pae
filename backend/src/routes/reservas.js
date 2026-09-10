@@ -1,4 +1,4 @@
-﻿// rutas de las reservas
+// rutas de las reservas
 // el estudiante reserva su comida y aca se guarda en la base,
 // tambien se calcula cuantas minutas hay por fecha para la cocina
 
@@ -664,10 +664,12 @@ router.post("/", limiteFormularios, async (req, res) => {
   }
 
   // El turno y la sede deben ser valores conocidos (evita datos raros)
-  const turnosValidos = ["Almuerzo", "Refrigerio"];
+  const turnosValidos = ["Almuerzo", "Refrigerio", "Ambas jornadas", "Ambos"];
   if (!turnosValidos.includes(turno)) {
     return res.status(400).json({ error: "Turno no válido" });
   }
+
+  const listaTurnos = (turno === "Ambas jornadas" || turno === "Ambos") ? ["Almuerzo", "Refrigerio"] : [turno];
 
   // La sede se valida contra la tabla de sedes (la maneja el admin).
   // Si no hay sedes configuradas, no se aceptan reservas.
@@ -729,20 +731,32 @@ router.post("/", limiteFormularios, async (req, res) => {
 
   // Reserva solo un dia
   if (!semanal) {
-    const { ok, data, motivo, errorInterno } = await crearReservaValidada(fechaBase, {
-      nombre: nombreFinal,
-      documento: docLimpio,
-      sede,
-      turno,
-      grado: gradoFinal,
-      llevar,
-      settings,
-    });
-    if (!ok) {
-      return res.status(errorInterno ? 500 : 400).json({ error: motivo });
+    const creadas = [];
+    const omitidas = [];
+    let errorCritico = null;
+    let errStatus = 400;
+
+    for (const t of listaTurnos) {
+      const { ok, data, motivo, errorInterno } = await crearReservaValidada(fechaBase, {
+        nombre: nombreFinal,
+        documento: docLimpio,
+        sede,
+        turno: t,
+        grado: gradoFinal,
+        llevar,
+        settings,
+      });
+      if (ok) creadas.push(data);
+      else {
+        omitidas.push({ turno: t, motivo });
+        if (errorInterno) { errorCritico = motivo; errStatus = 500; }
+      }
     }
 
-    // Registramos una notificacion de confirmacion (email si hay RESEND)
+    if (creadas.length === 0) {
+      return res.status(errStatus).json({ error: errorCritico || omitidas[0].motivo });
+    }
+
     crearNotificacion({
       tipo: "reserva",
       destinatario: req.body.correo || "",
@@ -750,7 +764,8 @@ router.post("/", limiteFormularios, async (req, res) => {
       mensajeHtml: armarMensajeEmailHtml(nombreFinal, fechaBase, turno, sede),
     });
 
-    return res.status(201).json(data);
+    const resUnica = { ...creadas[0], turno };
+    return res.status(201).json(resUnica);
   }
 
   // --- Reserva de TODA la semana (de una sola vez) ---
@@ -763,23 +778,25 @@ router.post("/", limiteFormularios, async (req, res) => {
 
   for (const f of diasASem) {
     if (f < fechaHoy()) {
-      omitidas.push({ fecha: f, motivo: "ya pasó" });
+      omitidas.push({ fecha: f, turno, motivo: "ya pas�" });
       continue;
     }
 
-    const { ok, data, motivo } = await crearReservaValidada(f, {
-      nombre: nombreFinal,
-      documento: docLimpio,
-      sede,
-      turno,
-      grado: gradoFinal,
-      llevar,
-      settings,
-    });
-    if (ok) {
-      creadas.push(data);
-    } else {
-      omitidas.push({ fecha: f, motivo });
+    for (const t of listaTurnos) {
+      const { ok, data, motivo } = await crearReservaValidada(f, {
+        nombre: nombreFinal,
+        documento: docLimpio,
+        sede,
+        turno: t,
+        grado: gradoFinal,
+        llevar,
+        settings,
+      });
+      if (ok) {
+        creadas.push(data);
+      } else {
+        omitidas.push({ fecha: f, turno: t, motivo });
+      }
     }
   }
 
