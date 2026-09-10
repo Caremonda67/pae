@@ -735,333 +735,338 @@ function Reserva() {
         </form>
       )}
 
-      <form className="formulario" onSubmit={enviar}>
-        {limite && (
-          <p className={diaCerrado ? "estado error" : "estado"}>
-            {diaCerrado
-              ? `⏰ Hoy ya pasó la hora límite (${limite}): no puedes reservar ni cancelar para hoy, pero sí para los próximos días.`
-              : `⏰ Para reservar o cancelar para HOY tienes hasta las ${limite}. Para otros días no hay límite.`}
-          </p>
-        )}
-        <label>
-          Número de documento
-          <input
-            type="text"
-            name="documento"
-            value={formulario.documento}
-            onChange={(e) => {
-              const valor = e.target.value;
-              setFormulario({ ...formulario, documento: valor });
-              buscarBeneficiario(valor);
-            }}
-            required
-            disabled={Boolean(sesion)}
-            placeholder="Escribe tu documento"
-          />
-          {sesion && (
-            <small className="campo-fijo">Documento de tu sesión</small>
-          )}
-        </label>
-        {buscandoBeneficiario && <p className="estado">Buscando…</p>}
-        {infoBeneficiario && (
-          <p className="estado">{infoBeneficiario}</p>
-        )}
-
-        <label>
-          Nombre completo (se llena solo con el documento)
-          <input
-            type="text"
-            name="estudiante"
-            value={formulario.estudiante}
-            onChange={cambiar}
-            required
-            placeholder="Ej: Ana María Pérez"
-          />
-        </label>
-
-        <label>
-          Correo (opcional, para recibir confirmación)
-          <input
-            type="email"
-            name="correo"
-            value={formulario.correo}
-            onChange={cambiar}
-            placeholder="Ej: correo@ejemplo.com"
-          />
-        </label>
-
-        <label>
-          Sede
-          <select
-            name="sede"
-            value={formulario.sede}
-            onChange={cambiar}
-            required
-            disabled={beneficiarioConfirmado}
-          >
-            <option value="">
-              {beneficiarioConfirmado
-                ? "Definida por el registro"
-                : "Selecciona tu sede"}
-            </option>
-            {sedes.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-          {beneficiarioConfirmado && (
-            <small className="campo-fijo" aria-live="polite">Tu sede ya está registrada</small>
-          )}
-          {!beneficiarioConfirmado && sedes.length === 0 && (
-            <small className="campo-fijo" role="alert">
-              Aún no hay sedes disponibles. Contacta al equipo del PAE.
-            </small>
-          )}
-        </label>
-
-        <label>
-          Turno
-          <select
-            name="turno"
-            value={formulario.turno}
-            onChange={cambiar}
-            required
-          >
-            <option value="">
-              {beneficiarioConfirmado
-                ? "Tu turno (puedes cambiarlo)"
-                : "Selecciona el turno"}
-            </option>
-            {TURNOS.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
-          {beneficiarioConfirmado && (
-              <small className="campo-fijo">
-                {turnoDoble
-                  ? "Puedes reservar ambas jornadas de una vez, o elegir solo una."
-                  : "Tu turno habitual ya se seleccionó, pero puedes cambiarlo."}
-              </small>
-          )}
-        </label>
-
-        <label>
-          Fecha
-          <input
-            type="date"
-            name="fecha"
-            value={formulario.fecha}
-            onChange={cambiar}
-            required={!formulario.semanal}
-            disabled={formulario.semanal}
-            min={diaCerrado ? sumarDias(hoyLocal(), 1) : hoyLocal()}
-            max={sumarDias(hoyLocal(), 60)}
-          />
-          {formulario.semanal ? (
-            <small className="campo-fijo">
-              La reserva semanal empieza el próximo lunes y cubre todos los
-              días hábiles (de lunes a viernes).
-            </small>
-          ) : (
-            <small className="campo-fijo">
-              El servicio funciona de lunes a viernes.
-            </small>
-          )}
-        </label>
-
-        <label className="fila-check">
-          <input
-            type="checkbox"
-            name="para_llevar"
-            checked={formulario.para_llevar}
-            onChange={cambiarCheck}
-          />
-          Quiero mi minuta para llevar (la entrega empacada)
-        </label>
-
-        <label className="fila-check">
-          <input
-            type="checkbox"
-            name="semanal"
-            checked={formulario.semanal}
-            onChange={cambiarCheck}
-          />
-          Reservar TODA la próxima semana de una vez
-        </label>
-
-        {error && <p className="estado error">⚠️ {error}</p>}
-        {exito && <p className="estado exito">{exito}</p>}
-
-        {/* Ticket Grab & Go de una reserva individual */}
-        {ultimaReserva && (
-          <div className="ticket-grabandgo" aria-live="polite">
-            <div className="ticket-qr">
-              <QRCodeSVG value={ultimaReserva.codigo || ultimaReserva.documento} size={130} />
-            </div>
-            <div className="ticket-datos">
-              <span className="ticket-titulo">Tu minuta quedó lista</span>
-              <span className="ticket-fila">
-                {fechaLegible(ultimaReserva.fecha)} · {ultimaReserva.turno}
-              </span>
-              <span className="ticket-codigo" title="Código de entrega (Grab & Go)">
-                {ultimaReserva.codigo}
-              </span>
-              <span className="ticket-fila">
-                {ultimaReserva.para_llevar ? "🛍️ Para llevar" : "🍽️ Para comer en el lugar"}
-              </span>
-              <span className="ticket-fila">
-                Muéstralo en tu sede para recoger la minuta.
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* Resultado de la reserva semanal */}
-        {resultadoSemanal.length > 0 && (
-          <div className="lista-reservas" aria-live="polite">
-            {resultadoSemanal.map((d) => (
-              <div key={d.fecha} className="fila-reserva">
-                <div>
-                  <strong>{fechaLegible(d.fecha)}</strong>
-                  {d.omitida ? (
-                    <span className="fila-reserva-detalle">⚠️ No reservada: {d.omitida}</span>
-                  ) : (
-                    <span className="fila-reserva-detalle">
-                      ✅ Reservada · Código de entrega: <strong className="ticket-codigo-inline">{d.codigo}</strong>
-                    </span>
+      {sesion && (
+        <>
+          <form className="formulario" onSubmit={enviar}>
+                  {limite && (
+                    <p className={diaCerrado ? "estado error" : "estado"}>
+                      {diaCerrado
+                        ? `⏰ Hoy ya pasó la hora límite (${limite}): no puedes reservar ni cancelar para hoy, pero sí para los próximos días.`
+                        : `⏰ Para reservar o cancelar para HOY tienes hasta las ${limite}. Para otros días no hay límite.`}
+                    </p>
                   )}
-                </div>
-                {!d.omitida && d.codigo && (
-                  <QRCodeSVG value={d.codigo} size={56} />
+                  <label>
+                    Número de documento
+                    <input
+                      type="text"
+                      name="documento"
+                      value={formulario.documento}
+                      onChange={(e) => {
+                        const valor = e.target.value;
+                        setFormulario({ ...formulario, documento: valor });
+                        buscarBeneficiario(valor);
+                      }}
+                      required
+                      disabled={Boolean(sesion)}
+                      placeholder="Escribe tu documento"
+                    />
+                    {sesion && (
+                      <small className="campo-fijo">Documento de tu sesión</small>
+                    )}
+                  </label>
+                  {buscandoBeneficiario && <p className="estado">Buscando…</p>}
+                  {infoBeneficiario && (
+                    <p className="estado">{infoBeneficiario}</p>
+                  )}
+          
+                  <label>
+                    Nombre completo (se llena solo con el documento)
+                    <input
+                      type="text"
+                      name="estudiante"
+                      value={formulario.estudiante}
+                      onChange={cambiar}
+                      required
+                      placeholder="Ej: Ana María Pérez"
+                    />
+                  </label>
+          
+                  <label>
+                    Correo (opcional, para recibir confirmación)
+                    <input
+                      type="email"
+                      name="correo"
+                      value={formulario.correo}
+                      onChange={cambiar}
+                      placeholder="Ej: correo@ejemplo.com"
+                    />
+                  </label>
+          
+                  <label>
+                    Sede
+                    <select
+                      name="sede"
+                      value={formulario.sede}
+                      onChange={cambiar}
+                      required
+                      disabled={beneficiarioConfirmado}
+                    >
+                      <option value="">
+                        {beneficiarioConfirmado
+                          ? "Definida por el registro"
+                          : "Selecciona tu sede"}
+                      </option>
+                      {sedes.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </select>
+                    {beneficiarioConfirmado && (
+                      <small className="campo-fijo" aria-live="polite">Tu sede ya está registrada</small>
+                    )}
+                    {!beneficiarioConfirmado && sedes.length === 0 && (
+                      <small className="campo-fijo" role="alert">
+                        Aún no hay sedes disponibles. Contacta al equipo del PAE.
+                      </small>
+                    )}
+                  </label>
+          
+                  <label>
+                    Turno
+                    <select
+                      name="turno"
+                      value={formulario.turno}
+                      onChange={cambiar}
+                      required
+                    >
+                      <option value="">
+                        {beneficiarioConfirmado
+                          ? "Tu turno (puedes cambiarlo)"
+                          : "Selecciona el turno"}
+                      </option>
+                      {TURNOS.map((t) => (
+                        <option key={t} value={t}>
+                          {t}
+                        </option>
+                      ))}
+                    </select>
+                    {beneficiarioConfirmado && (
+                        <small className="campo-fijo">
+                          {turnoDoble
+                            ? "Puedes reservar ambas jornadas de una vez, o elegir solo una."
+                            : "Tu turno habitual ya se seleccionó, pero puedes cambiarlo."}
+                        </small>
+                    )}
+                  </label>
+          
+                  <label>
+                    Fecha
+                    <input
+                      type="date"
+                      name="fecha"
+                      value={formulario.fecha}
+                      onChange={cambiar}
+                      required={!formulario.semanal}
+                      disabled={formulario.semanal}
+                      min={diaCerrado ? sumarDias(hoyLocal(), 1) : hoyLocal()}
+                      max={sumarDias(hoyLocal(), 60)}
+                    />
+                    {formulario.semanal ? (
+                      <small className="campo-fijo">
+                        La reserva semanal empieza el próximo lunes y cubre todos los
+                        días hábiles (de lunes a viernes).
+                      </small>
+                    ) : (
+                      <small className="campo-fijo">
+                        El servicio funciona de lunes a viernes.
+                      </small>
+                    )}
+                  </label>
+          
+                  <label className="fila-check">
+                    <input
+                      type="checkbox"
+                      name="para_llevar"
+                      checked={formulario.para_llevar}
+                      onChange={cambiarCheck}
+                    />
+                    Quiero mi minuta para llevar (la entrega empacada)
+                  </label>
+          
+                  <label className="fila-check">
+                    <input
+                      type="checkbox"
+                      name="semanal"
+                      checked={formulario.semanal}
+                      onChange={cambiarCheck}
+                    />
+                    Reservar TODA la próxima semana de una vez
+                  </label>
+          
+                  {error && <p className="estado error">⚠️ {error}</p>}
+                  {exito && <p className="estado exito">{exito}</p>}
+          
+                  {/* Ticket Grab & Go de una reserva individual */}
+                  {ultimaReserva && (
+                    <div className="ticket-grabandgo" aria-live="polite">
+                      <div className="ticket-qr">
+                        <QRCodeSVG value={ultimaReserva.codigo || ultimaReserva.documento} size={130} />
+                      </div>
+                      <div className="ticket-datos">
+                        <span className="ticket-titulo">Tu minuta quedó lista</span>
+                        <span className="ticket-fila">
+                          {fechaLegible(ultimaReserva.fecha)} · {ultimaReserva.turno}
+                        </span>
+                        <span className="ticket-codigo" title="Código de entrega (Grab & Go)">
+                          {ultimaReserva.codigo}
+                        </span>
+                        <span className="ticket-fila">
+                          {ultimaReserva.para_llevar ? "🛍️ Para llevar" : "🍽️ Para comer en el lugar"}
+                        </span>
+                        <span className="ticket-fila">
+                          Muéstralo en tu sede para recoger la minuta.
+                        </span>
+                      </div>
+                    </div>
+                  )}
+          
+                  {/* Resultado de la reserva semanal */}
+                  {resultadoSemanal.length > 0 && (
+                    <div className="lista-reservas" aria-live="polite">
+                      {resultadoSemanal.map((d) => (
+                        <div key={d.fecha} className="fila-reserva">
+                          <div>
+                            <strong>{fechaLegible(d.fecha)}</strong>
+                            {d.omitida ? (
+                              <span className="fila-reserva-detalle">⚠️ No reservada: {d.omitida}</span>
+                            ) : (
+                              <span className="fila-reserva-detalle">
+                                ✅ Reservada · Código de entrega: <strong className="ticket-codigo-inline">{d.codigo}</strong>
+                              </span>
+                            )}
+                          </div>
+                          {!d.omitida && d.codigo && (
+                            <QRCodeSVG value={d.codigo} size={56} />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+          
+                  {/* Boton de WhatsApp para compartir la confirmacion */}
+                  {ultimaReserva && (
+                    <a
+                      href={whatsappLink()}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="boton boton-whatsapp"
+                      aria-label="Abrir WhatsApp para compartir la confirmación de la reserva"
+                    >
+                      💬 Compartir confirmación por WhatsApp
+                    </a>
+                  )}
+          
+                  <button type="submit" className="boton boton-primario" disabled={enviando || (sedes.length === 0 && !beneficiarioConfirmado)}>
+                    {enviando
+                      ? "Guardando…"
+                      : formulario.semanal
+                        ? "Confirmar reserva de la semana"
+                        : "Confirmar reserva"}
+                  </button>
+                </form>
+          
+                {/* Seccion Mis reservas */}
+                <hr className="separador" />
+                <h2>Mis reservas</h2>
+                <p className="subtitulo">
+                  Consulta y cancela tus reservas {sesion ? "de tu sesión" : "escribiendo tu documento"}.
+                  Cada reserva tiene su código de entrega (Grab & Go).
+                </p>
+          
+                <form className="formulario" onSubmit={consultarMisReservas}>
+                  <label>
+                    Tu número de documento
+                    <input
+                      type="text"
+                      value={sesion?.usuario || docConsulta}
+                      onChange={(e) => {
+                        if (!sesion) setDocConsulta(e.target.value);
+                      }}
+                      required
+                      disabled={Boolean(sesion)}
+                      placeholder="Escribe tu documento"
+                    />
+                    {sesion && (
+                      <small className="campo-fijo">Documento de tu sesión</small>
+                    )}
+                  </label>
+                  <button type="submit" className="boton boton-primario" disabled={cargandoConsulta}>
+                    {cargandoConsulta ? "Consultando…" : "Consultar mis reservas"}
+                  </button>
+                </form>
+          
+                {errorConsulta && <p className="estado error">⚠️ {errorConsulta}</p>}
+          
+                {consultaHecha && !errorConsulta && misReservas.length === 0 && (
+                  <p className="estado">No tienes reservas registradas con ese documento.</p>
                 )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Boton de WhatsApp para compartir la confirmacion */}
-        {ultimaReserva && (
-          <a
-            href={whatsappLink()}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="boton boton-whatsapp"
-            aria-label="Abrir WhatsApp para compartir la confirmación de la reserva"
-          >
-            💬 Compartir confirmación por WhatsApp
-          </a>
-        )}
-
-        <button type="submit" className="boton boton-primario" disabled={enviando || (sedes.length === 0 && !beneficiarioConfirmado)}>
-          {enviando
-            ? "Guardando…"
-            : formulario.semanal
-              ? "Confirmar reserva de la semana"
-              : "Confirmar reserva"}
-        </button>
-      </form>
-
-      {/* Seccion Mis reservas */}
-      <hr className="separador" />
-      <h2>Mis reservas</h2>
-      <p className="subtitulo">
-        Consulta y cancela tus reservas {sesion ? "de tu sesión" : "escribiendo tu documento"}.
-        Cada reserva tiene su código de entrega (Grab & Go).
-      </p>
-
-      <form className="formulario" onSubmit={consultarMisReservas}>
-        <label>
-          Tu número de documento
-          <input
-            type="text"
-            value={sesion?.usuario || docConsulta}
-            onChange={(e) => {
-              if (!sesion) setDocConsulta(e.target.value);
-            }}
-            required
-            disabled={Boolean(sesion)}
-            placeholder="Escribe tu documento"
-          />
-          {sesion && (
-            <small className="campo-fijo">Documento de tu sesión</small>
-          )}
-        </label>
-        <button type="submit" className="boton boton-primario" disabled={cargandoConsulta}>
-          {cargandoConsulta ? "Consultando…" : "Consultar mis reservas"}
-        </button>
-      </form>
-
-      {errorConsulta && <p className="estado error">⚠️ {errorConsulta}</p>}
-
-      {consultaHecha && !errorConsulta && misReservas.length === 0 && (
-        <p className="estado">No tienes reservas registradas con ese documento.</p>
-      )}
-
-      {/* Recordatorio: avisa si manana no hay reserva hecha */}
-      {recordatorio && !recordatorio.finDeSemana && (
-        <p
-          className={recordatorio.necesita ? "estado error" : "estado exito"}
-          role="status"
-        >
-          {recordatorio.necesita
-            ? `🔔 Recordatorio: mañana (${fechaLegible(recordatorio.fecha)}) no tienes reserva. ¡Hazla ahora para que la cocina te prepare tu minuta!`
-            : `🔔 Ya tienes reserva para mañana (${fechaLegible(recordatorio.fecha)}). ¡Nos vemos!`}
-        </p>
-      )}
-
-      {/* Contador de inasistencias pasadas confirmadas */}
-      {consultaHecha && !errorConsulta && inasistencias > 0 && (
-        <p className={inasistencias >= 3 ? "estado error" : "estado"}>
-          📊 Tienes {inasistencias}{" "}
-          {inasistencias === 1 ? "inasistencia" : "inasistencias"} (reservas
-          donde no asististe).{" "}
-          {inasistencias >= 3
-            ? "Cuando reservas y no vas, la comida se desperdicia. ¡Por favor cancela si no puedes ir!"
-            : "Recuerda cancelar tus reservas si no puedes asistir, así otra persona puede aprovecharlas."}
-        </p>
-      )}
-
-      {misReservas.length > 0 && (
-        <div className="lista-reservas">
-          {misReservas.map((reserva) => (
-            <article key={reserva.id} className="fila-reserva">
-              <div>
-                <strong>{reserva.fecha}</strong>
-                <span className="fila-reserva-detalle">
-                  {reserva.turno} · {reserva.sede}
-                  {reserva.asistio ? " · ✓ ya asististe" : ""}
-                  {!reserva.asistio && reserva.fecha < hoyLocal()
-                    ? " · ✗ no asististe"
-                    : ""}
-                </span>
-                {reserva.codigo && (
-                  <span className="fila-reserva-detalle">
-                    🎫 Código: <strong className="ticket-codigo-inline">{reserva.codigo}</strong>
-                  </span>
+          
+                {/* Recordatorio: avisa si manana no hay reserva hecha */}
+                {recordatorio && !recordatorio.finDeSemana && (
+                  <p
+                    className={recordatorio.necesita ? "estado error" : "estado exito"}
+                    role="status"
+                  >
+                    {recordatorio.necesita
+                      ? `🔔 Recordatorio: mañana (${fechaLegible(recordatorio.fecha)}) no tienes reserva. ¡Hazla ahora para que la cocina te prepare tu minuta!`
+                      : `🔔 Ya tienes reserva para mañana (${fechaLegible(recordatorio.fecha)}). ¡Nos vemos!`}
+                  </p>
                 )}
-                {reserva.para_llevar && (
-                  <span className="etiqueta-para-llevar">🛍️ Para llevar</span>
+          
+                {/* Contador de inasistencias pasadas confirmadas */}
+                {consultaHecha && !errorConsulta && inasistencias > 0 && (
+                  <p className={inasistencias >= 3 ? "estado error" : "estado"}>
+                    📊 Tienes {inasistencias}{" "}
+                    {inasistencias === 1 ? "inasistencia" : "inasistencias"} (reservas
+                    donde no asististe).{" "}
+                    {inasistencias >= 3
+                      ? "Cuando reservas y no vas, la comida se desperdicia. ¡Por favor cancela si no puedes ir!"
+                      : "Recuerda cancelar tus reservas si no puedes asistir, así otra persona puede aprovecharlas."}
+                  </p>
                 )}
-              </div>
-              <button
-                type="button"
-                className="boton boton-secundario"
-                onClick={() => cancelarReserva(reserva.id)}
-                disabled={reserva.fecha === hoyLocal() && diaCerrado}
-                title={
-                  reserva.fecha === hoyLocal() && diaCerrado
-                    ? `Ya pasó la hora límite (${limite}) para cancelar reservas de hoy`
-                    : undefined
-                }
-              >
-                Cancelar
-              </button>
-            </article>
-          ))}
-        </div>
+          
+                {misReservas.length > 0 && (
+                  <div className="lista-reservas">
+                    {misReservas.map((reserva) => (
+                      <article key={reserva.id} className="fila-reserva">
+                        <div>
+                          <strong>{reserva.fecha}</strong>
+                          <span className="fila-reserva-detalle">
+                            {reserva.turno} · {reserva.sede}
+                            {reserva.asistio ? " · ✓ ya asististe" : ""}
+                            {!reserva.asistio && reserva.fecha < hoyLocal()
+                              ? " · ✗ no asististe"
+                              : ""}
+                          </span>
+                          {reserva.codigo && (
+                            <span className="fila-reserva-detalle">
+                              🎫 Código: <strong className="ticket-codigo-inline">{reserva.codigo}</strong>
+                            </span>
+                          )}
+                          {reserva.para_llevar && (
+                            <span className="etiqueta-para-llevar">🛍️ Para llevar</span>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          className="boton boton-secundario"
+                          onClick={() => cancelarReserva(reserva.id)}
+                          disabled={reserva.fecha === hoyLocal() && diaCerrado}
+                          title={
+                            reserva.fecha === hoyLocal() && diaCerrado
+                              ? `Ya pasó la hora límite (${limite}) para cancelar reservas de hoy`
+                              : undefined
+                          }
+                        >
+                          Cancelar
+                        </button>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              
+        </>
       )}
     </section>
   );
