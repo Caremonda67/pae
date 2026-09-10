@@ -182,10 +182,11 @@ create table if not exists usuarios (
   created_at timestamptz default now()
 );
 
--- "clave" guarda la clave/PIN en TEXTO PLANO para que el administrador
--- la pueda ver y editar desde el panel. El hash (clave_hash) sigue
--- usandose en el login, esta columna es solo de consulta/edicion.
-alter table usuarios add column if not exists clave text;
+-- Las claves/PINs viven SOLO en clave_hash (el login verifica contra
+-- el hash). La antigua columna "clave" en texto plano se elimino:
+-- guardarla anulaba el hasheo y exponia todas las claves en un volcado
+-- de la base. Para cambiar una clave se usa la edicion del panel.
+alter table usuarios drop column if exists clave;
 
 -- 10.2 Grupo asignado a cada profesor: sede + turno + grado. Con estos
 -- datos la pestana Asistencia le muestra SOLO los reservados de su grupo
