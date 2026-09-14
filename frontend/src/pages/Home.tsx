@@ -75,8 +75,11 @@ function Home() {
     instituciones: 0,
     minutas: 0,
   });
-  // Beneficiarios reales (para el registro por sede de la Home)
-  const [beneficiarios, setBeneficiarios] = useState<{ sede: string }[]>([]);
+  // Resumen de beneficiarios por sede (para el registro por sede de
+  // la Home). El backend devuelve solo conteos, nunca datos personales.
+  const [beneficiarios, setBeneficiarios] = useState<
+    { sede: string; total: number }[]
+  >([]);
   // Sedes del programa (las administra el admin desde el panel)
   const [sedesSistema, setSedesSistema] = useState<string[]>([]);
   // Avisos publicados por el administrador (vienen de la base)
@@ -138,7 +141,7 @@ function Home() {
     // en cero, nunca rompe la pagina.
     const cargarBeneficiarios = async () => {
       try {
-        const respBen = await fetch(`${API_URL}/api/beneficiarios`);
+        const respBen = await fetch(`${API_URL}/api/beneficiarios/resumen`);
         if (respBen.ok) setBeneficiarios(await respBen.json());
       } catch {
         // se queda en cero
@@ -251,10 +254,10 @@ function Home() {
     descripcion: f.descripcion,
   })).slice(0, 6);
 
-  // Cuenta cuantos beneficiarios hay por sede (registro por sede)
+  // Beneficiarios por sede (el backend ya los devuelve contados)
   const porSede: Record<string, number> = {};
   for (const b of beneficiarios) {
-    porSede[b.sede] = (porSede[b.sede] || 0) + 1;
+    porSede[b.sede] = b.total;
   }
 
   return (

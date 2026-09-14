@@ -585,7 +585,7 @@ function Admin() {
       ] = await Promise.all([
         fetch(`${API_URL}/api/avisos/todos`, { headers: cabeceras(false) }),
         fetch(`${API_URL}/api/contacto`, { headers: cabeceras(false) }),
-        fetch(`${API_URL}/api/beneficiarios`),
+        fetch(`${API_URL}/api/beneficiarios`, { headers: cabeceras(false) }),
         fetch(`${API_URL}/api/notificaciones`, { headers: cabeceras(false) }),
         fetch(`${API_URL}/api/menus/todos`, { headers: cabeceras(false) }),
         fetch(`${API_URL}/api/galeria`),
@@ -2108,7 +2108,7 @@ function Admin() {
     setEditNombre(u.nombre);
     setEditUsuario(u.usuario);
     setEditRol(u.rol);
-    setEditClave(u.clave || "");
+    setEditClave(""); // por seguridad la clave actual nunca se precarga
     setEditSede(u.sede || "");
     setEditTurno(u.turno || "Almuerzo");
     setEditGrado(u.grado || "");
@@ -4382,7 +4382,6 @@ function Admin() {
                   <strong>{u.nombre}</strong>
                   <span className="fila-reserva-detalle">
                     {u.usuario} · {u.rol} · {u.activo ? "activo" : "desactivado"}
-                    {u.clave ? ` · clave: ${u.clave}` : " · clave: no visible"}
                   </span>
                 </div>
                 <div className="formulario-fila">
@@ -4490,7 +4489,7 @@ function Admin() {
                         value={editClave}
                         onChange={(e) => setEditClave(e.target.value)}
                         minLength={4}
-                        placeholder={u.clave ? `Actual: ${u.clave}` : "Sin clave guardada"}
+                        placeholder="Dejar vacío para mantener la clave actual"
                         autoComplete="off"
                       />
                     </label>
