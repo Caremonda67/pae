@@ -358,6 +358,12 @@ function Reserva() {
     }
   };
 
+  // Cuantas veces reservo y no asistio (inasistencias pasadas que el
+  // profesor ya marco). Solo cuenta cuando la falta quedo confirmada.
+  const inasistencias = misReservas.filter(
+    (r) => r.fecha < hoyLocal() && r.asistio === false
+  ).length;
+
   // Consulta las reservas propias por documento
   const consultarMisReservas = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -696,6 +702,18 @@ function Reserva() {
           {recordatorio.necesita
             ? `🔔 Recordatorio: mañana (${fechaLegible(recordatorio.fecha)}) no tienes reserva. ¡Hazla ahora para que la cocina te prepare tu minuta!`
             : `🔔 Ya tienes reserva para mañana (${fechaLegible(recordatorio.fecha)}). ¡Nos vemos!`}
+        </p>
+      )}
+
+      {/* Contador de inasistencias pasadas confirmadas */}
+      {consultaHecha && !errorConsulta && inasistencias > 0 && (
+        <p className={inasistencias >= 3 ? "estado error" : "estado"}>
+          📊 Tienes {inasistencias}{" "}
+          {inasistencias === 1 ? "inasistencia" : "inasistencias"} (reservas
+          donde no asististe).{" "}
+          {inasistencias >= 3
+            ? "Cuando reservas y no vas, la comida se desperdicia. ¡Por favor cancela si no puedes ir!"
+            : "Recuerda cancelar tus reservas si no puedes asistir, así otra persona puede aprovecharlas."}
         </p>
       )}
 
