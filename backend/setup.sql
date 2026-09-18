@@ -505,3 +505,45 @@ from (values
 ) as datos(platillo, puntos, documento)
 join menus m on m.platillo = datos.platillo and m.semana = 1 and m.jornada = 'Almuerzo'
 where not exists (select 1 from valoraciones);
+
+-- ============================================================
+-- SEGURIDAD DE LA BASE (resumen; detalle en sql/seguridad.sql)
+-- ============================================================
+-- RLS activo en todas las tablas y SIN politicas para el rol
+-- publico/anon: el frontend nunca habla con Supabase directo,
+-- todo pasa por el backend con la service_role key (que ignora
+-- RLS por diseno). Asi, aunque alguien consiga la anon key,
+-- no puede leer ni escribir ni una fila.
+alter table auditoria enable row level security;
+alter table avisos enable row level security;
+alter table beneficiarios enable row level security;
+alter table chat_mensajes enable row level security;
+alter table colaboradores enable row level security;
+alter table contactos enable row level security;
+alter table galeria enable row level security;
+alter table incidentes enable row level security;
+alter table instituciones enable row level security;
+alter table menus enable row level security;
+alter table notificaciones enable row level security;
+alter table reservas enable row level security;
+alter table sedes enable row level security;
+alter table settings enable row level security;
+alter table sobrantes enable row level security;
+alter table turnos_cocina enable row level security;
+alter table usuarios enable row level security;
+alter table valoraciones enable row level security;
+
+-- Unica reserva por documento + fecha + turno (la base rechaza el
+-- duplicado aunque dos peticiones lleguen al mismo tiempo)
+delete from reservas a using reservas b
+  where a.id > b.id and a.documento = b.documento
+    and a.fecha = b.fecha and a.turno = b.turno;
+alter table reservas drop constraint if exists reservas_unicas;
+alter table reservas add constraint reservas_unicas unique (documento, fecha, turno);
+
+-- Indices de las consultas frecuentes
+create index if not exists idx_reservas_documento on reservas (documento);
+create index if not exists idx_reservas_fecha on reservas (fecha);
+create index if not exists idx_reservas_fecha_sede on reservas (fecha, sede);
+create index if not exists idx_valoraciones_menu on valoraciones (menu_id);
+create index if not exists idx_auditoria_creado on auditoria (created_at desc);
