@@ -603,12 +603,17 @@ router.delete("/mis/:id", async (req, res) => {
 // Actualiza el estado de una reserva (por ejemplo: asistio o no)
 // Equipo con rol (admin, cocina, profesor).
 router.put("/:id", requiereRol("admin", "cocina", "profesor"), async (req, res) => {
-  // Filtramos campos undefined/null y convertimos asistio a booleano
+  // Lista blanca: la unica edicion permitida es marcar si el
+  // estudiante asistio. Los demas campos de una reserva no se
+  // tocan desde aqui, asi nadie puede cambiarle el documento,
+  // la fecha o la sede a una reserva ya hecha.
   const body = {};
-  for (const [k, vv] of Object.entries(req.body)) {
-    if (vv !== undefined && vv !== null) {
-      body[k] = vv === "true" ? true : vv === "false" ? false : vv;
-    }
+  if (typeof req.body?.asistio === "boolean") {
+    body.asistio = req.body.asistio;
+  } else {
+    return res.status(400).json({
+      error: "El unico campo editable es asistio (verdadero o falso)",
+    });
   }
 
   // Verificamos que la reserva exista (si no, es 404, no 500)

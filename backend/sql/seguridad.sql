@@ -38,3 +38,30 @@ begin
     );
   end loop;
 end $$;
+
+-- ------------------------------------------------------------
+-- 2. Unicidad de reservas: un documento no puede tener dos
+--    reservas para la misma fecha y el mismo turno.
+--    (Si hubiera duplicados historicos, se conservan los primeros
+--     ids y se eliminan los repetidos antes de crear el constraint.)
+-- ------------------------------------------------------------
+delete from reservas a
+using reservas b
+where a.id > b.id
+  and a.documento = b.documento
+  and a.fecha = b.fecha
+  and a.turno = b.turno;
+
+alter table reservas
+  drop constraint if exists reservas_unicas;
+alter table reservas
+  add constraint reservas_unicas unique (documento, fecha, turno);
+
+-- ------------------------------------------------------------
+-- 3. Indices de las consultas frecuentes
+-- ------------------------------------------------------------
+create index if not exists idx_reservas_documento on reservas (documento);
+create index if not exists idx_reservas_fecha on reservas (fecha);
+create index if not exists idx_reservas_fecha_sede on reservas (fecha, sede);
+create index if not exists idx_valoraciones_menu on valoraciones (menu_id);
+create index if not exists idx_auditoria_creado on auditoria (created_at desc);
