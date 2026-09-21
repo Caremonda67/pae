@@ -9,6 +9,7 @@ import Reserva from "./pages/Reserva";
 import Contacto from "./pages/Contacto";
 import Admin from "./pages/Admin";
 import Reportes from "./pages/Reportes";
+import Juegos from "./pages/Juegos";
 import NoEncontrado from "./pages/NoEncontrado";
 
 function App() {
@@ -25,6 +26,7 @@ function App() {
             <Route path="/menu" element={<Menu />} />
             <Route path="/noticias" element={<Noticias />} />
             <Route path="/galeria" element={<Galeria />} />
+            <Route path="/juegos" element={<Juegos />} />
             <Route path="/reserva" element={<Reserva />} />
             <Route path="/contacto" element={<Contacto />} />
             <Route path="/reportes" element={<Reportes />} />

@@ -96,19 +96,20 @@ router.get("/", async (req, res) => {
   let favoritosDelDoc = new Set();
   if (req.query.documento) {
     const doc = String(req.query.documento).trim();
+    const docLimpio = doc.replace(/[\s.\-]/g, "");
     let tokenOk = false;
     const auth = req.headers.authorization;
     if (auth && auth.startsWith("Bearer ")) {
       try {
         const t = verificarToken(auth.slice(7));
-        if (t && String(t.sub).trim() === doc) tokenOk = true;
+        if (t && String(t.sub).replace(/[\s.\-]/g, "") === docLimpio) tokenOk = true;
       } catch (_e) {}
     }
     if (tokenOk) {
       const { data: favs } = await getSupabase()
         .from("favoritos")
         .select("menu_id")
-        .eq("documento", doc);
+        .or(`documento.eq.${docLimpio},documento.eq.${doc}`);
       if (favs) favoritosDelDoc = new Set(favs.map((f) => f.menu_id));
     }
   }
@@ -191,14 +192,14 @@ router.put("/:id/favorito", async (req, res) => {
   if (!documento) {
     return res.status(400).json({ error: "Falta el documento" });
   }
-  const doc = String(documento).trim();
+  const docLimpio = String(documento).replace(/[\s.\-]/g, "");
   const deseaActivo = activo !== false;
 
   // Solo el dueno de la sesion puede marcar sus propios favoritos
   const auth = req.headers.authorization;
   try {
     const t = verificarToken(auth && auth.startsWith("Bearer ") ? auth.slice(7) : "");
-    if (!t || String(t.sub || "").trim() !== doc) {
+    if (!t || String(t.sub || "").replace(/[\s.\-]/g, "") !== docLimpio) {
       return res.status(403).json({ error: "No autenticado para ese documento" });
     }
   } catch (_e) {
@@ -209,7 +210,7 @@ router.put("/:id/favorito", async (req, res) => {
   const { data: beneficiario } = await getSupabase()
     .from("beneficiarios")
     .select("id")
-    .eq("documento", doc)
+    .or(`documento.eq.${docLimpio},documento.eq.${String(documento).trim()}`)
     .maybeSingle();
   if (!beneficiario) {
     return res.status(400).json({ error: "Documento no registrado" });
@@ -228,14 +229,14 @@ router.put("/:id/favorito", async (req, res) => {
   const { data: existente } = await getSupabase()
     .from("favoritos")
     .select("id")
-    .eq("documento", doc)
+    .or(`documento.eq.${docLimpio},documento.eq.${String(documento).trim()}`)
     .eq("menu_id", req.params.id)
     .maybeSingle();
 
   if (deseaActivo && !existente) {
     const { error } = await getSupabase()
       .from("favoritos")
-      .insert([{ documento: doc, menu_id: Number(req.params.id) }]);
+      .insert([{ documento: docLimpio, menu_id: Number(req.params.id) }]);
     if (error) return res.status(500).json({ error: error.message });
     return res.json({ ok: true, favorito: true });
   }

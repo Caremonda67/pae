@@ -42,11 +42,20 @@ router.post("/", limiteLogin, async (req, res) => {
   }
 
   // --- Resto de usuarios (tabla "usuarios": cocina, profesor, etc.) ---
-  const { data: fila, error } = await getSupabase()
+  const usuarioLimpio = String(usuario).trim();
+  const docNormalizado = usuarioLimpio.replace(/[\s.\-]/g, "");
+
+  let consulta = getSupabase()
     .from("usuarios")
-    .select("id, nombre, usuario, clave_hash, rol, activo")
-    .eq("usuario", String(usuario).trim())
-    .maybeSingle();
+    .select("id, nombre, usuario, clave_hash, rol, activo");
+
+  if (docNormalizado !== usuarioLimpio && /^\d{4,20}$/.test(docNormalizado)) {
+    consulta = consulta.or(`usuario.eq.${usuarioLimpio},usuario.eq.${docNormalizado}`);
+  } else {
+    consulta = consulta.eq("usuario", usuarioLimpio);
+  }
+
+  const { data: fila, error } = await consulta.maybeSingle();
 
   if (error) {
     return res.status(500).json({ error: error.message });

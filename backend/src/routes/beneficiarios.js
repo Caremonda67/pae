@@ -50,11 +50,20 @@ router.get("/buscar", async (req, res) => {
   // es publico y no debe exponer datos de salud (alergias/preferencias)
   // ni campos internos. El perfil completo lo ve el estudiante via
   // GET /mi-perfil (con su token) y el panel via GET /.
-  const { data, error } = await getSupabase()
+  const docLimpio = String(documento).replace(/[\s.\-]/g, "");
+  const docTrim = String(documento).trim();
+
+  let consulta = getSupabase()
     .from("beneficiarios")
-    .select("documento, nombre, sede, turno, grado")
-    .eq("documento", String(documento).trim())
-    .maybeSingle();
+    .select("documento, nombre, sede, turno, grado");
+
+  if (docLimpio !== docTrim) {
+    consulta = consulta.or(`documento.eq.${docLimpio},documento.eq.${docTrim}`);
+  } else {
+    consulta = consulta.eq("documento", docLimpio);
+  }
+
+  const { data, error } = await consulta.maybeSingle();
 
   if (error) return res.status(500).json({ error: error.message });
 
@@ -132,11 +141,13 @@ router.post("/", requiereRol("admin", "coordinador", "profesor"), async (req, re
     return res.status(400).json({ error: "Faltan datos obligatorios" });
   }
 
+  const docLimpio = String(documento).replace(/[\s.\-]/g, "");
+
   // No permitir documentos duplicados
   const { data: existente } = await getSupabase()
     .from("beneficiarios")
     .select("id")
-    .eq("documento", String(documento).trim())
+    .eq("documento", docLimpio)
     .maybeSingle();
 
   if (existente) {
@@ -147,9 +158,13 @@ router.post("/", requiereRol("admin", "coordinador", "profesor"), async (req, re
     .from("beneficiarios")
     .insert([
       {
-        documento, nombre, sede, turno, grado,
-        alergias: alergias || null,
-        preferencias: preferencias || null,
+        documento: docLimpio,
+        nombre: String(nombre).trim(),
+        sede: String(sede).trim(),
+        turno: String(turno).trim(),
+        grado: grado ? String(grado).trim() : null,
+        alergias: alergias ? String(alergias).trim() : null,
+        preferencias: preferencias ? String(preferencias).trim() : null,
       },
     ])
     .select()
@@ -170,8 +185,8 @@ router.post("/", requiereRol("admin", "coordinador", "profesor"), async (req, re
     }
     const { error: errUsuario } = await getSupabase().from("usuarios").insert([
       {
-        nombre,
-        usuario: String(documento).trim(),
+        nombre: String(nombre).trim(),
+        usuario: docLimpio,
         clave_hash: hashClave(pinLimpio),
         rol: "estudiante",
       },
@@ -183,7 +198,7 @@ router.post("/", requiereRol("admin", "coordinador", "profesor"), async (req, re
     }
   }
 
-  auditar(req, "beneficiarios:crear", `${documento} | ${nombre} | ${sede} | ${turno}`);
+  auditar(req, "beneficiarios:crear", `${docLimpio} | ${nombre} | ${sede} | ${turno}`);
   res.status(201).json(data);
 });
 

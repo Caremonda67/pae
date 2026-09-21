@@ -29,8 +29,12 @@ function validarFechaSobrantes(fecha) {
     return "Esa fecha no existe.";
   }
 
-  const hoy = new Date();
-  const hoyTexto = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-${String(hoy.getDate()).padStart(2, "0")}`;
+  const hoyTexto = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Bogota",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
   if (fecha > hoyTexto) {
     return "No se puede reportar sobrantes de una fecha futura.";
   }

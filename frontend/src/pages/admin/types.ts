@@ -260,4 +260,5 @@ export type Pestana =
   | "usuarios"
   | "config"
   | "turnos"
-  | "auditoria";
+  | "auditoria"
+  | "juegos";

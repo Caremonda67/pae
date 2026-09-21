@@ -44,8 +44,10 @@ import TabUsuarios from "./admin/TabUsuarios";
 import { useUsuarios } from "./admin/hooks/useUsuarios";
 import TabConfig from "./admin/TabConfig";
 import TabAuditoria from "./admin/TabAuditoria";
+import TabJuegos from "./admin/TabJuegos";
 import { useNotificaciones } from "./admin/hooks/useNotificaciones";
 import { useAuditoria } from "./admin/hooks/useAuditoria";
+import { useJuegos } from "./admin/hooks/useJuegos";
 import { useIncidentes } from "./admin/hooks/useIncidentes";
 import { usePanelCocina } from "./admin/hooks/usePanelCocina";
 import { useTablero } from "./admin/hooks/useTablero";
@@ -366,6 +368,7 @@ function Admin() {
   const tableroTab = useTablero({ autenticado, rol, setError });
   const notificacionesTab = useNotificaciones({ autenticado, pestana });
   const auditoriaTab = useAuditoria({ autenticado, pestana, rol });
+  const juegosTab = useJuegos({ autenticado, pestana });
 
 
   // ---- Pantalla de login ----
@@ -426,6 +429,7 @@ function Admin() {
       { id: "usuarios", etiqueta: "🔐 Usuarios" },
       { id: "config", etiqueta: "⚙️ Configuración" },
       { id: "auditoria", etiqueta: "🗒️ Auditoría" },
+      { id: "juegos", etiqueta: "🎮 Videojuegos" },
     ],
     cocina: [
       { id: "panel", etiqueta: "🍳 Panel de cocina" },
@@ -449,6 +453,7 @@ function Admin() {
       { id: "notificaciones", etiqueta: "🔔 Notificaciones" },
       { id: "mensajes", etiqueta: `✉️ Mensajes${noLeidos > 0 ? ` (${noLeidos} sin leer)` : ""}` },
       { id: "reportes", etiqueta: "📊 Reportes" },
+      { id: "juegos", etiqueta: "🎮 Videojuegos" },
     ],
   };
 
@@ -571,6 +576,10 @@ function Admin() {
 
       {pestana === "auditoria" && (
         <TabAuditoria {...auditoriaTab} />
+      )}
+
+      {pestana === "juegos" && (
+        <TabJuegos rol={rol} {...juegosTab} />
       )}
     </section>
   );

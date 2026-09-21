@@ -183,9 +183,9 @@ router.get("/mis", limiteFormularios, async (req, res) => {
   if (!documento) {
     return res.status(400).json({ error: "Falta el documento" });
   }
+  const docLimpio = String(documento).replace(/[\s.\-]/g, "");
   if (
-      String(token.sub).replace(/[\s.\-]/g, "") !==
-      String(documento).replace(/[\s.\-]/g, "")
+      String(token.sub).replace(/[\s.\-]/g, "") !== docLimpio
     ) {
     return res
       .status(403)
@@ -195,7 +195,7 @@ router.get("/mis", limiteFormularios, async (req, res) => {
   const { data, error } = await getSupabase()
     .from("reservas")
     .select("*")
-    .eq("documento", String(documento).trim())
+    .eq("documento", docLimpio)
     .order("fecha", { ascending: false });
 
   if (error) return res.status(500).json({ error: error.message });
@@ -436,9 +436,9 @@ router.get("/recordatorio", limiteFormularios, async (req, res) => {
   if (!documento) {
     return res.status(400).json({ error: "Falta el documento" });
   }
+  const docLimpio = String(documento).replace(/[\s.\-]/g, "");
   if (
-      String(token.sub).replace(/[\s.\-]/g, "") !==
-      String(documento).replace(/[\s.\-]/g, "")
+      String(token.sub).replace(/[\s.\-]/g, "") !== docLimpio
     ) {
     return res
       .status(403)
@@ -451,7 +451,7 @@ router.get("/recordatorio", limiteFormularios, async (req, res) => {
   const { data, error } = await getSupabase()
     .from("reservas")
     .select("id")
-    .eq("documento", String(documento).trim())
+    .eq("documento", docLimpio)
     .eq("fecha", fecha)
     .maybeSingle();
 
@@ -923,7 +923,7 @@ router.delete("/mis/:id", limiteFormularios, async (req, res) => {
   if (!reserva) return res.status(404).json({ error: "Reserva no encontrada" });
 
   // Solo el dueño puede cancelar su propia reserva
-  if (reserva.documento !== docLimpio) {
+  if (String(reserva.documento).replace(/[\s.\-]/g, "") !== docLimpio) {
     return res
       .status(403)
       .json({ error: "No puedes cancelar la reserva de otra persona" });

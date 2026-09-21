@@ -28,6 +28,8 @@ import incidentesRouter from "./routes/incidentes.js";
 import settingsRouter from "./routes/settings.js";
 import turnosRouter from "./routes/turnos.js";
 import auditoriaRouter from "./routes/auditoria.js";
+import juegosRouter from "./routes/juegos.js";
+import colaboradoresRouter from "./routes/colaboradores.js";
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -38,16 +40,11 @@ app.set("trust proxy", 1);
 
 // Middlewares
 // 1. cors: permite que el frontend (en otro puerto/dominio) haga peticiones
-// 2. express.json: convierte el cuerpo de las peticiones a JSON.
-//    El limite alto es para recibir las imagenes en base64.
-// Rate limit global: 200 peticiones cada minuto por IP. Protege
-// todas las rutas que no tienen su propio limite.
-app.use(rateLimit({
-  windowMs: 60 * 1000,
-  max: 200,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "Demasiadas peticiones. Intenta de nuevo en un minuto." },
+// Debe ser el primer middleware para que todas las respuestas incluyan cabeceras CORS.
+app.use(cors({
+  origin: (process.env.FRONTEND_URL || "").replace(/\/+$/, "") || true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+  credentials: true,
 }));
 
 // helmet: headers de seguridad por defecto (XSS, sniffing, frameguard...).
@@ -62,12 +59,14 @@ app.use(helmet({
   crossOriginResourcePolicy: false,
 }));
 
-// CORS: en desarrollo local (sin FRONTEND_URL) permite todo; en
-// produccion solo acepta el dominio del frontend.
-app.use(cors({
-  origin: (process.env.FRONTEND_URL || "").replace(/\/+$/, "") || true,
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  credentials: true,
+// Rate limit global: 200 peticiones cada minuto por IP. Protege
+// todas las rutas que no tienen su propio limite.
+app.use(rateLimit({
+  windowMs: 60 * 1000,
+  max: process.env.NODE_ENV === "production" ? 200 : 1000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Demasiadas peticiones. Intenta de nuevo en un minuto." },
 }));
 
 app.use(express.json({ limit: "8mb" }));
@@ -100,6 +99,8 @@ app.use("/api/incidentes", incidentesRouter);
 app.use("/api/settings", settingsRouter);
 app.use("/api/turnos", turnosRouter);
 app.use("/api/auditoria", auditoriaRouter);
+app.use("/api/juegos", juegosRouter);
+app.use("/api/colaboradores", colaboradoresRouter);
 
 // Middleware para rutas no encontradas (error 404)
 app.use((_req, res) => {
