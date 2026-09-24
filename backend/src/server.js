@@ -75,6 +75,25 @@ app.use((_req, res) => {
   res.status(404).json({ error: "Ruta no encontrada" });
 });
 
+// Manejador global de errores: si alguna ruta falla, respondemos un
+// 500 limpio y el servidor sigue vivo. Sin esto, un error no capturado
+// dentro de una ruta async derriba todo el proceso.
+app.use((err, _req, res, _next) => {
+  console.error("Error no controlado:", err);
+  if (!res.headersSent) {
+    res.status(500).json({ error: "Error interno del servidor" });
+  }
+});
+
+// Red de seguridad del proceso: registramos los rechazos de promesas
+// y excepciones que se escapen, sin dejar de atender peticiones.
+process.on("unhandledRejection", (razon) => {
+  console.error("Promesa rechazada sin capturar:", razon);
+});
+process.on("uncaughtException", (err) => {
+  console.error("Excepcion no capturada:", err);
+});
+
 // Arrancamos el servidor
 app.listen(PORT, () => {
   console.log(`PAE API corriendo en http://localhost:${PORT}`);
