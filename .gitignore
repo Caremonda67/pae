@@ -25,8 +25,14 @@ Thumbs.db
 
 # Artefactos de testing en navegador y capturas de evidencia
 .playwright-mcp/
-home-before-colorimetria.png
-reportes-colorimetria-desktop.png
-reportes-colorimetria-mobile.png
-sidebar-950.png
-tablero-coordinador.png
+*.png
+
+# Herramientas de IA y documentacion de agentes
+AGENTS.md
+skills.md
+*.prompt.md
+.skills/
+.opencode/
+.gemini/
+.antigravity/
+
