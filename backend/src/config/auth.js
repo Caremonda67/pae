@@ -58,12 +58,17 @@ export function verificarToken(token) {
   const [base64, firma] = token.split(".");
   if (!base64 || !firma) return null;
 
-  // Recalculamos la firma y comparamos (constante de tiempo)
+  // Recalculamos la firma y comparamos en tiempo constante:
+  // comparar texto con === filtra informacion sobre la firma esperada
   const esperada = crypto
     .createHmac("sha256", SECRETO)
     .update(base64)
     .digest("base64url");
-  if (esperada !== firma) return null;
+  const firmoA = Buffer.from(esperada);
+  const firmoB = Buffer.from(firma);
+  const firmaValida =
+    firmoA.length === firmoB.length && crypto.timingSafeEqual(firmoA, firmoB);
+  if (!firmaValida) return null;
 
   // Validamos la expiracion
   try {

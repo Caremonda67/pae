@@ -20,6 +20,17 @@ export const limiteLogin = rateLimit({
   message: { error: "Demasiados intentos de inicio de sesion. Espera 10 minutos." },
 });
 
+// Chat con IA: cada mensaje consulta la base y gasta cuota de
+// Gemini. 15 mensajes cada 5 minutos por IP alcanza de sobra para
+// conversar y evita que alguien queme la cuota a proposito.
+export const limiteChat = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Demasiados mensajes al chat. Espera unos minutos e intenta de nuevo." },
+});
+
 // Formularios publicos (contacto y reservas): moderado.
 // 30 peticiones cada 10 minutos por IP.
 export const limiteFormularios = rateLimit({

@@ -18,6 +18,7 @@
 // ============================================================
 
 import { Router } from "express";
+import { limiteChat } from "../config/rateLimit.js";
 import { getSupabase } from "../config/supabase.js";
 
 const router = Router();
@@ -144,7 +145,7 @@ function construirPromptSistema(contexto) {
 
 // POST /api/chat
 // Cuerpo esperado: { mensaje: "texto del usuario", historial: [{rol, texto}] }
-router.post("/", async (req, res) => {
+router.post("/", limiteChat, async (req, res) => {
   const { mensaje, historial } = req.body;
 
   if (!mensaje || typeof mensaje !== "string") {
