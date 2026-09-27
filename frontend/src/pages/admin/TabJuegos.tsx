@@ -226,7 +226,7 @@ export default function TabJuegos({
                               setMotivoActualizacion("");
                             }}
                           >
-                            ❌ Rechazar
+                            ❌ Rechazar actualización
                           </button>
                           <button
                             type="button"

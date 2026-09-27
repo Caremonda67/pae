@@ -7,11 +7,9 @@
       <stop offset="1" stop-color="#1b5e20"/>
     </linearGradient>
   </defs>
-  <!-- Plato -->
   <circle cx="256" cy="290" r="150" fill="#ffffff"/>
   <circle cx="256" cy="290" r="120" fill="none" stroke="#e0e7dd" stroke-width="6"/>
   <circle cx="256" cy="290" r="78" fill="none" stroke="#e0e7dd" stroke-width="6"/>
-  <!-- Tenedor -->
   <g stroke="#2e9e6b" stroke-width="22" stroke-linecap="round" stroke-linejoin="round" fill="none">
     <path d="M256 90 v78"/>
     <path d="M256 110 c-18 0 -30 -12 -30 -26 v-8 c14 0 26 12 26 26 z"/>

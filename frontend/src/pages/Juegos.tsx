@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { API_URL } from "../config/api";
-import { leerSesion } from "../config/sesion";
+import { guardarSesion, leerSesion, suscribirseASesion } from "../config/sesion";
 import { CATEGORIAS_JUEGOS, etiquetaDispositivo, type Juego } from "./juegos/types";
 import ModalSubirJuego from "./juegos/ModalSubirJuego";
 import ReproductorJuego from "./juegos/ReproductorJuego";
@@ -21,6 +20,11 @@ export default function Juegos() {
 
   const [juegoJugando, setJuegoJugando] = useState<Juego | null>(null);
   const [modalSubir, setModalSubir] = useState(false);
+  const [modalLogin, setModalLogin] = useState(false);
+  const [loginUsuario, setLoginUsuario] = useState("");
+  const [loginClave, setLoginClave] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [loginCargando, setLoginCargando] = useState(false);
   const [sesion, setSesion] = useState(() => leerSesion());
 
   const tieneSesion = Boolean(sesion);
@@ -29,7 +33,42 @@ export default function Juegos() {
 
   useEffect(() => {
     setSesion(leerSesion());
+    return suscribirseASesion(() => setSesion(leerSesion()));
   }, []);
+
+  const intentarLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!loginUsuario.trim() || !loginClave) {
+      setLoginError("Ingresa el usuario (documento para estudiantes) y la clave.");
+      return;
+    }
+    setLoginCargando(true);
+    setLoginError("");
+    try {
+      const respuesta = await fetch(`${API_URL}/api/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ usuario: loginUsuario.trim(), clave: loginClave }),
+      });
+      const datos = await respuesta.json().catch(() => null);
+      if (!respuesta.ok) {
+        throw new Error(datos?.error || "Usuario o clave incorrectos");
+      }
+      guardarSesion({
+        token: datos.token,
+        rol: datos.rol,
+        usuario: datos.usuario,
+        nombre: datos.nombre,
+      });
+      setLoginUsuario("");
+      setLoginClave("");
+      setModalLogin(false);
+    } catch (err) {
+      setLoginError(err instanceof Error ? err.message : "Error desconocido");
+    } finally {
+      setLoginCargando(false);
+    }
+  };
 
   const cargarJuegos = useCallback(async () => {
     setCargando(true);
@@ -103,9 +142,13 @@ export default function Juegos() {
               </button>
             )}
             {!tieneSesion ? (
-              <Link to="/reserva" className="boton boton-primario boton-arcade-destacado">
+              <button
+                type="button"
+                className="boton boton-primario boton-arcade-destacado"
+                onClick={() => setModalLogin(true)}
+              >
                 🔑 Inicia sesión para subir tu juego
-              </Link>
+              </button>
             ) : (
               !verMisJuegos && puedePublicar && (
                 <button
@@ -309,6 +352,58 @@ export default function Juegos() {
             cargarJuegos();
           }}
         />
+      )}
+
+      {modalLogin && (
+        <div className="modal-login-overlay" role="dialog" aria-modal="true" aria-label="Inicia sesión">
+          <div className="caja-login-juegos">
+            <button
+              type="button"
+              className="modal-juego-cerrar"
+              aria-label="Cerrar"
+              onClick={() => setModalLogin(false)}
+            >
+              ✕
+            </button>
+            <h2>Inicia sesión</h2>
+            <p className="subtitulo-login">
+              Estudiantes: documento + PIN. Personal del PAE: usuario y clave de su cuenta.
+            </p>
+            <form onSubmit={intentarLogin} className="form-login-juegos">
+              <label>
+                Usuario (documento para estudiantes)
+                <input
+                  type="text"
+                  value={loginUsuario}
+                  onChange={(e) => setLoginUsuario(e.target.value)}
+                  autoComplete="username"
+                  placeholder="Ej: 1111548041"
+                />
+              </label>
+              <label>
+                Clave / PIN
+                <input
+                  type="password"
+                  value={loginClave}
+                  onChange={(e) => setLoginClave(e.target.value)}
+                  autoComplete="current-password"
+                  placeholder="Tu PIN o clave"
+                />
+              </label>
+              {loginError && <p className="login-error" role="alert">⚠️ {loginError}</p>}
+              <button
+                type="submit"
+                className="boton boton-primario boton-login-juegos"
+                disabled={loginCargando}
+              >
+                {loginCargando ? "Entrando..." : "🔑 Iniciar sesión"}
+              </button>
+            </form>
+            <p className="pista-login-juegos">
+              Si eres estudiante y aún no tienes PIN, pídelo al equipo del PAE.
+            </p>
+          </div>
+        </div>
       )}
     </section>
   );
