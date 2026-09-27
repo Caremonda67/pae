@@ -3,22 +3,39 @@ logs
 *.log
 npm-debug.log*
 yarn-debug.log*
-yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencias y compilacion
 node_modules
 dist
 dist-ssr
-*.local
 
-# Editor directories and files
+# Variables de entorno
+.env
+.env.local
+*.local
+!.env.example
+!.env.production
+
+# Editores y archivos del sistema
 .vscode/*
 !.vscode/extensions.json
 .idea
 .DS_Store
+Thumbs.db
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# Herramientas de IA y temporales
+AGENTS.md
+skills.md
+*.prompt.md
+.skills/
+.opencode/
+.gemini/
+.antigravity/
+.playwright-mcp/
