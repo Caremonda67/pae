@@ -6,6 +6,7 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
 
 // Importamos las rutas de la aplicacion
 import reservasRouter from "./routes/reservas.js";
@@ -38,7 +39,24 @@ const PORT = process.env.PORT || 4000;
 // 1. cors: permite que el frontend (en otro puerto/dominio) haga peticiones
 // 2. express.json: convierte el cuerpo de las peticiones a JSON.
 //    El limite alto es para recibir las imagenes en base64.
-app.use(cors());
+// helmet: headers de seguridad por defecto (XSS, sniffing, frameguard...).
+//   contentSecurityPolicy se apaga porque Vite usa scripts inline en
+//   desarrollo; se activa cuando el frontend tenga dominio fijo.
+//   crossOriginResourcePolicy se apaga para que las imagenes de
+//   Supabase Storage se puedan cargar desde el navegador.
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginResourcePolicy: false,
+}));
+
+// CORS: en desarrollo local (sin FRONTEND_URL) permite todo; en
+// produccion solo acepta el dominio del frontend.
+app.use(cors({
+  origin: process.env.FRONTEND_URL || true,
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true,
+}));
+
 app.use(express.json({ limit: "8mb" }));
 
 // Ruta de salud: sirve para verificar que el servidor esta vivo
