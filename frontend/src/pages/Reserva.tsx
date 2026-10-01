@@ -268,8 +268,8 @@ function Reserva() {
           setTurnoDoble(ambasJornadas);
           setInfoBeneficiario(
             ambasJornadas
-              ? `? Encontrado: ${datos.nombre}. Tu sede (${datos.sede}) permite ambas jornadas. Por defecto se reservar�n ambas, pero puedes elegir solo una.`
-              : `? Encontrado: ${datos.nombre}. Tu sede (${datos.sede}) y turno (${datos.turno}) ya est�n definidos.`
+              ? `✅ Encontrado: ${datos.nombre}. Tu sede (${datos.sede}) permite ambas jornadas. Por defecto se reservarán ambas, pero puedes elegir solo una.`
+              : `✅ Encontrado: ${datos.nombre}. Tu sede (${datos.sede}) y turno (${datos.turno}) ya están definidos.`
           );
         } else {
           setInfoBeneficiario("ℹ️ Documento no registrado. Verifica con el equipo del PAE.");
@@ -673,7 +673,7 @@ function Reserva() {
             {entrando ? "Verificando…" : "Entrar"}
           </button>
           <p className="subtitulo">
-            También puedes reservar sin entrar, escribiendo tu documento abajo.
+            Ingresa con tu documento y PIN para acceder a tu formulario de reservas y consultar tus minutas.
           </p>
         </form>
       )}
@@ -1031,7 +1031,7 @@ function Reserva() {
                     {misReservas.map((reserva) => (
                       <article key={reserva.id} className="fila-reserva">
                         <div>
-                          <strong>{reserva.fecha}</strong>
+                          <strong>{fechaLegible(reserva.fecha)}</strong>
                           <span className="fila-reserva-detalle">
                             {reserva.turno} · {reserva.sede}
                             {reserva.asistio ? " · ✓ ya asististe" : ""}

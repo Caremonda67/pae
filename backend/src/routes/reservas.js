@@ -721,7 +721,9 @@ router.post("/", limiteFormularios, async (req, res) => {
       .json({ error: "Documento no registrado en el programa" });
   }
 
-  const nombreFinal = estudiante || beneficiario.nombre;
+  // El nombre oficial siempre proviene del registro del beneficiario en la base de datos,
+  // evitando suplantaciones o inyecciones desde req.body.estudiante.
+  const nombreFinal = beneficiario.nombre;
   const gradoFinal = beneficiario.grado || null;
   const llevar = para_llevar === true;
 
@@ -778,7 +780,7 @@ router.post("/", limiteFormularios, async (req, res) => {
 
   for (const f of diasASem) {
     if (f < fechaHoy()) {
-      omitidas.push({ fecha: f, turno, motivo: "ya pas�" });
+      omitidas.push({ fecha: f, turno, motivo: "ya pasó" });
       continue;
     }
 
@@ -945,8 +947,8 @@ router.delete("/mis/:id", limiteFormularios, async (req, res) => {
 
 // PUT /api/reservas/:id
 // Actualiza el estado de una reserva (por ejemplo: asistio o no)
-// Equipo con rol (admin, cocina, profesor).
-router.put("/:id", requiereRol("admin", "cocina", "profesor"), async (req, res) => {
+// Solo personal de admin y cocina. Los profesores usan /api/asistencia/:id (con validación de grupo).
+router.put("/:id", requiereRol("admin", "cocina"), async (req, res) => {
   // Lista blanca: la unica edicion permitida es marcar si el
   // estudiante asistio. Los demas campos de una reserva no se
   // tocan desde aqui, asi nadie puede cambiarle el documento,
@@ -1020,9 +1022,18 @@ export function armarMensajeEmail(nombre, fecha, turno, sede) {
   ].join("\n");
 }
 
+function escaparHtml(texto) {
+  return String(texto || "").replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  })[c]);
+}
+
 // Version HTML del correo (bonita, con estructura)
 export function armarMensajeEmailHtml(nombre, fecha, turno, sede) {
   const fechaL = fechalegible(fecha);
+  const nSeguro = escaparHtml(nombre);
+  const tSeguro = escaparHtml(turno);
+  const sSeguro = escaparHtml(sede);
   const fila = (etiqueta, valor) =>
     `<tr><td style="padding:6px 0;color:#666;width:90px;">${etiqueta}</td><td style="padding:6px 0;font-weight:600;color:#1f2937;">${valor}</td></tr>`;
   return `
@@ -1032,11 +1043,11 @@ export function armarMensajeEmailHtml(nombre, fecha, turno, sede) {
     <div style="color:#ffffff;font-size:18px;font-weight:bold;">PAE · Reserva confirmada</div>
   </div>
   <div style="padding:24px;">
-    <p style="color:#1f2937;font-size:15px;line-height:1.6;">¡Hola <strong>${nombre}</strong>! Tu minuta quedó reservada y la cocina ya te está esperando. 😊</p>
+    <p style="color:#1f2937;font-size:15px;line-height:1.6;">¡Hola <strong>${nSeguro}</strong>! Tu minuta quedó reservada y la cocina ya te está esperando. 😊</p>
     <table style="width:100%;margin:16px 0;border-collapse:collapse;background:#ffffff;border:1px solid #e5e7eb;border-radius:8px;padding:8px 16px;">
       ${fila("📅 Fecha", fechaL)}
-      ${fila("🍽️ Turno", turno)}
-      ${fila("🏫 Sede", sede)}
+      ${fila("🍽️ Turno", tSeguro)}
+      ${fila("🏫 Sede", sSeguro)}
     </table>
     <p style="color:#4b5563;font-size:14px;line-height:1.6;">Recuerda asistir el día señalado: cada reserva que no se usa es comida que se desperdicia. Si no puedes ir, cancela tu reserva desde la página para que otra persona pueda aprovecharla.</p>
     <p style="color:#4b5563;font-size:14px;line-height:1.6;">¡Gracias por ayudarnos a reducir el desperdicio de alimentos!</p>

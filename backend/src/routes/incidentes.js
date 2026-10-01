@@ -133,6 +133,28 @@ router.post("/", requiereRol("profesor", "admin", "coordinador"), async (req, re
   if (errBen) return res.status(500).json({ error: errBen.message });
   if (!ben) return res.status(404).json({ error: "Ese documento no está registrado como beneficiario" });
 
+  // Si el reporte lo hace un profesor, el estudiante debe ser de su grupo
+  if (req.usuario.rol === "profesor") {
+    let cuenta;
+    try {
+      cuenta = await grupoDelProfesor(req.usuario.sub);
+    } catch (error) {
+      return res.status(500).json({ error: error.message });
+    }
+    if (!cuenta?.sede || !cuenta?.grado) {
+      return res.status(403).json({ error: "Tu cuenta no tiene un grupo asignado." });
+    }
+    const turnoCoincide =
+      cuenta.turno === "Ambas jornadas" ||
+      ben.turno === cuenta.turno ||
+      ben.turno === "Ambas jornadas";
+    if (ben.sede !== cuenta.sede || ben.grado !== cuenta.grado || !turnoCoincide) {
+      return res.status(403).json({
+        error: "Solo puedes reportar incidentes de estudiantes pertenecientes a tu grupo asignado.",
+      });
+    }
+  }
+
   const { data, error } = await getSupabase()
     .from("incidentes")
     .insert([
@@ -197,11 +219,29 @@ router.put("/:id", requiereRol("profesor", "admin", "coordinador"), async (req, 
     // Revalidamos el estudiante por si cambió el documento
     const { data: ben } = await getSupabase()
       .from("beneficiarios")
-      .select("documento, nombre, sede, grado")
+      .select("documento, nombre, sede, grado, turno")
       .eq("documento", String(documento).trim())
       .maybeSingle();
     if (!ben) {
       return res.status(404).json({ error: "Ese documento no está registrado como beneficiario" });
+    }
+
+    let cuenta;
+    try {
+      cuenta = await grupoDelProfesor(req.usuario.sub);
+    } catch (error) {
+      return res.status(500).json({ error: error.message });
+    }
+    if (cuenta) {
+      const turnoCoincide =
+        cuenta.turno === "Ambas jornadas" ||
+        ben.turno === cuenta.turno ||
+        ben.turno === "Ambas jornadas";
+      if (ben.sede !== cuenta.sede || ben.grado !== cuenta.grado || !turnoCoincide) {
+        return res.status(403).json({
+          error: "Ese estudiante no pertenece a tu grupo asignado.",
+        });
+      }
     }
 
     const cambios = {

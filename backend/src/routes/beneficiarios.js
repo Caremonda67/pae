@@ -13,11 +13,27 @@ const router = Router();
 // Lista completa de beneficiarios. SOLO para el panel (admin,
 // coordinador y profesor): trae datos personales como documento y
 // PIN. La web publica usa /resumen, que devuelve solo conteos.
-router.get("/", requiereRol("admin", "coordinador", "profesor"), async (_req, res) => {
-  const { data, error } = await getSupabase()
+router.get("/", requiereRol("admin", "coordinador", "profesor"), async (req, res) => {
+  let consulta = getSupabase()
     .from("beneficiarios")
     .select("*")
     .order("nombre", { ascending: true });
+
+  if (req.usuario.rol === "profesor") {
+    // Un profesor solo ve los estudiantes de su grupo asignado (sede + grado)
+    const { data: cuenta } = await getSupabase()
+      .from("usuarios")
+      .select("sede, grado")
+      .eq("usuario", req.usuario.sub)
+      .maybeSingle();
+
+    if (!cuenta?.sede || !cuenta?.grado) {
+      return res.json([]);
+    }
+    consulta = consulta.eq("sede", cuenta.sede).eq("grado", cuenta.grado);
+  }
+
+  const { data, error } = await consulta;
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
 });
@@ -139,6 +155,26 @@ router.post("/", requiereRol("admin", "coordinador", "profesor"), async (req, re
 
   if (!documento || !nombre || !sede || !turno) {
     return res.status(400).json({ error: "Faltan datos obligatorios" });
+  }
+
+  // Un profesor solo puede registrar estudiantes en su sede y grado asignados
+  if (req.usuario.rol === "profesor") {
+    const { data: cuenta } = await getSupabase()
+      .from("usuarios")
+      .select("sede, turno, grado")
+      .eq("usuario", req.usuario.sub)
+      .maybeSingle();
+
+    if (!cuenta?.sede || !cuenta?.grado) {
+      return res.status(403).json({
+        error: "Tu cuenta no tiene sede ni grado asignados para registrar beneficiarios.",
+      });
+    }
+    if (String(sede).trim() !== cuenta.sede || (grado && String(grado).trim() !== cuenta.grado)) {
+      return res.status(403).json({
+        error: `Solo puedes registrar beneficiarios de tu grupo asignado (${cuenta.sede}, grado ${cuenta.grado}).`,
+      });
+    }
   }
 
   const docLimpio = String(documento).replace(/[\s.\-]/g, "");
@@ -274,6 +310,26 @@ router.put("/:id", requiereRol("admin", "coordinador", "profesor"), async (req, 
     .maybeSingle();
   if (errBen) return res.status(500).json({ error: errBen.message });
   if (!ben) return res.status(404).json({ error: "Beneficiario no encontrado" });
+
+  // Un profesor solo puede modificar beneficiarios asignados a su propio grupo
+  if (req.usuario.rol === "profesor") {
+    const { data: cuenta } = await getSupabase()
+      .from("usuarios")
+      .select("sede, grado")
+      .eq("usuario", req.usuario.sub)
+      .maybeSingle();
+
+    if (!cuenta?.sede || !cuenta?.grado || ben.sede !== cuenta.sede || ben.grado !== cuenta.grado) {
+      return res.status(403).json({
+        error: "Solo puedes modificar beneficiarios asignados a tu sede y grado.",
+      });
+    }
+    if ((sede && String(sede).trim() !== cuenta.sede) || (grado && String(grado).trim() !== cuenta.grado)) {
+      return res.status(403).json({
+        error: "No tienes permiso para trasladar al beneficiario fuera de tu sede y grado.",
+      });
+    }
+  }
 
   const cambios = {};
   if (nombre !== undefined) cambios.nombre = String(nombre).trim();

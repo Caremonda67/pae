@@ -163,16 +163,48 @@ router.get("/historial", limiteChat, async (req, res) => {
 
 // POST /api/chat
 // Cuerpo esperado: { mensaje: "texto del usuario", historial: [{rol, texto}], sesion_id?: "abc" }
+// Solo se admiten estos campos. Cualquier otro (url, callback, redirect...) se
+// ignora: el endpoint no hace peticiones salientes por URLs del usuario, pero
+// rechazar lo desconocido evita que un campo extra se cuele en la persistencia.
+const CAMPOS_PERMITIDOS = new Set(["mensaje", "historial", "sesion_id"]);
+const URL_EN_MENSAJE = /\b(?:https?:\/\/|ftp:\/\/|file:\/\/)/i;
+
 router.post("/", limiteChat, async (req, res) => {
-  const { mensaje, historial, sesion_id } = req.body;
+  const cuerpo = req.body && typeof req.body === "object" ? req.body : {};
+  const camposRechazados = Object.keys(cuerpo).filter((k) => !CAMPOS_PERMITIDOS.has(k));
+  if (camposRechazados.length > 0) {
+    return res.status(400).json({
+      error: `Campos no permitidos: ${camposRechazados.join(", ")}`,
+    });
+  }
+
+  const { mensaje, historial, sesion_id } = cuerpo;
 
   if (!mensaje || typeof mensaje !== "string") {
     return res.status(400).json({ error: "Falta el mensaje" });
   }
+  const mensajeLimpio = mensaje.trim();
+  if (mensajeLimpio.length === 0) {
+    return res.status(400).json({ error: "El mensaje esta vacio" });
+  }
+  if (mensajeLimpio.length > 500) {
+    return res.status(400).json({ error: "El mensaje es demasiado largo (maximo 500 caracteres)" });
+  }
+  // El bot responde sobre datos del programa; no necesita abrir enlaces. Cortar
+  // aqui evita que una URL enviada por el usuario llegue al modelo y se use para
+  // intentar un fetch o una peticion server-side.
+  if (URL_EN_MENSAJE.test(mensajeLimpio)) {
+    return res.status(400).json({
+      error: "No puedo procesar enlaces. Escribe tu pregunta sin URLs.",
+    });
+  }
+  if (sesion_id !== undefined && typeof sesion_id !== "string") {
+    return res.status(400).json({ error: "El identificador de sesion no es valido" });
+  }
 
   // Persistimos la pregunta del estudiante de inmediato (incluso si
   // Gemini luego falla) para que el historial quede completo.
-  await guardarMensaje(sesion_id, "usuario", mensaje);
+  await guardarMensaje(sesion_id, "usuario", mensajeLimpio);
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -342,7 +374,7 @@ router.post("/", limiteChat, async (req, res) => {
               ...historialValido,
               {
                 role: "user",
-                parts: [{ text: mensaje }],
+                parts: [{ text: mensajeLimpio }],
               },
             ],
             generationConfig: {

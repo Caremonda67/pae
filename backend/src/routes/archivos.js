@@ -62,6 +62,28 @@ router.get("/servir-juego", async (req, res) => {
     return res.status(400).json({ error: "Ruta inválida" });
   }
 
+  // Solo se sirven juegos con estado "aprobado". Sin esta comprobacion, cualquiera
+  // podria pedir la URL de un juego pendiente (o de un archivo recien subido y aun
+  // sin revisar) y ejecutarlo como HTML desde el origen de la API.
+  try {
+    const { data: juegos, error: errorJuego } = await getSupabase()
+      .from("juegos")
+      .select("id, url_recurso, estado")
+      .eq("url_recurso", url)
+      .limit(1);
+    if (errorJuego) {
+      console.error("No se pudo comprobar el estado del juego:", errorJuego.message);
+      return res.status(503).json({ error: "No se pudo verificar el juego" });
+    }
+    const juego = juegos?.[0];
+    if (!juego || juego.estado !== "aprobado") {
+      return res.status(404).json({ error: "Archivo no encontrado" });
+    }
+  } catch (err) {
+    console.error("Error comprobando el estado del juego:", err);
+    return res.status(503).json({ error: "No se pudo verificar el juego" });
+  }
+
   try {
     const { data, error } = await getSupabase()
       .storage.from("juegos")
@@ -71,10 +93,19 @@ router.get("/servir-juego", async (req, res) => {
       return res.status(404).json({ error: "Archivo no encontrado" });
     }
     const buffer = Buffer.from(await data.arrayBuffer());
-    // El iframe del Reproductor vive en el frontend (otro origen); helmet
-    // pondría X-Frame-Options: SAMEORIGIN y bloquearía la carga del juego.
-    res.removeHeader("X-Frame-Options");
+    // Los juegos son HTML+JS legitimo que debe ejecutarse, asi que no se puede
+    // quitar el script (el Arcade dejaria de funcionar). Aislamos en su lugar el
+    // origen: CSP "sandbox" SIN allow-same-origin mete el documento en un origen
+    // opaco, sin acceso a cookies, localStorage ni al resto de la API. Asi un
+    // juego malicioso no puede tocar la sesion aunque se sirva como text/html.
     res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.setHeader(
+      "Content-Security-Policy",
+      "sandbox allow-scripts allow-popups; script-src 'self' https: 'unsafe-inline'; " +
+        "style-src 'self' 'unsafe-inline' https:; img-src 'self' data: https:; " +
+        "media-src 'self' data: https:; connect-src 'none'; frame-src 'none'"
+    );
+    res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Cache-Control", "public, max-age=3600");
     res.send(buffer);
   } catch (err) {
@@ -87,6 +118,10 @@ router.get("/servir-juego", async (req, res) => {
 // Sube el archivo HTML de un videojuego del Arcade.
 // Cuerpo esperado: { base64: "data:text/html;base64,....", nombre: "juego.html" }
 // Devuelve: { url: "https://....supabase.co/storage/v1/object/public/juegos/...." }
+// Cualquier rol con sesion puede subir el archivo, pero el HTML se sanea antes de
+// guardarse (ver config/almacenamiento.js) y /servir-juego solo entrega juegos con
+// estado "aprobado", asi que un juego estudiantil queda pendiente de moderacion y no
+// es ejecutable hasta que un coordinador lo aprueba.
 router.post("/subir-juego", requiereRol("estudiante", "admin", "coordinador"), async (req, res) => {
   const { base64, nombre } = req.body || {};
 

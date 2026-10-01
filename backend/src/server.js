@@ -35,37 +35,66 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 
 // Detras del proxy de Render, la IP real del cliente viene en X-Forwarded-For.
-// Sin esto, req.ip es siempre la IP del proxy y el rate limit por IP no funciona.
-app.set("trust proxy", 1);
+// Solo se confia en la cabecera si la peticion viene de un proxy de confianza
+// (loopback). Si se pusiera "true" o un numero, cualquier cliente podria
+// falsear su IP con X-Forwarded-For y evadir los limites por IP.
+app.set("trust proxy", process.env.TRUST_PROXY === "loopback" ? "loopback" : false);
 
 // Middlewares
 // 1. cors: permite que el frontend (en otro puerto/dominio) haga peticiones
 // Debe ser el primer middleware para que todas las respuestas incluyan cabeceras CORS.
+// En produccion FRONTEND_URL es obligatorio y se restringe a esa lista; si falta,
+// se permiten solo origenes de loopback (dev). Nunca "true" con credentials:
+// eso refleja cualquier origen y permite a sitios arbitrarios leer la API.
+const FRONTEND_ORIGENS = (process.env.FRONTEND_URL || "")
+  .split(",")
+  .map((u) => u.trim().replace(/\/+$/, ""))
+  .filter(Boolean);
+const ORIGENES_PERMITIDOS = FRONTEND_ORIGENS.length
+  ? FRONTEND_ORIGENS
+  : [/^http:\/\/(localhost|127\.0\.0\.1|\[::1\]|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3})(:\d+)?$/];
 app.use(cors({
-  origin: (process.env.FRONTEND_URL || "").replace(/\/+$/, "") || true,
+  origin: (origin, callback) => {
+    // Peticiones sin Origin (curl, health checks, apps moviles): se permiten.
+    if (!origin) return callback(null, true);
+    const permitido = ORIGENES_PERMITIDOS.some((permitido) =>
+      typeof permitido === "string" ? permitido === origin : permitido.test(origin)
+    );
+    callback(permitido ? null : new Error("Origen no permitido por CORS"), permitido);
+  },
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
   credentials: true,
 }));
 
 // helmet: headers de seguridad por defecto (XSS, sniffing, frameguard...).
-//   contentSecurityPolicy se apaga: este backend solo responde JSON (no
-//   sirve HTML), asi que la CSP no le protejeria nada. La CSP del sitio se
-//   debe definir en el deploy del frontend (SPA servido por Vercel/Render),
-//   no aqui.
+//   CSP activa pero solo con default-src 'none': el backend responde JSON,
+//   asi que no necesita cargar nada. Si alguna ruta sirviera HTML con este
+//   origen, la CSP lo bloquearia (ver routes/archivos.js).
 //   crossOriginResourcePolicy se apaga para que las imagenes de
 //   Supabase Storage se puedan cargar desde el navegador.
 app.use(helmet({
-  contentSecurityPolicy: false,
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'none'"],
+      frameAncestors: ["'none'"],
+      baseUri: ["'none'"],
+      formAction: ["'none'"],
+    },
+  },
   crossOriginResourcePolicy: false,
 }));
 
 // Rate limit global: 200 peticiones cada minuto por IP. Protege
 // todas las rutas que no tienen su propio limite.
+//   La clave usa la IP de socket (no req.ip) para que X-Forwarded-For no
+//   permita evadir el limite falseando la IP de origen.
+const clavePorSocket = (req) => req.socket?.remoteAddress || "desconocida";
 app.use(rateLimit({
   windowMs: 60 * 1000,
   max: process.env.NODE_ENV === "production" ? 200 : 1000,
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: clavePorSocket,
   message: { error: "Demasiadas peticiones. Intenta de nuevo en un minuto." },
 }));
 

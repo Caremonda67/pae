@@ -4,20 +4,22 @@
 
 import { Router } from "express";
 import { getSupabase } from "../config/supabase.js";
-import { requiereRol } from "../config/auth.js";
+import { requiereRol, requiereSesion } from "../config/auth.js";
 
 const router = Router();
 
 // GET /api/colaboradores
-// Lista todos los colaboradores (publicos)
-router.get("/", async (_req, res) => {
+// Lista de colaboradores. La consumen la Home (contador) y el panel admin.
+// Requiere sesion: publicar el nombre y el rol del personal del colegio a
+// cualquiera permitia enumerar la plantilla sin autenticarse.
+router.get("/", requiereSesion, async (_req, res) => {
   const { data, error } = await getSupabase()
     .from("colaboradores")
-    .select("*")
+    .select("id, nombre, rol")
     .order("nombre", { ascending: true });
 
   if (error) return res.status(500).json({ error: error.message });
-  res.json(data);
+  res.json(data || []);
 });
 
 // POST /api/colaboradores

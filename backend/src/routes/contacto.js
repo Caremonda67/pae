@@ -40,8 +40,30 @@ router.get("/mios", requiereSesion, async (req, res) => {
 // POST /api/contacto
 // Recibe el formulario de contacto
 // Cuerpo esperado: { nombre, correo, mensaje, documento?, imagenBase64?, imagenNombre? }
+// Solo se admiten estos campos. El endpoint es anonimo, asi que se construye la
+// fila campo a campo en vez de propagar req.body: cualquier propiedad extra
+// (callback, url, redirect...) se descarta en vez de guardarse.
+const CAMPOS_PERMITIDOS = new Set([
+  "nombre",
+  "correo",
+  "mensaje",
+  "documento",
+  "imagenBase64",
+  "imagenNombre",
+]);
+const LARGO_MAXIMO = { nombre: 120, correo: 200, mensaje: 2000, documento: 30 };
+
 router.post("/", limiteFormularios, async (req, res) => {
-  const { nombre, correo, mensaje, documento, imagenBase64, imagenNombre } = req.body || {};
+  const cuerpo = req.body && typeof req.body === "object" ? req.body : {};
+
+  const noPermitidos = Object.keys(cuerpo).filter((k) => !CAMPOS_PERMITIDOS.has(k));
+  if (noPermitidos.length > 0) {
+    return res.status(400).json({
+      error: `Campos no permitidos: ${noPermitidos.slice(0, 5).join(", ")}`,
+    });
+  }
+
+  const { nombre, correo, mensaje, documento, imagenBase64, imagenNombre } = cuerpo;
 
   if (!nombre || !correo || !mensaje) {
     return res.status(400).json({ error: "Faltan datos obligatorios" });
@@ -52,13 +74,30 @@ router.post("/", limiteFormularios, async (req, res) => {
     return res.status(400).json({ error: "Correo no válido" });
   }
 
+  const nombreLimpio = String(nombre).trim();
+  const correoLimpio = String(correo).trim();
+  const mensajeLimpio = String(mensaje).trim();
+
+  if (nombreLimpio.length === 0 || mensajeLimpio.length === 0) {
+    return res.status(400).json({ error: "Faltan datos obligatorios" });
+  }
+  if (nombreLimpio.length > LARGO_MAXIMO.nombre) {
+    return res.status(400).json({ error: `El nombre supera los ${LARGO_MAXIMO.nombre} caracteres` });
+  }
+  if (correoLimpio.length > LARGO_MAXIMO.correo) {
+    return res.status(400).json({ error: `El correo supera los ${LARGO_MAXIMO.correo} caracteres` });
+  }
+  if (mensajeLimpio.length > LARGO_MAXIMO.mensaje) {
+    return res.status(400).json({ error: `El mensaje supera los ${LARGO_MAXIMO.mensaje} caracteres` });
+  }
+
   const fila = {
-    nombre: String(nombre).trim(),
-    correo: String(correo).trim(),
-    mensaje: String(mensaje).trim(),
+    nombre: nombreLimpio,
+    correo: correoLimpio,
+    mensaje: mensajeLimpio,
     // Si el remitente es un estudiante registrado, su documento
     // vincula el mensaje para que luego vea la respuesta del admin.
-    documento: documento ? String(documento).trim() : null,
+    documento: documento ? String(documento).trim().slice(0, LARGO_MAXIMO.documento) : null,
   };
 
   // Si el estudiante adjunta una foto, la subimos primero
@@ -78,13 +117,20 @@ router.post("/", limiteFormularios, async (req, res) => {
 
   if (error) return res.status(500).json({ error: error.message });
 
-  // Avisamos al administrador por email si esta configurado
+  // Avisamos al administrador por email si esta configurado. El texto viene de
+  // un formulario anonimo, asi que se escapa antes de meterlo en el HTML del
+  // correo: sin esto, un <script> o un enlace en el mensaje se inyectaria en el
+  // HTML del email que abre el admin.
   if (correoConfigurado() && process.env.ADMIN_EMAIL) {
+    const escaparHtml = (texto) =>
+      String(texto).replace(/[&<>"']/g, (c) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+      })[c]);
     await enviarEmail(
       process.env.ADMIN_EMAIL,
-      `PAE · Mensaje de ${nombre}`,
-      `Nuevo mensaje del formulario de contacto:\n\nDe: ${nombre} <${correo}>\n\n${mensaje}`,
-      `<h2>Nuevo mensaje de contacto</h2><p><strong>De:</strong> ${nombre} (${correo})</p><p>${mensaje}</p>`
+      `PAE · Mensaje de ${nombreLimpio}`,
+      `Nuevo mensaje del formulario de contacto:\n\nDe: ${nombreLimpio} <${correoLimpio}>\n\n${mensajeLimpio}`,
+      `<h2>Nuevo mensaje de contacto</h2><p><strong>De:</strong> ${escaparHtml(nombreLimpio)} (${escaparHtml(correoLimpio)})</p><p>${escaparHtml(mensajeLimpio).replace(/\n/g, "<br>")}</p>`
     );
   }
 

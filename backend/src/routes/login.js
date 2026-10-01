@@ -3,11 +3,16 @@
 import { Router } from "express";
 import { timingSafeEqual } from "node:crypto";
 import { firmarToken, adminConfigurado } from "../config/auth.js";
-import { verificarClave } from "../config/password.js";
+import { verificarClave, hashClave } from "../config/password.js";
 import { getSupabase } from "../config/supabase.js";
 import { limiteLogin } from "../config/rateLimit.js";
 
 const router = Router();
+
+// Hash de una clave que no existe, para gastar el mismo tiempo de CPU cuando el
+// usuario no esta en la tabla (ver mas abajo). Es un valor fijo, no un secreto:
+// solo sirve para igualar el coste de la verificacion.
+const HASH_FICTICIO = hashClave("__usuario_inexistente__");
 
 router.post("/", limiteLogin, async (req, res) => {
   const { usuario, clave } = req.body || {};
@@ -61,7 +66,12 @@ router.post("/", limiteLogin, async (req, res) => {
     return res.status(500).json({ error: error.message });
   }
 
+  // Tiempo de respuesta constante: si el usuario no existe (o esta inactivo) se
+  // ejecuta igualmente una verificacion scrypt contra un hash ficticio. Asi el
+  // fallo responde en el mismo tiempo que un usuario real con clave incorrecta y
+  // no se puede enumerar la tabla de usuarios midiendo la respuesta.
   if (!fila || !fila.activo) {
+    verificarClave(String(clave), HASH_FICTICIO);
     return res.status(401).json({ error: "Usuario o clave incorrectos" });
   }
 

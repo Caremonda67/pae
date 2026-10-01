@@ -110,7 +110,20 @@ router.get("/", async (req, res) => {
     );
   }
 
-  res.json(resultados);
+  // El listado es publico, asi que no se devuelven los campos internos de
+  // moderacion ni el documento del autor: "estado", "motivo_rechazo",
+  // "actualizacion_pendiente" y "autor_documento" solo los necesita el panel.
+  // "vistas" y los datos visibles del juego se mantienen.
+  const CAMPOS_PUBLICOS = [
+    "id", "titulo", "descripcion", "instrucciones", "categoria", "tipo",
+    "url_recurso", "portada_url", "dispositivo", "autor_nombre", "autor_grado",
+    "vistas", "created_at", "version", "novedades", "actualizado_en",
+  ];
+  res.json(
+    resultados.map((juego) =>
+      Object.fromEntries(CAMPOS_PUBLICOS.filter((c) => c in juego).map((c) => [c, juego[c]]))
+    )
+  );
 });
 
 // GET /api/juegos/mios
@@ -164,7 +177,7 @@ const jugadasRecientes = new Map();
 // Incrementa el contador de reproducciones de forma controlada
 router.post("/:id/jugar", async (req, res) => {
   const { id } = req.params;
-  const ipCliente = req.ip || req.headers["x-forwarded-for"] || "ip_local";
+  const ipCliente = req.socket?.remoteAddress || "ip_local";
   const clave = `${ipCliente}_${id}`;
   const ahora = Date.now();
   const ultimaVez = jugadasRecientes.get(clave);

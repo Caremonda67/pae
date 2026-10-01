@@ -39,12 +39,13 @@ router.get("/todos", requiereRol("admin", "coordinador", "profesor"), async (_re
 });
 
 // POST /api/avisos
-// Crea un aviso. Si llega estado:"borrador" queda oculto hasta que se
-// publique; por defecto se crea publicado.
+// Crea un aviso. Los profesores siempre crean en estado "borrador" para revisión.
+// Solo admin y coordinador pueden publicar directamente.
 // Cuerpo: { titulo, texto, fecha, imagen?, estado? }
 router.post("/", requiereRol("admin", "coordinador", "profesor"), async (req, res) => {
   const { titulo, texto, fecha, imagen } = req.body;
-  const estado = req.body.estado === "borrador" ? "borrador" : "publicado";
+  const esDirectivo = req.usuario.rol === "admin" || req.usuario.rol === "coordinador";
+  const estado = esDirectivo && req.body.estado !== "borrador" ? "publicado" : "borrador";
 
   if (!titulo || !titulo.trim() || !texto || !texto.trim()) {
     return res.status(400).json({ error: "Faltan el título y el texto" });
@@ -59,6 +60,7 @@ router.post("/", requiereRol("admin", "coordinador", "profesor"), async (req, re
         fecha: fecha || new Date().toISOString().slice(0, 10),
         imagen: imagen || null,
         estado,
+        creado_por: req.usuario.sub || null,
       },
     ])
     .select()
@@ -70,10 +72,13 @@ router.post("/", requiereRol("admin", "coordinador", "profesor"), async (req, re
 
 // PUT /api/avisos/:id
 // Edita un aviso o cambia su estado (publicar / pasar a borrador).
+// Solo admin y coordinador pueden cambiar el estado a "publicado".
 // Cuerpo: { titulo?, texto?, fecha?, imagen?, estado? }
 router.put("/:id", requiereRol("admin", "coordinador", "profesor"), async (req, res) => {
   const { titulo, texto, fecha, imagen } = req.body;
   const { estado } = req.body;
+
+  const esDirectivo = req.usuario.rol === "admin" || req.usuario.rol === "coordinador";
 
   const cambios = {};
   if (titulo !== undefined) cambios.titulo = titulo;
@@ -83,6 +88,9 @@ router.put("/:id", requiereRol("admin", "coordinador", "profesor"), async (req, 
   if (estado !== undefined) {
     if (!["borrador", "publicado"].includes(estado)) {
       return res.status(400).json({ error: "Estado inválido" });
+    }
+    if (estado === "publicado" && !esDirectivo) {
+      return res.status(403).json({ error: "Solo el coordinador o administrador pueden publicar avisos." });
     }
     cambios.estado = estado;
   }
@@ -101,8 +109,8 @@ router.put("/:id", requiereRol("admin", "coordinador", "profesor"), async (req, 
 });
 
 // DELETE /api/avisos/:id
-// Borra un aviso (admin, coordinador, profesor)
-router.delete("/:id", requiereRol("admin", "coordinador", "profesor"), async (req, res) => {
+// Borra un aviso (solo admin y coordinador)
+router.delete("/:id", requiereRol("admin", "coordinador"), async (req, res) => {
   const { error } = await getSupabase()
     .from("avisos")
     .delete()

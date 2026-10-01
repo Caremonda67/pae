@@ -39,6 +39,20 @@ function validarFechaSobrantes(fecha) {
     return "No se puede reportar sobrantes de una fecha futura.";
   }
 
+  // Límite de auditoría: no se pueden reportar registros con más de 60 días de antigüedad
+  const fechaActual = new Date();
+  fechaActual.setDate(fechaActual.getDate() - 60);
+  const limitePasado = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Bogota",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(fechaActual);
+
+  if (fecha < limitePasado) {
+    return "No se pueden reportar ni alterar sobrantes con más de 60 días de antigüedad.";
+  }
+
   return null;
 }
 
@@ -147,6 +161,21 @@ router.delete("/", requiereRol("admin", "cocina"), async (req, res) => {
   const { fecha, sede } = req.query;
   if (!fecha || !sede) {
     return res.status(400).json({ error: "Faltan la fecha y la sede" });
+  }
+
+  // Personal de cocina solo puede borrar registros del día actual
+  if (req.usuario.rol === "cocina") {
+    const hoyTexto = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Bogota",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+    if (fecha !== hoyTexto) {
+      return res.status(403).json({
+        error: "El personal de cocina solo puede eliminar o corregir registros del día de hoy.",
+      });
+    }
   }
 
   const { data, error } = await getSupabase()
