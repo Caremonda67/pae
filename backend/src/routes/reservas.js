@@ -4,7 +4,7 @@
 
 import { Router } from "express";
 import { getSupabase } from "../config/supabase.js";
-import { requiereRol } from "../config/auth.js";
+import { requiereRol, verificarToken } from "../config/auth.js";
 import { crearNotificacion } from "./notificaciones.js";
 import { limiteFormularios } from "../config/rateLimit.js";
 import { leerSettings } from "../config/settings.js";
@@ -176,6 +176,17 @@ router.get("/totales", async (req, res) => {
 // Reservas propias de un estudiante (para la pagina "Mis reservas")
 // IMPORTANTE: debe ir ANTES de la ruta /:id para que "mis" no se confunda
 router.get("/mis", async (req, res) => {
+  // Si el estudiante envia su token, se verifica que el documento
+  // sea el suyo. Sin token se deja pasar (compatibilidad).
+  const auth = req.headers.authorization;
+  if (auth && auth.startsWith("Bearer ") && auth.length > 10) {
+    try {
+      const token = verificarToken(auth.slice(7));
+      if (token && token.sub !== String(req.query.documento || "").trim()) {
+        return res.status(403).json({ error: "El token no coincide con el documento" });
+      }
+    } catch (_e) {}
+  }
   const { documento } = req.query;
   if (!documento) {
     return res.status(400).json({ error: "Falta el documento" });
@@ -395,7 +406,17 @@ router.get("/tablero", requiereRol("admin", "coordinador"), async (req, res) => 
 // pagina de Reserva le avisen ("mañana no tienes reserva"). Solo se
 // considera si mañana es dia habil (lunes a viernes).
 // Devuelve: { necesita, fecha, finDeSemana }
-router.get("/recordatorio", async (req, res) => {
+router.get("/recordatorio", limiteFormularios, async (req, res) => {
+  // Verificacion de token: si viaja, el documento debe coincidir.
+  const auth = req.headers.authorization;
+  if (auth && auth.startsWith("Bearer ") && auth.length > 10) {
+    try {
+      const token = verificarToken(auth.slice(7));
+      if (token && token.sub !== String(req.query.documento || "").trim()) {
+        return res.status(403).json({ error: "El token no coincide con el documento" });
+      }
+    } catch (_e) {}
+  }
   const { documento } = req.query;
   if (!documento) {
     return res.status(400).json({ error: "Falta el documento" });
