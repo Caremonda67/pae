@@ -10,11 +10,12 @@
 
 import rateLimit from "express-rate-limit";
 
-// Login del admin: pocos intentos, falla rapido.
-// 10 intentos cada 10 minutos por IP.
+// Login del admin: 30 intentos cada 10 minutos por IP,
+// suficiente para que varios estudiantes compartan la misma IP
+// del colegio sin bloquearse entre si.
 export const limiteLogin = rateLimit({
   windowMs: 10 * 60 * 1000,
-  max: 10,
+  max: 30,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Demasiados intentos de inicio de sesion. Espera 10 minutos." },
