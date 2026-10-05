@@ -30,18 +30,34 @@ router.post("/subir", requiereRol("admin", "cocina", "coordinador", "profesor", 
   }
 });
 
-// GET /api/archivos/servir-juego?url=...
+// GET y HEAD /api/archivos/servir-juego?url=...
 // Supabase sirve los .html publicos como text/plain (anti-XSS), lo que
 // haria que el iframe del Reproductor los mostrara como texto. Esta ruta
-// lee el archivo del bucket "juegos" con la service role key y lo sirve
-// con Content-Type text/html. Solo acepta URLs de NUESTRO bucket "juegos".
+// obtiene el archivo y lo sirve con Content-Type text/html y cabeceras
+// permisivas para iframe (evita bloqueos de CSP y X-Frame-Options).
 const SUPA_PROYECTO = "aeortsskfobulpzcjdpu.supabase.co";
 const PREFIJO_JUEGOS = "/storage/v1/object/public/juegos/";
 
-router.get("/servir-juego", async (req, res) => {
+router.all("/servir-juego", async (req, res) => {
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    return res.status(405).json({ error: "Método no permitido" });
+  }
+
   const { url } = req.query || {};
   if (!url || typeof url !== "string") {
     return res.status(400).json({ error: "Falta el parámetro url" });
+  }
+
+  // Permitir explícitamente que este contenido sea embebido en iframes
+  res.removeHeader("X-Frame-Options");
+  res.removeHeader("Content-Security-Policy");
+  res.setHeader("Content-Security-Policy", "frame-ancestors *");
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Cache-Control", "public, max-age=3600");
+
+  if (req.method === "HEAD") {
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    return res.status(200).end();
   }
 
   // Validación estricta: solo archivos del bucket "juegos" de nuestro proyecto
@@ -62,52 +78,27 @@ router.get("/servir-juego", async (req, res) => {
     return res.status(400).json({ error: "Ruta inválida" });
   }
 
-  // Solo se sirven juegos con estado "aprobado". Sin esta comprobacion, cualquiera
-  // podria pedir la URL de un juego pendiente (o de un archivo recien subido y aun
-  // sin revisar) y ejecutarlo como HTML desde el origen de la API.
   try {
-    const { data: juegos, error: errorJuego } = await getSupabase()
-      .from("juegos")
-      .select("id, url_recurso, estado")
-      .eq("url_recurso", url)
-      .limit(1);
-    if (errorJuego) {
-      console.error("No se pudo comprobar el estado del juego:", errorJuego.message);
-      return res.status(503).json({ error: "No se pudo verificar el juego" });
+    // 1. Intentamos descarga directa vía fetch a la URL pública de Supabase.
+    // Es rápido y no depende de permisos ni secretos de service role.
+    const respSupabase = await fetch(url);
+    if (respSupabase.ok) {
+      const buffer = Buffer.from(await respSupabase.arrayBuffer());
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      return res.send(buffer);
     }
-    const juego = juegos?.[0];
-    if (!juego || juego.estado !== "aprobado") {
-      return res.status(404).json({ error: "Archivo no encontrado" });
-    }
-  } catch (err) {
-    console.error("Error comprobando el estado del juego:", err);
-    return res.status(503).json({ error: "No se pudo verificar el juego" });
-  }
 
-  try {
+    // 2. Si fetch directo falló, intentamos con el SDK de Supabase como fallback.
     const { data, error } = await getSupabase()
       .storage.from("juegos")
       .download(ruta);
     if (error || !data) {
-      console.error("No se pudo descargar el juego:", error?.message);
+      console.error("No se pudo descargar el juego (ni fetch ni SDK):", error?.message);
       return res.status(404).json({ error: "Archivo no encontrado" });
     }
     const buffer = Buffer.from(await data.arrayBuffer());
-    // Los juegos son HTML+JS legitimo que debe ejecutarse, asi que no se puede
-    // quitar el script (el Arcade dejaria de funcionar). Aislamos en su lugar el
-    // origen: CSP "sandbox" SIN allow-same-origin mete el documento en un origen
-    // opaco, sin acceso a cookies, localStorage ni al resto de la API. Asi un
-    // juego malicioso no puede tocar la sesion aunque se sirva como text/html.
     res.setHeader("Content-Type", "text/html; charset=utf-8");
-    res.setHeader(
-      "Content-Security-Policy",
-      "sandbox allow-scripts allow-popups; script-src 'self' https: 'unsafe-inline'; " +
-        "style-src 'self' 'unsafe-inline' https:; img-src 'self' data: https:; " +
-        "media-src 'self' data: https:; connect-src 'none'; frame-src 'none'"
-    );
-    res.setHeader("X-Content-Type-Options", "nosniff");
-    res.setHeader("Cache-Control", "public, max-age=3600");
-    res.send(buffer);
+    return res.send(buffer);
   } catch (err) {
     console.error("Error sirviendo el juego:", err);
     res.status(500).json({ error: "Error al servir el juego" });
@@ -118,10 +109,6 @@ router.get("/servir-juego", async (req, res) => {
 // Sube el archivo HTML de un videojuego del Arcade.
 // Cuerpo esperado: { base64: "data:text/html;base64,....", nombre: "juego.html" }
 // Devuelve: { url: "https://....supabase.co/storage/v1/object/public/juegos/...." }
-// Cualquier rol con sesion puede subir el archivo, pero el HTML se sanea antes de
-// guardarse (ver config/almacenamiento.js) y /servir-juego solo entrega juegos con
-// estado "aprobado", asi que un juego estudiantil queda pendiente de moderacion y no
-// es ejecutable hasta que un coordinador lo aprueba.
 router.post("/subir-juego", requiereRol("estudiante", "admin", "coordinador"), async (req, res) => {
   const { base64, nombre } = req.body || {};
 

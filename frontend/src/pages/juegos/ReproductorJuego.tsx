@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { API_URL, urlReproduccionJuego } from "../../config/api";
+import { API_URL, urlReproduccionJuego, cargarContenidoJuego, PREFIJO_BUCKET_JUEGOS } from "../../config/api";
 import type { Juego, VersionJuego } from "./types";
 import { etiquetaDispositivo } from "./types";
 
@@ -31,6 +31,38 @@ export default function ReproductorJuego({ juego, alCerrar, alIncrementarVistas 
 
   const [versiones, setVersiones] = useState<VersionJuego[]>([]);
   const [mostrarTodas, setMostrarTodas] = useState(false);
+  const [cargandoIframe, setCargandoIframe] = useState(true);
+  const [demorando, setDemorando] = useState(false);
+  const [contenidoHtml, setContenidoHtml] = useState<string | null>(null);
+
+  useEffect(() => {
+    setCargandoIframe(true);
+    setDemorando(false);
+    let activo = true;
+
+    if (juego?.url_recurso?.startsWith(PREFIJO_BUCKET_JUEGOS)) {
+      cargarContenidoJuego(juego.url_recurso).then((html) => {
+        if (!activo) return;
+        if (html) {
+          setContenidoHtml(html);
+          setCargandoIframe(false);
+        } else {
+          setContenidoHtml(null);
+        }
+      });
+    } else {
+      setContenidoHtml(null);
+    }
+
+    const timer = setTimeout(() => {
+      setDemorando(true);
+    }, 6000);
+
+    return () => {
+      activo = false;
+      clearTimeout(timer);
+    };
+  }, [juego?.url_recurso]);
 
   const resetTimerOcultar = () => {
     if (timerOcultarRef.current) clearTimeout(timerOcultarRef.current);
@@ -130,7 +162,18 @@ export default function ReproductorJuego({ juego, alCerrar, alIncrementarVistas 
   };
 
   const reiniciarJuego = () => {
+    if (contenidoHtml) {
+      setCargandoIframe(true);
+      const html = contenidoHtml;
+      setContenidoHtml("");
+      setTimeout(() => {
+        setContenidoHtml(html);
+        setCargandoIframe(false);
+      }, 80);
+      return;
+    }
     if (iframeRef.current) {
+      setCargandoIframe(true);
       const srcActual = iframeRef.current.src;
       iframeRef.current.src = "";
       setTimeout(() => {
@@ -138,6 +181,8 @@ export default function ReproductorJuego({ juego, alCerrar, alIncrementarVistas 
       }, 100);
     }
   };
+
+  const urlJuego = urlReproduccionJuego(juego.url_recurso);
 
   return (
     <div className="modal-fondo reproductor-fondo" onClick={alCerrar} role="dialog" aria-modal="true">
@@ -185,15 +230,44 @@ export default function ReproductorJuego({ juego, alCerrar, alIncrementarVistas 
 
         {/* Solo esta sección entra en pantalla completa */}
         <div className="reproductor-pantalla" ref={pantallaRef}>
-          <iframe
-            ref={iframeRef}
-            src={urlReproduccionJuego(juego.url_recurso)}
-            title={juego.titulo}
-            className="juego-iframe"
-            sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
-            allow="fullscreen; autoplay; gamepad"
-            loading="lazy"
-          />
+          {cargandoIframe && (
+            <div className="reproductor-cargando-overlay">
+              <span className="splash-anillo" style={{ width: 42, height: 42, borderWidth: 4 }}></span>
+              <p style={{ fontWeight: 600, fontSize: "0.95rem" }}>Cargando juego...</p>
+              {demorando && (
+                <p style={{ fontSize: "0.8rem", opacity: 0.85, maxWidth: 320 }}>
+                  El servidor puede estar reanudándose tras inactividad. Un momento, por favor...
+                </p>
+              )}
+            </div>
+          )}
+          {contenidoHtml ? (
+            <iframe
+              ref={iframeRef}
+              srcDoc={contenidoHtml}
+              title={juego.titulo}
+              className="juego-iframe"
+              sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+              allow="fullscreen; autoplay; gamepad"
+              loading="lazy"
+              onLoad={() => setCargandoIframe(false)}
+            />
+          ) : urlJuego ? (
+            <iframe
+              ref={iframeRef}
+              src={urlJuego}
+              title={juego.titulo}
+              className="juego-iframe"
+              sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+              allow="fullscreen; autoplay; gamepad"
+              loading="lazy"
+              onLoad={() => setCargandoIframe(false)}
+            />
+          ) : (
+            <div className="reproductor-cargando-overlay">
+              <p style={{ color: "#f87171", fontWeight: 600 }}>No hay enlace de juego disponible</p>
+            </div>
+          )}
 
           {esPantallaCompleta && (
             <>

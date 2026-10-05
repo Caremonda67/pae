@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { urlReproduccionJuego } from "../../config/api";
+import { urlReproduccionJuego, cargarContenidoJuego, PREFIJO_BUCKET_JUEGOS } from "../../config/api";
 import { CATEGORIAS_JUEGOS, type Juego } from "../juegos/types";
 
 interface Props {
@@ -48,7 +48,28 @@ export default function TabJuegos({
   const iframePreviewRef = useRef<HTMLIFrameElement>(null);
   const [esPantallaCompletaPreview, setEsPantallaCompletaPreview] = useState(false);
   const [mostrarBotonSalirPreview, setMostrarBotonSalirPreview] = useState(false);
+  const [contenidoHtmlPreview, setContenidoHtmlPreview] = useState<string | null>(null);
   const timerOcultarPreviewRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    let activo = true;
+    const urlRecurso =
+      juegoPrevisualizando?.actualizacion_pendiente?.url_recurso ||
+      juegoPrevisualizando?.url_recurso;
+
+    if (urlRecurso?.startsWith(PREFIJO_BUCKET_JUEGOS)) {
+      cargarContenidoJuego(urlRecurso).then((html) => {
+        if (!activo) return;
+        setContenidoHtmlPreview(html);
+      });
+    } else {
+      setContenidoHtmlPreview(null);
+    }
+
+    return () => {
+      activo = false;
+    };
+  }, [juegoPrevisualizando]);
 
   const resetTimerOcultarPreview = () => {
     if (timerOcultarPreviewRef.current) clearTimeout(timerOcultarPreviewRef.current);
@@ -70,6 +91,12 @@ export default function TabJuegos({
   };
 
   const reiniciarPreview = () => {
+    if (contenidoHtmlPreview) {
+      const html = contenidoHtmlPreview;
+      setContenidoHtmlPreview("");
+      setTimeout(() => setContenidoHtmlPreview(html), 80);
+      return;
+    }
     if (iframePreviewRef.current) {
       const srcActual = iframePreviewRef.current.src;
       iframePreviewRef.current.src = "";
@@ -517,17 +544,28 @@ export default function TabJuegos({
               </div>
             </div>
             <div className="preview-iframe-wrapper" ref={pantallaPreviewRef}>
-              <iframe
-                ref={iframePreviewRef}
-                src={urlReproduccionJuego(
-                  juegoPrevisualizando.actualizacion_pendiente?.url_recurso ||
-                  juegoPrevisualizando.url_recurso
-                )}
-                title={juegoPrevisualizando.titulo}
-                className="preview-iframe"
-                sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
-                allow="fullscreen; autoplay; gamepad"
-              />
+              {contenidoHtmlPreview ? (
+                <iframe
+                  ref={iframePreviewRef}
+                  srcDoc={contenidoHtmlPreview}
+                  title={juegoPrevisualizando.titulo}
+                  className="preview-iframe"
+                  sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+                  allow="fullscreen; autoplay; gamepad"
+                />
+              ) : (
+                <iframe
+                  ref={iframePreviewRef}
+                  src={urlReproduccionJuego(
+                    juegoPrevisualizando.actualizacion_pendiente?.url_recurso ||
+                    juegoPrevisualizando.url_recurso
+                  )}
+                  title={juegoPrevisualizando.titulo}
+                  className="preview-iframe"
+                  sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+                  allow="fullscreen; autoplay; gamepad"
+                />
+              )}
 
               {esPantallaCompletaPreview && (
                 <>
