@@ -10,7 +10,19 @@
 
 import { getSupabase } from "./supabase.js";
 
+// Cache en memoria: los settings cambian muy raro (solo cuando el admin
+// los modifica), asi que no vale la pena consultar la DB en cada reserva.
+// Se invalida cada 60 segundos o cuando se llama invalidarSettings().
+let _cache = null;
+let _cacheTs = 0;
+const TTL_MS = 60_000;
+
+export function invalidarSettings() {
+  _cache = null;
+}
+
 export async function leerSettings() {
+  if (_cache && Date.now() - _cacheTs < TTL_MS) return _cache;
   const { data, error } = await getSupabase()
     .from("settings")
     .select("clave, valor");
@@ -29,8 +41,10 @@ export async function leerSettings() {
     cupos = {};
   }
 
-  return {
+  _cache = {
     hora_limite_reserva: filas.hora_limite_reserva || null,
     cupos_sede: cupos,
   };
+  _cacheTs = Date.now();
+  return _cache;
 }

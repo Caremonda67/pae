@@ -132,7 +132,8 @@ router.get("/", requiereRol("admin", "cocina", "profesor", "coordinador"), async
   const { data, error } = await getSupabase()
     .from("reservas")
     .select("*")
-    .order("fecha", { ascending: false });
+    .order("fecha", { ascending: false })
+    .limit(500);
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
 });

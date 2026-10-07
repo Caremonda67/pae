@@ -7,6 +7,7 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 
 // Importamos las rutas de la aplicacion
 import reservasRouter from "./routes/reservas.js";
@@ -39,6 +40,16 @@ const PORT = process.env.PORT || 4000;
 // 1. cors: permite que el frontend (en otro puerto/dominio) haga peticiones
 // 2. express.json: convierte el cuerpo de las peticiones a JSON.
 //    El limite alto es para recibir las imagenes en base64.
+// Rate limit global: 200 peticiones cada minuto por IP. Protege
+// todas las rutas que no tienen su propio limite.
+app.use(rateLimit({
+  windowMs: 60 * 1000,
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Demasiadas peticiones. Intenta de nuevo en un minuto." },
+}));
+
 // helmet: headers de seguridad por defecto (XSS, sniffing, frameguard...).
 //   contentSecurityPolicy se apaga porque Vite usa scripts inline en
 //   desarrollo; se activa cuando el frontend tenga dominio fijo.
