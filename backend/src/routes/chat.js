@@ -167,17 +167,22 @@ router.post("/", limiteChat, async (req, res) => {
   try {
     const supabase = getSupabase();
 
-    // 1. Menu real desde la base (con semana, dia y jornada)
-    const { data: menus, error: errMenu } = await supabase
-      .from("menus")
-      .select("semana, dia, jornada, platillo, descripcion, calorias");
+    // Cargamos menu, reservas recientes, avisos y sedes en paralelo
+    // (antes eran 4+ queries secuenciales que sumaban ~500ms cada una)
+    const hace30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+      .toISOString().slice(0, 10);
+    const [menusRes, reservasRes, avisosRes, sedesRes] = await Promise.all([
+      supabase.from("menus").select("semana, dia, jornada, platillo, descripcion, calorias"),
+      supabase.from("reservas").select("fecha, asistio").gte("fecha", hace30d),
+      supabase.from("avisos").select("titulo, texto").order("created_at", { ascending: false }),
+      supabase.from("sedes").select("nombre"),
+    ]);
 
-    const menuTexto = menuEnTexto(menus && !errMenu ? menus : []);
+    const menuTexto = menuEnTexto(menusRes.data && !menusRes.error ? menusRes.data : []);
 
-    // 2. Totales de reservas por fecha
-    const { data: reservas, error: errReservas } = await supabase
-      .from("reservas")
-      .select("fecha, asistio");
+    // 2. Totales de reservas por fecha (ultimos 30 dias nomas)
+    const reservas = reservasRes.data;
+    const errReservas = reservasRes.error;
 
     let reservasTexto = "(Aún no hay reservas registradas)";
     if (!errReservas && reservas && reservas.length > 0) {
@@ -210,15 +215,10 @@ router.post("/", limiteChat, async (req, res) => {
         ? "No hay reservas todavía."
         : `Total reservadas: ${total}. Asistieron: ${asistieron}. Sin asistir: ${desperdicio} (${porcentaje}% de desperdicio).`;
 
-    // 4. Avisos publicados
-    const { data: avisos, error: errAvisos } = await supabase
-      .from("avisos")
-      .select("titulo, texto")
-      .order("created_at", { ascending: false });
-
+    // 4. Avisos publicados (ya cargados en paralelo)
     let avisosTexto = "(No hay avisos publicados)";
-    if (!errAvisos && avisos && avisos.length > 0) {
-      avisosTexto = avisos
+    if (!avisosRes.error && avisosRes.data && avisosRes.data.length > 0) {
+      avisosTexto = avisosRes.data
         .map((a) => `- ${a.titulo}: ${a.texto}`)
         .join("\n");
     }
@@ -241,14 +241,10 @@ router.post("/", limiteChat, async (req, res) => {
       `- Minutas reservadas: ${minutas}`,
     ].join("\n");
 
-    // 6. Sedes del programa (las administra el admin desde el panel).
-    //    Si la tabla no existe o esta vacia, se avisa que no hay sedes.
-    const { data: sedes, error: errSedes } = await supabase
-      .from("sedes")
-      .select("nombre");
+    // 6. Sedes del programa (ya cargadas en paralelo)
     const sedesTexto =
-      !errSedes && sedes && sedes.length > 0
-        ? sedes.map((s) => s.nombre).join(", ")
+      !sedesRes.error && sedesRes.data && sedesRes.data.length > 0
+        ? sedesRes.data.map((s) => s.nombre).join(", ")
         : "No hay sedes registradas aun";
 
     const contexto = {
@@ -263,7 +259,7 @@ router.post("/", limiteChat, async (req, res) => {
       sedes: sedesTexto,
     };
 
-    // 6. Historial de la conversacion (si el navegador lo envia) para
+    // 7. Historial de la conversacion (si el navegador lo envia) para
     //    que el bot recuerde el contexto y personalice la respuesta.
     //    Gemini exige que la conversacion empiece con rol "user" y que
     //    los roles se alternen (user/model/user/...). El historial que
@@ -298,52 +294,64 @@ router.post("/", limiteChat, async (req, res) => {
         )
       : [];
 
-    // 7. Llamamos a la API de Gemini (Google).
+    // 8. Llamamos a la API de Gemini (Google).
     //    La clave va por header (x-goog-api-key), no en la URL,
     //    para que no quede expuesta en los logs del servidor.
-    const respuesta = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": apiKey,
-        },
-        body: JSON.stringify({
-          system_instruction: {
-            parts: [{ text: construirPromptSistema(contexto) }],
+    //    Timeout de 30s para que no cuelgue la peticion si Gemini
+    //    tarda demasiado (evita bloquear conexiones bajo carga).
+    const controlador = new AbortController();
+    const temporizador = setTimeout(() => controlador.abort(), 30_000);
+    let respuesta;
+    try {
+      respuesta = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey,
           },
-          contents: [
-            ...historialValido,
-            {
-              role: "user",
-              parts: [{ text: mensaje }],
+          signal: controlador.signal,
+          body: JSON.stringify({
+            system_instruction: {
+              parts: [{ text: construirPromptSistema(contexto) }],
             },
-          ],
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 1024,
-          },
-        }),
+            contents: [
+              ...historialValido,
+              {
+                role: "user",
+                parts: [{ text: mensaje }],
+              },
+            ],
+            generationConfig: {
+              temperature: 0.7,
+              maxOutputTokens: 1024,
+            },
+          }),
+        }
+      );
+      const datos = await respuesta.json();
+
+      if (!respuesta.ok) {
+        console.error("Gemini error:", JSON.stringify(datos));
+        return res.status(502).json({ error: "Error del servicio de IA" });
       }
-    );
 
-    const datos = await respuesta.json();
+      // 9. Extraemos el texto de la respuesta de Gemini
+      const texto =
+        datos?.candidates?.[0]?.content?.parts
+          ?.map((part) => part.text)
+          .join("") || "No pude generar una respuesta.";
 
-    if (!respuesta.ok) {
-      console.error("Gemini error:", JSON.stringify(datos));
-      return res.status(502).json({ error: "Error del servicio de IA" });
+      res.json({ respuesta: texto });
+    } finally {
+      clearTimeout(temporizador);
     }
-
-    // 8. Extraemos el texto de la respuesta de Gemini
-    const texto =
-      datos?.candidates?.[0]?.content?.parts
-        ?.map((part) => part.text)
-        .join("") || "No pude generar una respuesta.";
-
-    res.json({ respuesta: texto });
   } catch (err) {
     console.error("Chatbot error:", err);
+    if (err.name === "AbortError") {
+      return res.status(504).json({ error: "El servicio de IA tardó demasiado. Intenta de nuevo." });
+    }
     res.status(500).json({ error: "Error interno del chatbot" });
   }
 });
