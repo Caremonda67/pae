@@ -90,14 +90,25 @@ router.get("/", async (req, res) => {
     const desperdicio = total - servidas;
     const porcentaje = total > 0 ? Math.round((desperdicio / total) * 100) : 0;
 
-    // 2. Valoraciones de platos para el ranking
-    const { data: valoraciones, error: errVal } = await supabase
-      .from("valoraciones")
-      .select("menu_id, puntos");
-
+    // 2. Valoraciones de platos para el ranking: primero cargamos
+    //    los menus, y luego solo las valoraciones que referencian
+    //    esos menus (antes cargaba todas las valoraciones y todos
+    //    los menus de la historia).
     const { data: menus, error: errMen } = await supabase
       .from("menus")
       .select("id, semana, dia, jornada, platillo, imagen");
+
+    let valoraciones = [];
+    let errVal = null;
+    if (!errMen && menus && menus.length > 0) {
+      const menuIds = menus.map((m) => m.id);
+      const resVal = await supabase
+        .from("valoraciones")
+        .select("menu_id, puntos")
+        .in("menu_id", menuIds);
+      valoraciones = resVal.data || [];
+      errVal = resVal.error;
+    }
 
     if (errVal || errMen) {
       return res.status(500).json({ error: (errVal || errMen).message });
