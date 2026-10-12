@@ -1,4 +1,4 @@
-# Configuracion para desplegar el backend en Render
+# Configuracion para desplegar el backend y el frontend en Render
 # Render lee este archivo al importar el repositorio
 # (New Web Service -> conectar GitHub -> elegir el repo "pae")
 
@@ -27,3 +27,16 @@ services:
         sync: false
       - key: ADMIN_EMAIL
         sync: false
+
+  - type: static
+    name: pae-frontend
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://pae-api.onrender.com
+    routes:
+      - type: rewrite
+        source: /**
+        destination: /index.html
