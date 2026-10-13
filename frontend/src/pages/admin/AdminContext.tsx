@@ -1,0 +1,306 @@
+import { createContext, useContext } from "react";
+import type {
+  Aviso, Beneficiario, Configuracion, FotoGaleria, Incidente,
+  Institucion, Mensaje, MensajeChat, MenuItem, Notificacion,
+  PanelCocina, Pestana, Reporte, ReservaAsistencia, ReservaDiaria,
+  Sobrante, Sede, TableroDia, TurnoCocina, Usuario, UsuarioCocina,
+  AuditoriaEntrada,
+} from "./types";
+import type { SeccionTabla, OpcionesExportar } from "../../config/exportar";
+
+export interface AdminCtx {
+  rol: string;
+  cargando: boolean;
+  error: string;
+  setError: (msg: string) => void;
+  cargarDatos: () => Promise<void>;
+  pestanaActiva: Pestana;
+  setPestana: (p: Pestana) => void;
+
+  avisos: Aviso[];
+  mensajes: Mensaje[];
+  beneficiarios: Beneficiario[];
+  notificaciones: Notificacion[];
+  menu: { semana: number; dias: { dia: string; platos: MenuItem[] }[] }[];
+  galeria: FotoGaleria[];
+  instituciones: Institucion[];
+  sedes: Sede[];
+  usuarios: Usuario[];
+  config: Configuracion;
+  turnos: TurnoCocina[];
+  listaCocina: UsuarioCocina[];
+  auditoria: AuditoriaEntrada[];
+
+  fechaPanel: string;
+  setFechaPanel: (v: string) => void;
+  panelDia: PanelCocina | null;
+  menuDia: MenuItem[];
+  panelCargando: boolean;
+  sobrantesCargando: boolean;
+  sobrantesGuardando: boolean;
+  sobrantesBorrador: Record<string, { porciones: string; peso_kg: string }>;
+  sobranteError: string;
+  sobranteExito: string;
+  cambiarSobrante: (sede: string, turno: string, campo: "porciones" | "peso_kg", valor: string) => void;
+  guardarSobrantes: () => Promise<void>;
+
+  fechaTablero: string;
+  setFechaTablero: (v: string) => void;
+  tablero: TableroDia | null;
+  tableroCargando: boolean;
+
+  totales: Record<string, { reservas: number; asistieron: number }>;
+  reporte: Reporte | null;
+  diaria: ReservaDiaria[];
+  fechaDiaria: string;
+  setFechaDiaria: (v: string) => void;
+  diariaCargada: boolean;
+  desde: string;
+  hasta: string;
+  setDesde: (v: string) => void;
+  setHasta: (v: string) => void;
+  sobrantesReporte: Sobrante[];
+  editandoSobrantes: { fecha: string; sede: string; jornadas: Record<string, { porciones: string; peso_kg: string }> } | null;
+  setEditandoSobrantes: (v: { fecha: string; sede: string; jornadas: Record<string, { porciones: string; peso_kg: string }> } | null) => void;
+  sobrantesReporteMensaje: { tipo: "exito" | "error"; texto: string } | null;
+  construirSecciones: () => SeccionTabla[];
+  opcionesReporte: () => OpcionesExportar;
+  exportarCSV: () => void;
+  imprimirDiaria: () => void;
+  cargarDiaria: (fecha: string) => Promise<void>;
+  conteoDiario: () => Record<string, number>;
+  sobrantesPorFechaSede: () => { fecha: string; sede: string; jornadas: string[]; porciones: number; peso_kg: number }[];
+  abrirEdicionSobrantes: (fecha: string, sede: string) => void;
+  cambiarSobranteReporte: (turno: string, campo: "porciones" | "peso_kg", valor: string) => void;
+  guardarSobrantesEditados: (e: React.FormEvent) => Promise<void>;
+  borrarSobrantes: (fecha: string, sede: string) => Promise<void>;
+
+  nombreInst: string;
+  setNombreInst: (v: string) => void;
+  instError: string;
+  instExito: string;
+  registrarInstitucion: (e: React.FormEvent) => Promise<void>;
+  borrarInstitucion: (id: number) => Promise<void>;
+
+  nombreSede: string;
+  setNombreSede: (v: string) => void;
+  editandoSede: number | null;
+  setEditandoSede: (v: number | null) => void;
+  editNombreSede: string;
+  setEditNombreSede: (v: string) => void;
+  sedeError: string;
+  sedeExito: string;
+  registrarSede: (e: React.FormEvent) => Promise<void>;
+  iniciarEdicionSede: (s: Sede) => void;
+  guardarEdicionSede: (e: React.FormEvent) => Promise<void>;
+  borrarSede: (id: number) => Promise<void>;
+
+  tituloGaleria: string;
+  setTituloGaleria: (v: string) => void;
+  descripcionGaleria: string;
+  setDescripcionGaleria: (v: string) => void;
+  imagenGaleria: string;
+  setImagenGaleria: (v: string) => void;
+  subiendoImagenGaleria: boolean;
+  galeriaError: string;
+  galeriaExito: string;
+  publicarFotoGaleria: (e: React.FormEvent) => Promise<void>;
+  borrarFotoGaleria: (id: number) => Promise<void>;
+
+  tituloAviso: string;
+  setTituloAviso: (v: string) => void;
+  textoAviso: string;
+  setTextoAviso: (v: string) => void;
+  fechaAviso: string;
+  setFechaAviso: (v: string) => void;
+  imagenAviso: string;
+  setImagenAviso: (v: string) => void;
+  subiendoImagenAviso: boolean;
+  publicarAvisoAhora: boolean;
+  setPublicarAvisoAhora: (v: boolean) => void;
+  avisoError: string;
+  avisoExito: string;
+  publicarAviso: (e: React.FormEvent) => Promise<void>;
+  cambiarEstadoAviso: (id: number, estado: string) => Promise<void>;
+  borrarAviso: (id: number) => Promise<void>;
+
+  semanaMenu: number;
+  setSemanaMenu: (v: number) => void;
+  diaMenu: string;
+  setDiaMenu: (v: string) => void;
+  jornadaMenu: string;
+  setJornadaMenu: (v: string) => void;
+  platilloMenu: string;
+  setPlatilloMenu: (v: string) => void;
+  descripcionMenu: string;
+  setDescripcionMenu: (v: string) => void;
+  caloriasMenu: string;
+  setCaloriasMenu: (v: string) => void;
+  imagenMenu: string;
+  setImagenMenu: (v: string) => void;
+  subiendoImagenMenu: boolean;
+  publicarMenuAhora: boolean;
+  setPublicarMenuAhora: (v: boolean) => void;
+  menuError: string;
+  menuExito: string;
+  registrarMenu: (e: React.FormEvent) => Promise<void>;
+  cambiarEstadoPlato: (id: number, estado: string) => Promise<void>;
+  borrarPlato: (id: number) => Promise<void>;
+  subirImagen: (archivo: File, setter: (url: string) => void) => Promise<string>;
+
+  docBen: string;
+  setDocBen: (v: string) => void;
+  nombreBen: string;
+  setNombreBen: (v: string) => void;
+  sedeBen: string;
+  setSedeBen: (v: string) => void;
+  turnoBen: string;
+  setTurnoBen: (v: string) => void;
+  gradoBen: string;
+  setGradoBen: (v: string) => void;
+  pinBen: string;
+  setPinBen: (v: string) => void;
+  benError: string;
+  benExito: string;
+  pins: Record<number, string>;
+  setPins: React.Dispatch<React.SetStateAction<Record<number, string>>>;
+  registrarBeneficiario: (e: React.FormEvent) => Promise<void>;
+  asignarPin: (b: Beneficiario) => Promise<void>;
+  borrarBeneficiario: (id: number) => Promise<void>;
+
+  asistenciaFecha: string;
+  setAsistenciaFecha: (v: string) => void;
+  asistenciaGrupo: { sede: string; turno: string; grado: string } | null;
+  asistenciaReservas: ReservaAsistencia[];
+  asistenciaCargando: boolean;
+  asistenciaError: string;
+  asistenciaExito: string;
+  cargarAsistencia: (fecha: string) => Promise<void>;
+  marcarAsistencia: (r: ReservaAsistencia) => Promise<void>;
+  marcarTodosAsistencia: (asistio: boolean) => Promise<void>;
+
+  incidentes: Incidente[];
+  incidentesFiltro: "todos" | "pendientes" | "resueltos";
+  setIncidentesFiltro: (f: "todos" | "pendientes" | "resueltos") => void;
+  incidenteCargando: boolean;
+  incidenteError: string;
+  incidenteExito: string;
+  incidenteEstudiantes: { documento: string; nombre: string; grado?: string }[];
+  incidenteDoc: string;
+  setIncidenteDoc: (v: string) => void;
+  incidenteTipo: string;
+  setIncidenteTipo: (v: string) => void;
+  incidenteDescripcion: string;
+  setIncidenteDescripcion: (v: string) => void;
+  incidenteFecha: string;
+  setIncidenteFecha: (v: string) => void;
+  incidenteImagen: string;
+  setIncidenteImagen: (v: string) => void;
+  incidenteSubiendoFoto: boolean;
+  incidenteEnviando: boolean;
+  incidenteResolviendo: number | null;
+  editandoIncidente: Incidente | null;
+  setEditandoIncidente: (v: Incidente | null) => void;
+  editIncidenteTipo: string;
+  setEditIncidenteTipo: (v: string) => void;
+  editIncidenteDoc: string;
+  setEditIncidenteDoc: (v: string) => void;
+  editIncidenteDescripcion: string;
+  setEditIncidenteDescripcion: (v: string) => void;
+  editIncidenteFecha: string;
+  setEditIncidenteFecha: (v: string) => void;
+  editIncidenteImagen: string;
+  setEditIncidenteImagen: (v: string) => void;
+  editIncidenteSubiendoFoto: boolean;
+  editIncidenteEnviando: boolean;
+  incidentesDesde: string;
+  setIncidentesDesde: (v: string) => void;
+  incidentesHasta: string;
+  setIncidentesHasta: (v: string) => void;
+  incidentesBusqueda: string;
+  setIncidentesBusqueda: (v: string) => void;
+  incidentesVisibles: Incidente[];
+  reportarIncidente: (e: React.FormEvent) => Promise<void>;
+  adjuntarFotoIncidente: (archivo: File, setter: (url: string) => void, setSubiendo: (b: boolean) => void) => Promise<void>;
+  resolverIncidente: (id: number, resuelto: boolean) => Promise<void>;
+  abrirEdicionIncidente: (inc: Incidente) => void;
+  guardarIncidenteEditado: (e: React.FormEvent) => Promise<void>;
+  borrarIncidente: (inc: Incidente) => Promise<void>;
+
+  nombreUsu: string;
+  setNombreUsu: (v: string) => void;
+  usuarioUsu: string;
+  setUsuarioUsu: (v: string) => void;
+  rolUsu: string;
+  setRolUsu: (v: string) => void;
+  claveUsu: string;
+  setClaveUsu: (v: string) => void;
+  sedeUsu: string;
+  setSedeUsu: (v: string) => void;
+  turnoUsu: string;
+  setTurnoUsu: (v: string) => void;
+  gradoUsu: string;
+  setGradoUsu: (v: string) => void;
+  usuError: string;
+  usuExito: string;
+  registrarUsuario: (e: React.FormEvent) => Promise<void>;
+  alternarUsuario: (u: Usuario) => Promise<void>;
+  borrarUsuario: (u: Usuario) => Promise<void>;
+  iniciarEdicionUsuario: (u: Usuario) => void;
+  editandoUsuario: number | null;
+  setEditandoUsuario: (v: number | null) => void;
+  editNombre: string;
+  setEditNombre: (v: string) => void;
+  editUsuario: string;
+  setEditUsuario: (v: string) => void;
+  editRol: string;
+  setEditRol: (v: string) => void;
+  editClave: string;
+  setEditClave: (v: string) => void;
+  editSede: string;
+  setEditSede: (v: string) => void;
+  editTurno: string;
+  setEditTurno: (v: string) => void;
+  editGrado: string;
+  setEditGrado: (v: string) => void;
+  guardarEdicionUsuario: (e: React.FormEvent) => Promise<void>;
+
+  alternarLeido: (m: Mensaje) => Promise<void>;
+  hilos: Record<number, MensajeChat[]>;
+  hiloAbierto: Record<number, boolean>;
+  hiloCargando: Record<number, boolean>;
+  hiloEnviando: Record<number, boolean>;
+  borradoresChat: Record<number, string>;
+  fotosChat: Record<number, File | null>;
+  borrandoHilo: Record<number, boolean>;
+  abrirHilo: (id: number) => void;
+  enviarMensajeAdmin: (id: number) => Promise<void>;
+  borrarConversacion: (id: number) => Promise<void>;
+  setBorradoresChat: React.Dispatch<React.SetStateAction<Record<number, string>>>;
+  setFotosChat: React.Dispatch<React.SetStateAction<Record<number, File | null>>>;
+
+  guardarConfig: (e: React.FormEvent) => Promise<void>;
+  horaLimite: string;
+  setHoraLimite: (v: string) => void;
+  cupos: Record<string, string>;
+  setCupos: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  configMensaje: { tipo: "exito" | "error"; texto: string } | null;
+
+  asignarTurno: (e: React.FormEvent) => Promise<void>;
+  fechaTurno: string;
+  setFechaTurno: (v: string) => void;
+  usuarioTurno: string;
+  setUsuarioTurno: (v: string) => void;
+  sedeTurno: string;
+  setSedeTurno: (v: string) => void;
+  turnosMensaje: { tipo: "exito" | "error"; texto: string } | null;
+  quitarTurno: (id: number) => Promise<void>;
+}
+
+export const AdminContext = createContext<AdminCtx | null>(null);
+
+export function useAdmin(): AdminCtx {
+  const ctx = useContext(AdminContext);
+  if (!ctx) throw new Error("useAdmin debe usarse dentro de AdminProvider");
+  return ctx;
+}

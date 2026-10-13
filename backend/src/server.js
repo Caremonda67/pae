@@ -63,7 +63,7 @@ app.use(helmet({
 // CORS: en desarrollo local (sin FRONTEND_URL) permite todo; en
 // produccion solo acepta el dominio del frontend.
 app.use(cors({
-  origin: process.env.FRONTEND_URL || true,
+  origin: (process.env.FRONTEND_URL || "").replace(/\/+$/, "") || true,
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true,
 }));

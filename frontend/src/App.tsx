@@ -15,7 +15,7 @@ import NoEncontrado from "./pages/NoEncontrado";
 
 function App() {
   return (
-    <BrowserRouter basename="/pae">
+    <BrowserRouter>
       <a href="#main-content" className="skip-link">
         Saltar al contenido principal
       </a>

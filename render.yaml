@@ -27,6 +27,8 @@ services:
         sync: false
       - key: ADMIN_EMAIL
         sync: false
+      - key: FRONTEND_URL
+        sync: false
 
   - type: static
     name: pae-frontend
@@ -35,7 +37,7 @@ services:
     staticPublishPath: ./dist
     envVars:
       - key: VITE_API_URL
-        value: https://pae-api.onrender.com
+        value: https://pae-api-0s37.onrender.com
     routes:
       - type: rewrite
         source: /**
