@@ -2097,6 +2097,24 @@ h1 {
   opacity: 0.9;
 }
 
+.chatbot-limpiar {
+  margin-left: auto;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: var(--blanco);
+  font-size: 1.15rem;
+  line-height: 1;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.chatbot-limpiar:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
 .chatbot-mensajes {
   flex: 1;
   overflow-y: auto;

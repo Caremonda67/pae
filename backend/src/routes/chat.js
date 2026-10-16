@@ -143,14 +143,52 @@ function construirPromptSistema(contexto) {
   ].join("\n");
 }
 
+// Guarda un mensaje del chat en la base (con sesion_id del navegador)
+// para que la conversacion sobreviva a recargas y cambios de pagina.
+// Si la base falla no tumba la conversacion con Gemini: solo se registra.
+async function guardarMensaje(sesionId, rol, texto) {
+  if (!sesionId || typeof sesionId !== "string") return;
+  const contenido = String(texto || "").trim().slice(0, 2000);
+  if (!contenido) return;
+  try {
+    const { error } = await getSupabase()
+      .from("chatbot_mensajes")
+      .insert({ sesion_id: sesionId.slice(0, 64), rol, texto: contenido });
+    if (error) console.error("No se pudo guardar el chat:", error.message);
+  } catch (e) {
+    console.error("No se pudo guardar el chat:", e.message);
+  }
+}
+
+// GET /api/chat/historial?sesion=abc
+// Devuelve la conversacion guardada de un navegador (sesion anonima).
+router.get("/historial", limiteChat, async (req, res) => {
+  const sesion = typeof req.query.sesion === "string" ? req.query.sesion.trim() : "";
+  if (!sesion) return res.json([]);
+
+  const { data, error } = await getSupabase()
+    .from("chatbot_mensajes")
+    .select("rol, texto")
+    .eq("sesion_id", sesion.slice(0, 64))
+    .order("id", { ascending: true })
+    .limit(50);
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
 // POST /api/chat
-// Cuerpo esperado: { mensaje: "texto del usuario", historial: [{rol, texto}] }
+// Cuerpo esperado: { mensaje: "texto del usuario", historial: [{rol, texto}], sesion_id?: "abc" }
 router.post("/", limiteChat, async (req, res) => {
-  const { mensaje, historial } = req.body;
+  const { mensaje, historial, sesion_id } = req.body;
 
   if (!mensaje || typeof mensaje !== "string") {
     return res.status(400).json({ error: "Falta el mensaje" });
   }
+
+  // Persistimos la pregunta del estudiante de inmediato (incluso si
+  // Gemini luego falla) para que el historial quede completo.
+  await guardarMensaje(sesion_id, "usuario", mensaje);
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -342,6 +380,9 @@ router.post("/", limiteChat, async (req, res) => {
         datos?.candidates?.[0]?.content?.parts
           ?.map((part) => part.text)
           .join("") || "No pude generar una respuesta.";
+
+      // Persistimos la respuesta junto a la pregunta guardada antes.
+      await guardarMensaje(sesion_id, "bot", texto);
 
       res.json({ respuesta: texto });
     } finally {

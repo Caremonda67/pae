@@ -268,6 +268,18 @@ create table if not exists auditoria (
   created_at timestamptz default now()
 );
 
+-- 10.8 Historial del chatbot del PAE: guarda cada mensaje del
+-- estudiante y su respuesta para que la conversacion no se pierda
+-- al recargar o cambiar de pagina. Sesion anonima por navegador.
+create table if not exists chatbot_mensajes (
+  id bigint generated always as identity primary key,
+  sesion_id text not null,
+  rol text not null check (rol in ('usuario','bot')),
+  texto text not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists chatbot_mensajes_sesion_idx on chatbot_mensajes (sesion_id, id);
+
 -- ============================================================
 -- 4. Politicas de acceso (RLS)
 -- ============================================================
@@ -517,6 +529,7 @@ where not exists (select 1 from valoraciones);
 alter table auditoria enable row level security;
 alter table avisos enable row level security;
 alter table beneficiarios enable row level security;
+alter table chatbot_mensajes enable row level security;
 alter table chat_mensajes enable row level security;
 alter table colaboradores enable row level security;
 alter table contactos enable row level security;
