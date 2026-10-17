@@ -3187,3 +3187,210 @@ img {
   text-align: center;
 }
 
+/* ==============================
+   Variantes del menú y etiquetas
+   ============================== */
+.plato-etiquetas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.4rem;
+  align-items: center;
+}
+
+.etiqueta-variante {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background-color: var(--verde-claro);
+  color: var(--verde-oscuro);
+  border: 1px solid var(--verde);
+}
+
+.etiqueta-variante.celiaco {
+  background-color: var(--naranja-suave);
+  color: #a24a06;
+  border-color: var(--naranja);
+}
+
+.etiqueta-variante.vegetariano,
+.etiqueta-variante.vegano {
+  background-color: var(--verde-claro);
+  color: var(--verde-oscuro);
+  border-color: var(--verde);
+}
+
+.etiqueta-recomendado {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background-color: var(--naranja);
+  color: var(--blanco);
+}
+
+.etiqueta-popular {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background-color: var(--verde);
+  color: var(--blanco);
+}
+
+.etiqueta-alergia {
+  display: inline-block;
+  margin-top: 0.3rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  background-color: #fdecea;
+  color: #b3261e;
+  border: 1px solid #f5c6c2;
+}
+
+.etiqueta-preferencia {
+  display: inline-block;
+  margin-top: 0.3rem;
+  margin-left: 0.35rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background-color: var(--verde-suave);
+  color: var(--verde-oscuro);
+}
+
+/* Etiqueta de reserva "Para llevar" */
+.etiqueta-para-llevar {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background-color: var(--naranja-suave);
+  color: #b24a06;
+  border: 1px solid var(--naranja);
+}
+
+/* ==============================
+   Sesión de estudiante en Reserva
+   ============================== */
+.sesion-estudiante {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  background-color: var(--verde-claro);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: 0.8rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.sesion-estudiante span {
+  font-weight: 600;
+  color: var(--verde-oscuro);
+}
+
+.aviso-favorito {
+  margin: 1rem 0;
+  text-align: center;
+}
+
+.aviso-favorito .estado {
+  display: inline-block;
+  padding: 0.55rem 1rem;
+  font-weight: 600;
+  border-radius: 999px;
+}
+
+/* ==============================
+   Ticket Grab & Go (Reserva)
+   ============================== */
+.ticket-grabandgo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.2rem;
+  background-color: var(--blanco);
+  border: 2px dashed var(--verde);
+  border-radius: var(--radio);
+  padding: 1.2rem;
+  margin: 1rem 0;
+  animation: aparecer 0.4s ease both;
+}
+
+.ticket-qr {
+  padding: 0.5rem;
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  background-color: var(--blanco);
+  flex-shrink: 0;
+}
+
+.ticket-qr svg {
+  display: block;
+}
+
+.ticket-datos {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 200px;
+  flex: 1;
+}
+
+.ticket-titulo {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--verde-oscuro);
+}
+
+.ticket-fila {
+  color: var(--texto-suave);
+  font-size: 0.95rem;
+}
+
+.ticket-codigo {
+  font-family: "Courier New", monospace;
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--naranja);
+  background-color: var(--naranja-suave);
+  border-radius: 10px;
+  padding: 0.35rem 0.8rem;
+  display: inline-block;
+  align-self: flex-start;
+}
+
+.ticket-codigo-inline {
+  display: inline-block;
+  font-family: "Courier New", monospace;
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--naranja);
+  background-color: var(--naranja-suave);
+  border-radius: 6px;
+  padding: 0.1rem 0.5rem;
+  margin-left: 0.4rem;
+}
+
+/* Fila "checkbox" simple (estilo turno) */
+.fila-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-weight: 500;
+}
+

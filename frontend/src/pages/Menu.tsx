@@ -4,9 +4,16 @@
 // (Almuerzo y Refrigerio). Los platos se cargan del backend con fetch.
 // El estudiante puede calificar cada plato con 1 a 5 estrellas y esa
 // retroalimentacion ayuda a la cocina a mejorar el menu.
+//
+// Ademas, si hay sesion de estudiante:
+//   - cada plato puede marcarse como FAVORITO (corazon): el sistema le
+//     avisa "hoy toca tu favorito" cuando uno aparece en el menu del dia
+//   - se ven las etiquetas popular/recomendado calculadas por el backend
+// Se puede filtrar por variante (estandar, celiaco, vegetariano, vegano).
 
 import { useEffect, useState } from "react";
 import { API_URL } from "../config/api";
+import { leerSesion, cabeceras } from "../config/sesion";
 
 // Tipado de un plato del menu
 interface MenuItem {
@@ -20,6 +27,10 @@ interface MenuItem {
   imagen?: string;
   valoracion?: number | null;
   votos?: number;
+  variante?: string;
+  popular?: boolean;
+  recomendado?: boolean;
+  favorito?: boolean;
 }
 
 const diasOrden = [
@@ -28,6 +39,14 @@ const diasOrden = [
   "Miércoles",
   "Jueves",
   "Viernes",
+];
+
+const VARIANTES = [
+  { valor: "Todos", etiqueta: "Todo" },
+  { valor: "Estandar", etiqueta: "Estándar" },
+  { valor: "Celiaco", etiqueta: "Celíaco" },
+  { valor: "Vegetariano", etiqueta: "Vegetariano" },
+  { valor: "Vegano", etiqueta: "Vegano" },
 ];
 
 // Quita los acentos para comparar nombres de dias sin problemas
@@ -51,13 +70,20 @@ function Menu() {
   const [menu, setMenu] = useState<MenuItem[]>([]);
   // semanaActiva: semana del mes que se esta viendo (por defecto la actual)
   const [semanaActiva, setSemanaActiva] = useState(semanaActualDelMes());
+  // variante: filtro por tipo de dieta (Todos por defecto)
+  const [variante, setVariante] = useState("Todos");
   // cargando: controla el estado de carga (requisito UX del proyecto)
   const [cargando, setCargando] = useState(true);
   // error: guarda el mensaje si algo sale mal
   const [error, setError] = useState("");
 
+  // Sesion del estudiante (para marcar favoritos con su documento)
+  const sesion = leerSesion();
+  const esEstudiante = sesion?.rol === "estudiante";
+  const documento = esEstudiante ? sesion.usuario : "";
+
   // documento para valorar (el mismo que usan para reservar)
-  const [documento, setDocumento] = useState("");
+  const [docValorar, setDocValorar] = useState("");
   // plato que se esta calificando ahora mismo
   const [valorando, setValorando] = useState<number | null>(null);
   // estrellas en vista previa mientras se pasa el raton
@@ -70,10 +96,16 @@ function Menu() {
   useEffect(() => {
     const cargarMenu = async () => {
       try {
-        const respuesta = await fetch(`${API_URL}/api/menus`);
+        // Con sesion de estudiante se marcan sus favoritos (el backend
+        // solo los revela si el token coincide con el documento).
+        const url = documento
+          ? `${API_URL}/api/menus?documento=${encodeURIComponent(documento)}`
+          : `${API_URL}/api/menus`;
+        const respuesta = await fetch(url, documento ? { headers: cabeceras(false) } : undefined);
         if (!respuesta.ok) throw new Error("No se pudo cargar el menú");
         const datos = await respuesta.json();
         setMenu(datos);
+        if (documento) setDocValorar(documento);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Error desconocido");
       } finally {
@@ -81,15 +113,23 @@ function Menu() {
       }
     };
     cargarMenu();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Platos de la semana que se esta viendo
-  const menuSemana = menu.filter((item) => item.semana === semanaActiva);
+  // Platos de la semana que se esta viendo, con el filtro de variante
+  const menuSemana = menu.filter(
+    (item) =>
+      item.semana === semanaActiva &&
+      (variante === "Todos" || item.variante === variante)
+  );
 
-  // Recarga el menu para actualizar los promedios
+  // Recarga el menu para actualizar los promedios (dejando los favoritos)
   const recargarMenu = async () => {
     try {
-      const respuesta = await fetch(`${API_URL}/api/menus`);
+      const url = documento
+        ? `${API_URL}/api/menus?documento=${encodeURIComponent(documento)}`
+        : `${API_URL}/api/menus`;
+      const respuesta = await fetch(url, documento ? { headers: cabeceras(false) } : undefined);
       if (!respuesta.ok) throw new Error("No se pudo cargar el menú");
       setMenu(await respuesta.json());
     } catch {
@@ -97,9 +137,52 @@ function Menu() {
     }
   };
 
+  // Marca o desmarca un plato como favorito (solo con sesion de estudiante)
+  const alternarFavorito = async (plato: MenuItem) => {
+    if (!documento) {
+      setMensaje({
+        texto: "Entra con tu documento y PIN en la página de reserva para marcar favoritos.",
+        tipo: "error",
+      });
+      return;
+    }
+    const activo = !plato.favorito;
+    // Cambio optimista para que el corazon responda al instante
+    setMenu((lista) =>
+      lista.map((m) => (m.id === plato.id ? { ...m, favorito: activo } : m))
+    );
+    setMensaje(null);
+    try {
+      const respuesta = await fetch(`${API_URL}/api/menus/${plato.id}/favorito`, {
+        method: "PUT",
+        headers: cabeceras(),
+        body: JSON.stringify({ documento, activo }),
+      });
+      if (!respuesta.ok) {
+        const datos = await respuesta.json().catch(() => null);
+        throw new Error(datos?.error || "No se pudo actualizar tu favorito");
+      }
+      setMensaje({
+        texto: activo
+          ? `❤️ ¡Ahora "${plato.platillo}" es tu favorito! Te avisaremos los días que toque.`
+          : `Quitaste "${plato.platillo}" de tus favoritos.`,
+        tipo: "exito",
+      });
+    } catch (err) {
+      // Si fallo la peticion, revertimos el cambio optimista
+      setMenu((lista) =>
+        lista.map((m) => (m.id === plato.id ? { ...m, favorito: !activo } : m))
+      );
+      setMensaje({
+        texto: err instanceof Error ? err.message : "Error desconocido",
+        tipo: "error",
+      });
+    }
+  };
+
   // Guarda la valoracion de un plato
   const valorar = async (platoId: number, puntos: number) => {
-    if (!documento.trim()) {
+    if (!docValorar.trim()) {
       setMensaje({
         texto: "Escribe tu documento para poder calificar.",
         tipo: "error",
@@ -113,7 +196,7 @@ function Menu() {
       const respuesta = await fetch(`${API_URL}/api/menus/${platoId}/valorar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ puntos, documento: documento.trim() }),
+        body: JSON.stringify({ puntos, documento: docValorar.trim() }),
       });
       if (!respuesta.ok) {
         const datos = await respuesta.json().catch(() => null);
@@ -226,13 +309,28 @@ function Menu() {
             ))}
           </div>
 
+          {/* Filtro por variante (tipo de dieta) */}
+          <div className="selector-semana" role="group" aria-label="Tipo de plato">
+            {VARIANTES.map((v) => (
+              <button
+                key={v.valor}
+                type="button"
+                className={variante === v.valor ? "activa" : ""}
+                onClick={() => setVariante(v.valor)}
+                aria-pressed={variante === v.valor}
+              >
+                {v.etiqueta}
+              </button>
+            ))}
+          </div>
+
           {/* Documento para poder valorar */}
           <label className="valorar-documento">
             Tu documento (para calificar platos)
             <input
               type="text"
-              value={documento}
-              onChange={(e) => setDocumento(e.target.value)}
+              value={docValorar}
+              onChange={(e) => setDocValorar(e.target.value)}
               placeholder="Escribe tu documento para valorar"
             />
           </label>
@@ -251,7 +349,8 @@ function Menu() {
           <div className="menu-dias">
             {menuSemana.length === 0 && (
               <p className="estado">
-                Aún no hay platos publicados para la semana {semanaActiva}.
+                No hay platos que coincidan con el filtro elegido para la
+                semana {semanaActiva}.
               </p>
             )}
             {diasOrden.map((dia) => {
@@ -279,6 +378,22 @@ function Menu() {
                             <span className="plato-dia">Semana {item.semana}</span>
                           </div>
                           <h3>{item.platillo}</h3>
+                          {/* Etiquetas del plato */}
+                          <div className="plato-etiquetas">
+                            {item.variante && item.variante !== "Estandar" && (
+                              <span className="etiqueta-variante">
+                                {normalizar(item.variante) === "celiaco"
+                                  ? "Sin gluten"
+                                  : VARIANTES.find((v) => v.valor === item.variante)?.etiqueta || item.variante}
+                              </span>
+                            )}
+                            {item.recomendado && (
+                              <span className="etiqueta-recomendado">Recomendado</span>
+                            )}
+                            {item.popular && (
+                              <span className="etiqueta-popular">Popular</span>
+                            )}
+                          </div>
                           <p>{item.descripcion}</p>
                           <div className="plato-pie">
                             <div className="plato-valoracion">
@@ -293,6 +408,26 @@ function Menu() {
                           </div>
                         </div>
                         <div className="plato-calificar">
+                          {esEstudiante && (
+                            <button
+                              type="button"
+                              className={`boton-favorito ${item.favorito ? "activo" : ""}`}
+                              onClick={() => alternarFavorito(item)}
+                              aria-pressed={item.favorito}
+                              aria-label={
+                                item.favorito
+                                  ? `Quitar ${item.platillo} de favoritos`
+                                  : `Marcar ${item.platillo} como favorito`
+                              }
+                              title={
+                                item.favorito
+                                  ? "Quitar de favoritos"
+                                  : "Marcar como favorito"
+                              }
+                            >
+                              {item.favorito ? "❤️" : "🤍"}
+                            </button>
+                          )}
                           <small>Califica este plato:</small>
                           {estrellasCalificar(item.id)}
                         </div>

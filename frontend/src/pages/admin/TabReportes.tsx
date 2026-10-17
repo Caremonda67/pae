@@ -2,7 +2,7 @@ import { fechaCorta } from "../../config/fechas";
 import { construirHtmlExcel } from "../../config/exportar";
 import FiltroReportes from "../../components/FiltroReportes";
 import { TURNOS_SOBRANTES } from "./types";
-import type { Reporte, ReservaDiaria, Sobrante } from "./types";
+import type { Reporte, ReservaDiaria, Sobrante, Tendencia } from "./types";
 import type { SeccionTabla, OpcionesExportar } from "../../config/exportar";
 
 interface Props {
@@ -31,6 +31,8 @@ interface Props {
   borrarSobrantes: (fecha: string, sede: string) => Promise<void>;
   construirSecciones: () => SeccionTabla[];
   opcionesReporte: () => OpcionesExportar;
+  tendencia: Tendencia | null;
+  tendenciaCargando: boolean;
 }
 
 export default function TabReportes({
@@ -40,7 +42,7 @@ export default function TabReportes({
   diariaCargada, exportarCSV, imprimirDiaria, cargarDiaria,
   conteoDiario, sobrantesPorFechaSede, abrirEdicionSobrantes,
   cambiarSobranteReporte, guardarSobrantesEditados, borrarSobrantes,
-  construirSecciones, opcionesReporte,
+  construirSecciones, opcionesReporte, tendencia, tendenciaCargando,
 }: Props) {
   return (
     <div id="panel-reportes" role="tabpanel" aria-labelledby="tab-reportes">
@@ -89,6 +91,91 @@ export default function TabReportes({
             <button type="button" className="boton boton-secundario" onClick={exportarCSV} aria-label="Exportar reporte a Excel">⬇️ Exportar Excel</button>
           </div>
         </div>
+      )}
+
+      <h2 className="admin-subtitulo">Tendencia: demanda vs sobrantes</h2>
+      <p className="subtitulo">
+        Compara lo que se reserva y lo que realmente sobra cada día. El
+        pronóstico estima cuántas minutas se espera que sobren en los
+        próximos días hábiles si no se cancelan a tiempo.
+      </p>
+      {tendenciaCargando && <p className="estado">Cargando tendencia…</p>}
+      {!tendenciaCargando && tendencia && (
+        <>
+          {tendencia.dias.length === 0 && tendencia.pronostico.length === 0 ? (
+            <p className="estado">
+              Aún no hay datos suficientes. La tendencia aparece cuando se
+              acumulan reservas y sobrantes de varios días.
+            </p>
+          ) : (
+            <>
+              {(() => {
+                const valores: number[] = [];
+                for (const d of tendencia.dias) {
+                  valores.push(d.reservas || 0, d.porciones_sobrantes || 0);
+                }
+                for (const p of tendencia.pronostico) valores.push(p.esperado || 0);
+                const maximo = Math.max(...valores, 1);
+                return (
+                  <>
+                    {tendencia.dias.length > 0 && (
+                      <div className="grafico">
+                        {tendencia.dias.map((d) => (
+                          <div key={d.fecha} className="grafico-columna">
+                            <div className="grafico-barras">
+                              <div
+                                className="grafico-barra verde"
+                                title={`${d.reservas} reservadas`}
+                                style={{ height: `${Math.round((d.reservas / maximo) * 100)}%` }}
+                              />
+                              <div
+                                className="grafico-barra naranja"
+                                title={`${d.porciones_sobrantes || 0} porciones sobraron`}
+                                style={{ height: `${Math.round(((d.porciones_sobrantes || 0) / maximo) * 100)}%` }}
+                              />
+                            </div>
+                            <span className="grafico-fecha">{fechaCorta(d.fecha)}</span>
+                            <span className="grafico-leyenda">
+                              {d.reservas} res. · {d.porciones_sobrantes || 0} sob.
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {tendencia.pronostico.length > 0 && (
+                      <>
+                        <h3 className="reporte-subtitulo">Pronóstico de sobrantes</h3>
+                        <div className="grafico">
+                          {tendencia.pronostico.map((p) => (
+                            <div key={p.fecha} className="grafico-columna">
+                              <div className="grafico-barras">
+                                <div
+                                  className="grafico-barra naranja"
+                                  title={`${p.esperado} minutas se espera que sobren`}
+                                  style={{ height: `${Math.round((p.esperado / maximo) * 100)}%` }}
+                                />
+                              </div>
+                              <span className="grafico-fecha">{fechaCorta(p.fecha)}</span>
+                              <span className="grafico-leyenda">
+                                ~{p.esperado} sob.
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                        <p className="nota">
+                          Verde: minutas reservadas. Naranja: porciones que
+                          sobraron (o que se espera que sobren). Si los
+                          estudiantes cancelan antes de la hora límite, el
+                          desperdicio previsto se reduce.
+                        </p>
+                      </>
+                    )}
+                  </>
+                );
+              })()}
+            </>
+          )}
+        </>
       )}
 
       <h2 className="admin-subtitulo">Sobrantes registrados por fecha</h2>

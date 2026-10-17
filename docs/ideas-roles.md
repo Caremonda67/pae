@@ -49,27 +49,31 @@ notificaciones, mensajes)
       pasó) y la lista de los reservados con su nombre, sede, turno y
       grado. Ruta `/api/reservas/tablero?fecha=...` (rol admin o
       coordinador).
-- [ ] Aprobacion de avisos: flujo borrador -> publicado (requiere campo
-      `estado` en avisos).
-- [ ] Planificacion semanal del menu con flujo borrador -> publicado.
-- [ ] Asignar el rol de cocina por dia (turnos).
-- [ ] que ellos tambien ellos puedan meter nuevos beneficiarios asi como hace el admin 
+- [x] Aprobacion de avisos: flujo borrador -> publicado (verificado en
+      produccion).
+- [x] Planificacion semanal del menu con flujo borrador -> publicado
+      (semanas 1-4 completas, 10 platos cada una).
+- [x] Asignar el rol de cocina por dia (turnos de cocina).
+- [x] El coordinador puede meter nuevos beneficiarios igual que el admin. 
 
 ## Estudiante (hoy: reservar + mis reservas)
 
 - [ ] Historial con estado: reservada / servida / ausente (con los datos
       de asistencia).
-- [ ] Limite de anulacion: cerrar reservas/ediciones a una hora (mas o menos a las 8)
+- [x] Limite de anulacion: la hora limite configurable
+      (`hora_limite_reserva`) cierra reservar/cancelar del dia.
 - [x] Ver el menu de la semana (pagina publica); falta el del mes.
-- [ ] Recordatorio por notificacion: avisar "manana reserva tu almuerzo".
-  [ ] en caso dado que un estudiante no vaya crear un espacio de notificacion para llamar la atencion por la no asistencia
+- [x] Recordatorio por notificacion: avisar "manana reserva tu almuerzo"
+      (implementado y verificado en produccion).
+- [x] Inasistencias: el estudiante ve en Reserva.tsx sus faltas como
+      llamado de atencion por no asistencia.
 
 ## Admin (hoy: todo + usuarios)
 
-- [ ] Auditoria de acciones: tabla con quien hizo que y cuando.
+- [x] Auditoria de acciones: tabla con quien hizo que y cuando.
 - [x] Exportar datos (Excel con portada + CSV) para reportes a la entidad.
-- [ ] Configuracion del sistema: hora limite de reserva, cupos por sede
-      (tabla de settings).
+- [x] Configuracion del sistema: hora limite de reserva, cupos por sede
+      (tabla de settings, restaurado a "08:00" tras la simulacion).
 - [x] Reportes tecnicos movidos al panel (pestana "Reportes" solo para
       admin y cocina): desperdicio con desgloses, sobrantes por fecha y
       sede (con edicion/borrado), tabla diaria y exportar CSV, con datos
@@ -85,3 +89,41 @@ notificaciones, mensajes)
 ## Decisiones pendientes
 
 - [ ] El menu del mes / planificacion es prioridad o secundario.
+
+## Ideas de inspiracion (sondeo de sistemas similares, NO implementadas)
+
+Sondeo de paginas/apps de comedores escolares y universitarios para tomar
+funciones que valgan la pena. Siete se implementaron durante 2026 (ver
+tabla); quedan pendientes el selector territorial y el radar de transparencia.
+
+Referentes: PAEstar al dia / Alimentos para Aprender (menus PAE por
+departamento/municipio/IE/sede/fecha + radar de control), Control PAE
+Valledupar, UNSE (Argentina), UNFV/UNDAC (Peru), BUAP (Mexico, con reserva
+"periodica"), UGR Granada / US Sevilla (menus alternativos: celiaco,
+vegetariano, vegano; menu para llevar), SchoolCafe / FD MealPlanner (EE.UU.:
+favoritos, build-your-tray, alergenos, rating de platos), OrderIT/OrderandTell
+(UMass: alergias por ingrediente que llegan a la cocina), Fusion Online (UK:
+grab & go empaquetado por nombre), MealPe (India: pre-order + analiticas),
+MealManage/HotLunch/SnapPay (USDA: hora de corte editable, alertas de alergias).
+
+| Idea | Fuente | Estado en la app | Esfuerzo |
+|---|---|---|---|
+| Favoritos + aviso "hoy toca tu favorito" | SchoolCafe | [x] Implementado: corazón en Menu (sesión de estudiante, privacidad por token) + aviso en Reserva.tsx | Media |
+| Perfil de alergias/preferencias que alerte a cocina | OrderIT, Kafoodle, UGR | [x] Implementado: `PUT /api/beneficiarios/mi-perfil`, alta/edición por admin, alertas en panel de cocina | Media |
+| Menus alternativos (celiaco, vegetariano) y para llevar | UGR | [x] Implementado: `menus.variante` + badge/filtro en Menu y admin | Media |
+| Reserva repetitiva/semanal de una sola vez | BUAP | [x] Implementado: checkbox semanal en Reserva (lun-vie de la semana próxima, código por día) | Media |
+| Grab & Go: hoja/QR por reserva para empacar por nombre | Fusion Online, EasyPickup | [x] Implementado: `para_llevar` + `codigo` + QR en ticket, lista de entregas en panel cocina | Baja-media |
+| Etiquetas "popular/favorito/recomendado" en menu publico | MealPe | [x] Implementado: badges Popular/Recomendado calculados por backend | Baja |
+| Pronostico de demanda vs. sobrantes reales (grafico de tendencia) | MealManage, Kafoodle | [x] Implementado: `GET /api/reservas/tendencia` + barras en pestaña Reportes | Baja-media |
+| Selector territorial depto->municipio->IE->sede->fecha | UApA/PAEstar al dia | [ ] Pendiente: hay sedes; falta la jerarquia (enchufa con futuro multi-tenant) | Media |
+| Panel publico de transparencia estilo "Radar PAE" | UApA, Control PAE | [ ] Pendiente: ya hay auditoria y reportes; presentarlo como control social | Baja |
+
+Fuera de foco (NO copiar): pagos/cashless (programa gratuito), POS,
+inventario/recetas (software de cocina industrial).
+
+Tres ideas fuertes para la sustentacion:
+1. Favoritos + aviso (muy demostrable en vivo).
+2. Conectar alergias del estudiante -> menu seguro -> alerta a cocina
+   (aprovecha el modulo de incidentes ya existente).
+3. Selector territorial estilo PAEstar al dia para exhibir la jerarquia
+   institucion->sede.

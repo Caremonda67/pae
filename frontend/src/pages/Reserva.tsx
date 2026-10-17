@@ -7,20 +7,38 @@
 // - confirmacion por WhatsApp: tras reservar, un boton abre
 //   wa.me con el mensaje de confirmacion listo para enviar
 // - "Mis reservas": consulta y cancelacion de las reservas propias
+// - Grab & Go: cada reserva genera un codigo corto (y QR) para que la
+//   cocina entregue la minuta sin confusiones; sirve tambien para
+//   "para llevar" (empacar la comida)
+// - reserva semanal: con un clic se reservan todos los dias habiles
+//   de la proxima semana
+// - aviso "hoy toca tu favorito": si el plato del dia esta en la lista
+//   de favoritos del estudiante, se le avisa
+// - perfil de alimento: alergias y preferencia (menus alternativos)
 
 import { useEffect, useRef, useState } from "react";
+import { QRCodeSVG } from "qrcode.react";
 import { fechaLegible, hoyLocal, sumarDias, validarFecha } from "../config/fechas";
 import { API_URL } from "../config/api";
 import {
   leerSesion,
   guardarSesion,
   cerrarSesion,
+  cabeceras,
   ROLES_LABEL,
 } from "../config/sesion";
 
 // Turnos para reservar. Un estudiante con turno "Ambas jornadas"
 // elige aquí en cuál de las dos (Almuerzo o Refrigerio) reservar.
 const TURNOS = ["Almuerzo", "Refrigerio"];
+
+// Variantes de menu alternativo que puede pedir el estudiante
+const VARIANTES_PERFIL = [
+  { valor: "", etiqueta: "Sin preferencia" },
+  { valor: "Celiaco", etiqueta: "Celíaco (sin gluten)" },
+  { valor: "Vegetariano", etiqueta: "Vegetariano" },
+  { valor: "Vegano", etiqueta: "Vegano" },
+];
 
 // Roles del personal del PAE: no reservan minutas, eso es solo de
 // estudiantes y visitantes.
@@ -53,6 +71,22 @@ interface MisReserva {
   turno: string;
   fecha: string;
   asistio: boolean;
+  codigo?: string | null;
+  para_llevar?: boolean;
+}
+
+// Una reserva creada por la reserva semanal (para el ticket de entrega)
+interface ReservaSemanal {
+  id?: number;
+  fecha: string;
+  codigo?: string;
+  omitida?: string;
+}
+
+// Perfil de alimento del estudiante devuelto por /api/beneficiarios/buscar
+interface PerfilAlimento {
+  alergias?: string;
+  preferencias?: string;
 }
 
 function Reserva() {
@@ -75,6 +109,8 @@ function Reserva() {
     sede: "",
     turno: "",
     fecha: "",
+    para_llevar: false,
+    semanal: false,
   });
 
   // Sedes disponibles: las administra el panel (tabla sedes).
@@ -103,8 +139,20 @@ function Reserva() {
   const [cargandoConsulta, setCargandoConsulta] = useState(false);
   const [errorConsulta, setErrorConsulta] = useState("");
 
-  // La reserva confirmada, para mostrar el boton de WhatsApp
+  // La reserva confirmada (single) para mostrar el ticket Grab & Go
   const [ultimaReserva, setUltimaReserva] = useState<MisReserva | null>(null);
+  // Resultado de la reserva semanal (lista de dias creados)
+  const [resultadoSemanal, setResultadoSemanal] = useState<ReservaSemanal[]>([]);
+
+  // Aviso "hoy toca tu favorito": platos de hoy marcados como favoritos
+  const [favoritosHoy, setFavoritosHoy] = useState<
+    { platillo: string; jornada: string }[]
+  >([]);
+
+  // Perfil de alimento del estudiante (alergias y preferencias)
+  const [perfil, setPerfil] = useState<PerfilAlimento>({});
+  const [guardandoPerfil, setGuardandoPerfil] = useState(false);
+  const [perfilMsj, setPerfilMsj] = useState<{ texto: string; tipo: string } | null>(null);
 
   // Configuracion del sistema: hora limite para reservar/cancelar HOY
   const [config, setConfig] = useState<ConfigSistema | null>(null);
@@ -118,6 +166,12 @@ function Reserva() {
   const cambiar = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormulario({ ...formulario, [name]: value });
+  };
+
+  // Marca o quita un campo de seleccion (para_llevar, semanal)
+  const cambiarCheck = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, checked } = e.target;
+    setFormulario((f) => ({ ...f, [name]: checked }));
   };
 
   // Entra el estudiante con documento + PIN
@@ -152,6 +206,7 @@ function Reserva() {
       // Al entrar, rellenamos tambien nombre, sede y turno buscando al
       // beneficiario (igual que cuando se escribe el documento a mano).
       buscarBeneficiario(datos.usuario);
+      cargarPerfil(datos.usuario);
     } catch (err) {
       setErrorLogin(err instanceof Error ? err.message : "Error desconocido");
     } finally {
@@ -164,10 +219,14 @@ function Reserva() {
     cerrarSesion();
     setSesion(null);
     setDocLogin("");
-    setFormulario((f) => ({ ...f, documento: "" }));
+    setFormulario((f) => ({ ...f, documento: "", semanal: false, para_llevar: false }));
     setDocConsulta("");
     setMisReservas([]);
     setConsultaHecha(false);
+    setFavoritosHoy([]);
+    setPerfil({});
+    setUltimaReserva(null);
+    setResultadoSemanal([]);
   };
 
   // Cuando el documento cambia, buscamos al beneficiario y
@@ -252,6 +311,7 @@ function Reserva() {
   useEffect(() => {
     if (sesionInicial?.usuario) {
       buscarBeneficiario(sesionInicial.usuario);
+      cargarPerfil(sesionInicial.usuario);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -294,28 +354,108 @@ function Reserva() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sesion?.usuario]);
 
-  // Envia la reserva al backend
+  // Con sesion de estudiante consulta si hoy toca algun plato favorito
+  useEffect(() => {
+    if (!sesion?.usuario || sesion.rol !== "estudiante") {
+      setFavoritosHoy([]);
+      return;
+    }
+    let activo = true;
+    fetch(
+      `${API_URL}/api/menus/hoy?documento=${encodeURIComponent(sesion.usuario)}`,
+      { headers: cabeceras(false) }
+    )
+      .then((r) => (r.ok ? r.json() : null))
+      .then((datos) => {
+        if (!activo || !datos?.platos) return;
+        const tocanHoy = (datos.platos as { platillo: string; jornada: string; esFavorito?: boolean }[])
+          .filter((p) => p.esFavorito)
+          .map((p) => ({ platillo: p.platillo, jornada: p.jornada }));
+        setFavoritosHoy(tocanHoy);
+      })
+      .catch(() => {});
+    return () => {
+      activo = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sesion?.usuario]);
+
+  // Carga el perfil de alimento (alergias y preferencias) del estudiante
+  const cargarPerfil = async (documento: string) => {
+    try {
+      const respuesta = await fetch(
+        `${API_URL}/api/beneficiarios/buscar?documento=${encodeURIComponent(documento)}`
+      );
+      if (!respuesta.ok) return;
+      const datos = await respuesta.json();
+      setPerfil({
+        alergias: datos.alergias || "",
+        preferencias: datos.preferencias || "",
+      });
+    } catch {
+      // si no se puede, dejamos el perfil vacio
+    }
+  };
+
+  // Guarda alergias y preferencias del estudiante en su beneficiario
+  const guardarPerfil = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setGuardandoPerfil(true);
+    setPerfilMsj(null);
+    try {
+      const respuesta = await fetch(`${API_URL}/api/beneficiarios/mi-perfil`, {
+        method: "PUT",
+        headers: cabeceras(),
+        body: JSON.stringify({
+          alergias: (perfil.alergias || "").trim(),
+          preferencias: perfil.preferencias || "",
+        }),
+      });
+      const datos = await respuesta.json().catch(() => null);
+      if (!respuesta.ok) {
+        throw new Error(datos?.error || "No se pudo guardar tu perfil");
+      }
+      setPerfilMsj({
+        texto: "✅ Perfil guardado. La cocina tendrá en cuenta tus alergias y preferencias.",
+        tipo: "exito",
+      });
+    } catch (err) {
+      setPerfilMsj({
+        texto: err instanceof Error ? err.message : "Error desconocido",
+        tipo: "error",
+      });
+    } finally {
+      setGuardandoPerfil(false);
+    }
+  };
+
+  // Envia la reserva al backend (un dia o toda la semana)
   const enviar = async (e: React.FormEvent) => {
     e.preventDefault();
     setEnviando(true);
     setError("");
     setExito("");
     setUltimaReserva(null);
+    setResultadoSemanal([]);
 
-    // Validamos la fecha antes de mandarla: evita fechas con año
-    // con demasiados digitos o fechas imposibles que darian error luego
-    const errorFecha = validarFecha(formulario.fecha);
-    if (errorFecha) {
-      setError(errorFecha);
-      setEnviando(false);
-      return;
+    // La reserva semanal no necesita fecha (empieza el proximo lunes).
+    // Para la reserva normal validamos la fecha antes de mandarla.
+    if (!formulario.semanal) {
+      const errorFecha = validarFecha(formulario.fecha);
+      if (errorFecha) {
+        setError(errorFecha);
+        setEnviando(false);
+        return;
+      }
     }
 
     try {
+      const cuerpo = { ...formulario };
+      if (formulario.semanal) cuerpo.fecha = "";
       const respuesta = await fetch(`${API_URL}/api/reservas`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formulario),
+        body: JSON.stringify(cuerpo),
       });
 
       if (!respuesta.ok) {
@@ -324,14 +464,50 @@ function Reserva() {
       }
 
       const guardada = await respuesta.json();
-      setUltimaReserva(guardada);
+
+      if (formulario.semanal) {
+        // Reserva de toda la semana: resumimos los dias creados y los
+        // omitidos (los que ya tenia, los pasados, los de fin de semana…)
+        const dias: ReservaSemanal[] = [
+          ...(guardada.reservas || []).map((r: MisReserva) => ({
+            fecha: r.fecha,
+            codigo: r.codigo,
+          })),
+          ...(guardada.omitidas || []).map((o: { fecha: string; motivo: string }) => ({
+            fecha: o.fecha,
+            omitida: o.motivo,
+          })),
+        ];
+        setResultadoSemanal(dias);
+        setExito(
+          guardada.creadas > 0
+            ? `✅ ¡Reserva de la semana confirmada! Se reservaron ${guardada.creadas} días.${guardada.omitidas?.length ? ` (${guardada.omitidas.length} no se pudieron reservar).` : ""}`
+            : "⚠️ No se pudo reservar ningún día. Revisa el detalle abajo."
+        );
+      } else {
+        // Reserva de un solo dia: guardamos el ticket con su codigo Grab&Go
+        setUltimaReserva(guardada);
+        setExito(
+          guardada.para_llevar
+            ? "✅ ¡Reserva confirmada! Tu minuta irá EMPACADA para llevar: muestra tu código en la entrega."
+            : "✅ ¡Reserva confirmada! La cocina preparará tu minuta. Presenta tu código para reclamarla y evita el desperdicio."
+        );
+      }
+
       const docUsado = formulario.documento.trim();
       if (docUsado) consultarRecordatorio(docUsado);
-      setExito(
-        "✅ ¡Reserva confirmada! La cocina preparará tu minuta. Recuerda asistir para evitar desperdicio."
-      );
-      // Limpiamos el formulario despues de reservar
-      setFormulario({ estudiante: "", documento: "", correo: "", sede: "", turno: "", fecha: "" });
+      // Limpiamos el formulario despues de reservar (se mantienen las
+      // preferencias de la sesion)
+      setFormulario({
+        estudiante: "",
+        documento: sesion?.usuario || "",
+        correo: "",
+        sede: "",
+        turno: "",
+        fecha: "",
+        para_llevar: false,
+        semanal: false,
+      });
       setInfoBeneficiario("");
       setBeneficiarioConfirmado(false);
     } catch (err) {
@@ -417,8 +593,10 @@ function Reserva() {
       `y quiero confirmar mi minuta del PAE.\n\n` +
       `🍽️ Fecha: ${fechaLegible(ultimaReserva.fecha)}\n` +
       `🍽️ Turno: ${ultimaReserva.turno}\n` +
-      `🏫 Sede: ${ultimaReserva.sede}\n\n` +
-      `¡Allí estaré para que no se desperdicie comida! 🙌`;
+      `🏫 Sede: ${ultimaReserva.sede}\n` +
+      `🎫 Código de entrega: ${ultimaReserva.codigo}\n` +
+      (ultimaReserva.para_llevar ? `🛍️ Para llevar\n` : "") +
+      `\n¡Allí estaré para que no se desperdicie comida! 🙌`;
     return `https://wa.me/?text=${encodeURIComponent(mensaje)}`;
   };
 
@@ -505,6 +683,63 @@ function Reserva() {
           <p className="subtitulo">
             También puedes reservar sin entrar, escribiendo tu documento abajo.
           </p>
+        </form>
+      )}
+
+      {/* Aviso: hoy toca un plato favorito */}
+      {favoritosHoy.length > 0 && (
+        <div className="aviso-favorito" role="status">
+          <p className="estado exito">
+            ❤️ ¡Hoy toca tu favorito!{" "}
+            {favoritosHoy
+              .map((f) => `${f.platillo} (${f.jornada})`)
+              .join(" y ")}{" "}
+            — no dejes de reservar.
+          </p>
+        </div>
+      )}
+
+      {/* Profile de alimento: alergias y preferencias */}
+      {sesion?.rol === "estudiante" && (
+        <form className="formulario perfil-alimento" onSubmit={guardarPerfil}>
+          <h2 className="admin-subtitulo">Mi perfil de alimento</h2>
+          <p className="subtitulo">
+            Cuéntale a la cocina tus alergias (se resaltan al preparar tu
+            minuta) y si prefieres un menú alternativo.
+          </p>
+          <label htmlFor="alergias-perfil">
+            Alergias o alimentos que evitas
+            <input
+              id="alergias-perfil"
+              type="text"
+              value={perfil.alergias || ""}
+              onChange={(e) => setPerfil({ ...perfil, alergias: e.target.value })}
+              placeholder="Ej: Maní, lactosa, gluten…"
+            />
+          </label>
+          <label htmlFor="pref-perfil">
+            Preferencia de menú
+            <select
+              id="pref-perfil"
+              value={perfil.preferencias || ""}
+              onChange={(e) => setPerfil({ ...perfil, preferencias: e.target.value })}
+            >
+              {VARIANTES_PERFIL.map((v) => (
+                <option key={v.valor} value={v.valor}>
+                  {v.etiqueta}
+                </option>
+              ))}
+            </select>
+          </label>
+          {perfilMsj && (
+            <p className={`estado ${perfilMsj.tipo}`} role={perfilMsj.tipo === "error" ? "alert" : "status"}>
+              {perfilMsj.tipo === "exito" ? "✅ " : "⚠️ "}
+              {perfilMsj.texto}
+            </p>
+          )}
+          <button type="submit" className="boton boton-secundario" disabled={guardandoPerfil}>
+            {guardandoPerfil ? "Guardando…" : "Guardar mi perfil"}
+          </button>
         </form>
       )}
 
@@ -628,17 +863,92 @@ function Reserva() {
             name="fecha"
             value={formulario.fecha}
             onChange={cambiar}
-            required
+            required={!formulario.semanal}
+            disabled={formulario.semanal}
             min={diaCerrado ? sumarDias(hoyLocal(), 1) : hoyLocal()}
             max={sumarDias(hoyLocal(), 60)}
           />
-          <small className="campo-fijo">
-            El servicio funciona de lunes a viernes.
-          </small>
+          {formulario.semanal ? (
+            <small className="campo-fijo">
+              La reserva semanal empieza el próximo lunes y cubre todos los
+              días hábiles (de lunes a viernes).
+            </small>
+          ) : (
+            <small className="campo-fijo">
+              El servicio funciona de lunes a viernes.
+            </small>
+          )}
+        </label>
+
+        <label className="fila-check">
+          <input
+            type="checkbox"
+            name="para_llevar"
+            checked={formulario.para_llevar}
+            onChange={cambiarCheck}
+          />
+          Quiero mi minuta para llevar (la entrega empacada)
+        </label>
+
+        <label className="fila-check">
+          <input
+            type="checkbox"
+            name="semanal"
+            checked={formulario.semanal}
+            onChange={cambiarCheck}
+          />
+          Reservar TODA la próxima semana de una vez
         </label>
 
         {error && <p className="estado error">⚠️ {error}</p>}
         {exito && <p className="estado exito">{exito}</p>}
+
+        {/* Ticket Grab & Go de una reserva individual */}
+        {ultimaReserva && (
+          <div className="ticket-grabandgo" aria-live="polite">
+            <div className="ticket-qr">
+              <QRCodeSVG value={ultimaReserva.codigo || ultimaReserva.documento} size={130} />
+            </div>
+            <div className="ticket-datos">
+              <span className="ticket-titulo">Tu minuta quedó lista</span>
+              <span className="ticket-fila">
+                {fechaLegible(ultimaReserva.fecha)} · {ultimaReserva.turno}
+              </span>
+              <span className="ticket-codigo" title="Código de entrega (Grab & Go)">
+                {ultimaReserva.codigo}
+              </span>
+              <span className="ticket-fila">
+                {ultimaReserva.para_llevar ? "🛍️ Para llevar" : "🍽️ Para comer en el lugar"}
+              </span>
+              <span className="ticket-fila">
+                Muéstralo en tu sede para recoger la minuta.
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Resultado de la reserva semanal */}
+        {resultadoSemanal.length > 0 && (
+          <div className="lista-reservas" aria-live="polite">
+            {resultadoSemanal.map((d) => (
+              <div key={d.fecha} className="fila-reserva">
+                <div>
+                  <strong>{fechaLegible(d.fecha)}</strong>
+                  {d.omitida ? (
+                    <span className="fila-reserva-detalle">⚠️ No reservada: {d.omitida}</span>
+                  ) : (
+                    <span className="fila-reserva-detalle">
+                      ✅ Reservada · Código de entrega: <strong className="ticket-codigo-inline">{d.codigo}</strong>
+                    </span>
+                  )}
+                </div>
+                {!d.omitida && d.codigo && (
+                  <QRCodeSVG value={d.codigo} size={56} />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Boton de WhatsApp para compartir la confirmacion */}
         {ultimaReserva && (
@@ -654,7 +964,11 @@ function Reserva() {
         )}
 
         <button type="submit" className="boton boton-primario" disabled={enviando || (sedes.length === 0 && !beneficiarioConfirmado)}>
-          {enviando ? "Guardando…" : "Confirmar reserva"}
+          {enviando
+            ? "Guardando…"
+            : formulario.semanal
+              ? "Confirmar reserva de la semana"
+              : "Confirmar reserva"}
         </button>
       </form>
 
@@ -663,6 +977,7 @@ function Reserva() {
       <h2>Mis reservas</h2>
       <p className="subtitulo">
         Consulta y cancela tus reservas {sesion ? "de tu sesión" : "escribiendo tu documento"}.
+        Cada reserva tiene su código de entrega (Grab & Go).
       </p>
 
       <form className="formulario" onSubmit={consultarMisReservas}>
@@ -730,6 +1045,14 @@ function Reserva() {
                     ? " · ✗ no asististe"
                     : ""}
                 </span>
+                {reserva.codigo && (
+                  <span className="fila-reserva-detalle">
+                    🎫 Código: <strong className="ticket-codigo-inline">{reserva.codigo}</strong>
+                  </span>
+                )}
+                {reserva.para_llevar && (
+                  <span className="etiqueta-para-llevar">🛍️ Para llevar</span>
+                )}
               </div>
               <button
                 type="button"

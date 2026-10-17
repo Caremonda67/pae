@@ -20,6 +20,9 @@ export interface MenuItem {
   calorias?: number;
   imagen?: string;
   estado?: string;
+  variante?: string;
+  popular?: boolean;
+  recomendado?: boolean;
 }
 
 export interface Configuracion {
@@ -56,6 +59,39 @@ export interface PanelCocina {
   porJornada: Record<string, number>;
   porSede: Record<string, number>;
   total: number;
+  reservas?: PanelCocinaReserva[];
+}
+
+// Fila de la lista de entrega del panel de cocina: ademas de los datos
+// de la reserva incluye el codigo Grab & Go, si es "para llevar" y las
+// alergias/preferencias del beneficiario para que la cocina las vea.
+export interface PanelCocinaReserva {
+  id: number;
+  estudiante: string;
+  documento: string;
+  sede: string;
+  turno: string;
+  grado?: string | null;
+  asistio?: boolean;
+  para_llevar?: boolean;
+  codigo?: string | null;
+  alergias?: string | null;
+  preferencias?: string | null;
+}
+
+// Tendencia de demanda vs sobrantes (pestana Reportes): la serie
+// historica de los ultimos dias habiles y el pronostico a 5 dias.
+export interface TendenciaDia {
+  fecha: string;
+  reservas: number;
+  asistieron: number;
+  porciones_sobrantes: number;
+  porcentajeDesperdicio: number;
+}
+
+export interface Tendencia {
+  dias: TendenciaDia[];
+  pronostico: { fecha: string; esperado: number }[];
 }
 
 export interface Sobrante {
@@ -182,6 +218,8 @@ export interface Beneficiario {
   sede: string;
   turno: string;
   grado?: string;
+  alergias?: string;
+  preferencias?: string;
 }
 
 export interface Notificacion {

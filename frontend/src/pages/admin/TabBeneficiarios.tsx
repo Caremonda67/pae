@@ -19,6 +19,10 @@ interface Props {
   setGradoBen: (v: string) => void;
   pinBen: string;
   setPinBen: (v: string) => void;
+  alergiasBen: string;
+  setAlergiasBen: (v: string) => void;
+  prefBen: string;
+  setPrefBen: (v: string) => void;
   benError: string;
   benExito: string;
   pins: Record<number, string>;
@@ -31,7 +35,8 @@ interface Props {
 export default function TabBeneficiarios({
   beneficiarios, sedes, docBen, setDocBen, nombreBen, setNombreBen,
   sedeBen, setSedeBen, turnoBen, setTurnoBen, gradoBen, setGradoBen,
-  pinBen, setPinBen, benError, benExito, pins, setPins,
+  pinBen, setPinBen, alergiasBen, setAlergiasBen, prefBen, setPrefBen,
+  benError, benExito, pins, setPins,
   registrarBeneficiario, asignarPin, borrarBeneficiario,
 }: Props) {
   const [busqueda, setBusqueda] = useState("");
@@ -80,6 +85,17 @@ export default function TabBeneficiarios({
           <input id="pin-ben" type="text" value={pinBen} onChange={(e) => setPinBen(e.target.value)} minLength={4} placeholder="Ej: 8161" autoComplete="off" />
           <small className="campo-fijo">Si lo pones (mínimo 4 caracteres), el estudiante podrá entrar a reservar con documento + PIN.</small>
         </label>
+        <div className="formulario-fila formulario-fila-grid">
+          <label htmlFor="alergias-ben">
+            Alergias (opcional)
+            <input id="alergias-ben" type="text" value={alergiasBen} onChange={(e) => setAlergiasBen(e.target.value)} placeholder="Ej: Maní, lactosa" autoComplete="off" />
+            <small className="campo-fijo">La cocina las verá en el panel para evitar servirle ese plato.</small>
+          </label>
+          <label htmlFor="pref-ben">
+            Preferencias (opcional)
+            <input id="pref-ben" type="text" value={prefBen} onChange={(e) => setPrefBen(e.target.value)} placeholder="Ej: Vegetariano, sin sal" autoComplete="off" />
+          </label>
+        </div>
         {benError && <p className="estado error" role="alert">⚠️ {benError}</p>}
         {benExito && <p className="estado exito" aria-live="polite">{benExito}</p>}
         <button type="submit" className="boton boton-primario" disabled={sedes.length === 0}>Registrar beneficiario</button>
@@ -92,7 +108,7 @@ export default function TabBeneficiarios({
         {beneficiarios
           .filter((b) => {
             if (!busqueda.trim()) return true;
-            const texto = `${b.nombre} ${b.documento} ${b.sede} ${b.turno} ${b.grado || ""}`;
+            const texto = `${b.nombre} ${b.documento} ${b.sede} ${b.turno} ${b.grado || ""} ${b.alergias || ""} ${b.preferencias || ""}`;
             return coincide(texto, busqueda);
           })
           .map((b) => (
@@ -102,6 +118,8 @@ export default function TabBeneficiarios({
               <span className="fila-reserva-detalle">
                 {b.sede} · {b.turno} · Doc. {b.documento}
                 {b.grado ? ` · Grado ${b.grado}` : ""}
+                {b.alergias ? ` · ⚠️ Alergias: ${b.alergias}` : ""}
+                {b.preferencias ? ` · Prefiere: ${b.preferencias}` : ""}
               </span>
             </div>
             <div className="formulario-fila">

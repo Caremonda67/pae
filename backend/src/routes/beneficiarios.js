@@ -73,14 +73,49 @@ router.get("/buscar", async (req, res) => {
   res.json(copia);
 });
 
+// PUT /api/beneficiarios/mi-perfil
+// El estudiante actualiza sus propios datos de alimento: alergias y
+// preferencias (menu alternativo). Solo puede tocar esos dos campos y
+// solo para su propio documento (el de la sesion).
+// Cuerpo: { alergias?, preferencias? }
+router.put("/mi-perfil", requiereRol("estudiante"), async (req, res) => {
+  const { alergias, preferencias } = req.body || {};
+  const documento = String(req.usuario.sub || "").trim();
+  if (!documento) {
+    return res.status(400).json({ error: "No hay sesión de estudiante" });
+  }
+
+  const { data: ben, error: errBen } = await getSupabase()
+    .from("beneficiarios")
+    .select("id")
+    .eq("documento", documento)
+    .maybeSingle();
+  if (errBen) return res.status(500).json({ error: errBen.message });
+  if (!ben) return res.status(404).json({ error: "Beneficiario no encontrado" });
+
+  const cambios = {};
+  if (alergias !== undefined) cambios.alergias = String(alergias).trim();
+  if (preferencias !== undefined) cambios.preferencias = String(preferencias).trim();
+  if (Object.keys(cambios).length === 0) {
+    return res.status(400).json({ error: "No hay nada que actualizar" });
+  }
+
+  const { error } = await getSupabase()
+    .from("beneficiarios")
+    .update(cambios)
+    .eq("id", ben.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ ok: true, ...cambios });
+});
+
 // POST /api/beneficiarios
 // Registra un beneficiario nuevo (admin, coordinador o profesor).
 // Si llega un PIN, tambien se crea su cuenta de estudiante
 // (usuario = documento, rol = estudiante) para que pueda entrar
 // a reservar con documento + PIN.
-// Cuerpo esperado: { documento, nombre, sede, turno, grado?, pin? }
+// Cuerpo esperado: { documento, nombre, sede, turno, grado?, pin?, alergias?, preferencias? }
 router.post("/", requiereRol("admin", "coordinador", "profesor"), async (req, res) => {
-  const { documento, nombre, sede, turno, grado, pin } = req.body;
+  const { documento, nombre, sede, turno, grado, pin, alergias, preferencias } = req.body;
 
   if (!documento || !nombre || !sede || !turno) {
     return res.status(400).json({ error: "Faltan datos obligatorios" });
@@ -99,7 +134,13 @@ router.post("/", requiereRol("admin", "coordinador", "profesor"), async (req, re
 
   const { data, error } = await getSupabase()
     .from("beneficiarios")
-    .insert([{ documento, nombre, sede, turno, grado }])
+    .insert([
+      {
+        documento, nombre, sede, turno, grado,
+        alergias: alergias || null,
+        preferencias: preferencias || null,
+      },
+    ])
     .select()
     .single();
 
@@ -188,6 +229,42 @@ router.put("/:id/pin", requiereRol("admin", "coordinador", "profesor"), async (r
   res.json({ ok: true, documento });
 });
 
+// PUT /api/beneficiarios/:id
+// Actualiza los datos de un beneficiario (admin, coordinador o profesor).
+// Permite corregir nombre/sede/turno/grado y los campos de alimento
+// (alergias y preferencias).
+// Cuerpo: { nombre?, sede?, turno?, grado?, alergias?, preferencias? }
+router.put("/:id", requiereRol("admin", "coordinador", "profesor"), async (req, res) => {
+  const { nombre, sede, turno, grado, alergias, preferencias } = req.body || {};
+
+  const { data: ben, error: errBen } = await getSupabase()
+    .from("beneficiarios")
+    .select("id")
+    .eq("id", req.params.id)
+    .maybeSingle();
+  if (errBen) return res.status(500).json({ error: errBen.message });
+  if (!ben) return res.status(404).json({ error: "Beneficiario no encontrado" });
+
+  const cambios = {};
+  if (nombre !== undefined) cambios.nombre = String(nombre).trim();
+  if (sede !== undefined) cambios.sede = String(sede).trim();
+  if (turno !== undefined) cambios.turno = String(turno).trim();
+  if (grado !== undefined) cambios.grado = grado ? String(grado).trim() : null;
+  if (alergias !== undefined) cambios.alergias = alergias ? String(alergias).trim() : null;
+  if (preferencias !== undefined) cambios.preferencias = preferencias ? String(preferencias).trim() : null;
+  if (Object.keys(cambios).length === 0) {
+    return res.status(400).json({ error: "No hay nada que actualizar" });
+  }
+
+  const { error } = await getSupabase()
+    .from("beneficiarios")
+    .update(cambios)
+    .eq("id", req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+  auditar(req, "beneficiarios:editar", `id ${req.params.id} | cambiaron ${Object.keys(cambios).join(", ")}`);
+  res.json({ ok: true });
+});
+
 // DELETE /api/beneficiarios/:id
 // Elimina un beneficiario (solo admin)
 router.delete("/:id", requiereRol("admin"), async (req, res) => {
@@ -196,6 +273,8 @@ router.delete("/:id", requiereRol("admin"), async (req, res) => {
     .select("documento, nombre")
     .eq("id", req.params.id)
     .maybeSingle();
+
+  if (!ben) return res.status(404).json({ error: "Beneficiario no encontrado" });
 
   const { error } = await getSupabase()
     .from("beneficiarios")

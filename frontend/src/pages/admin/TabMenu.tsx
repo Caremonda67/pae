@@ -11,6 +11,8 @@ interface Props {
   setDiaMenu: (v: string) => void;
   jornadaMenu: string;
   setJornadaMenu: (v: string) => void;
+  varianteMenu: string;
+  setVarianteMenu: (v: string) => void;
   platilloMenu: string;
   setPlatilloMenu: (v: string) => void;
   descripcionMenu: string;
@@ -32,7 +34,8 @@ interface Props {
 
 export default function TabMenu({
   menu, semanaMenu, setSemanaMenu, diaMenu, setDiaMenu,
-  jornadaMenu, setJornadaMenu, platilloMenu, setPlatilloMenu,
+  jornadaMenu, setJornadaMenu, varianteMenu, setVarianteMenu,
+  platilloMenu, setPlatilloMenu,
   descripcionMenu, setDescripcionMenu, caloriasMenu, setCaloriasMenu,
   imagenMenu, setImagenMenu, publicarMenuAhora,
   setPublicarMenuAhora, menuError, menuExito, registrarMenu,
@@ -58,6 +61,7 @@ export default function TabMenu({
           <label>Semana del mes<select value={semanaMenu} onChange={(e) => setSemanaMenu(Number(e.target.value))}><option value={1}>Semana 1</option><option value={2}>Semana 2</option><option value={3}>Semana 3</option><option value={4}>Semana 4</option></select></label>
           <label>Día<select value={diaMenu} onChange={(e) => setDiaMenu(e.target.value)}><option>Lunes</option><option>Martes</option><option>Miércoles</option><option>Jueves</option><option>Viernes</option></select></label>
           <label>Jornada<select value={jornadaMenu} onChange={(e) => setJornadaMenu(e.target.value)}><option>Almuerzo</option><option>Refrigerio</option></select></label>
+          <label>Variante<select value={varianteMenu} onChange={(e) => setVarianteMenu(e.target.value)}><option value="Estandar">Estándar</option><option value="Celiaco">Celíaco</option><option value="Vegetariano">Vegetariano</option><option value="Vegano">Vegano</option></select></label>
           <label>Calorías (opcional)<input type="number" value={caloriasMenu} onChange={(e) => setCaloriasMenu(e.target.value)} placeholder="Ej: 650" /></label>
         </div>
         <label>Platillo<input type="text" value={platilloMenu} onChange={(e) => setPlatilloMenu(e.target.value)} required placeholder="Ej: Arroz con pollo" /></label>
@@ -79,7 +83,7 @@ export default function TabMenu({
             {semana.dias.map((dia) => {
               const platosFiltrados = dia.platos.filter((plato) => {
                 if (!busqueda.trim()) return true;
-                const texto = `${plato.platillo} ${plato.descripcion} ${plato.jornada || ""} ${plato.calorias || ""} ${dia.dia} semana ${semana.semana}`;
+                const texto = `${plato.platillo} ${plato.descripcion} ${plato.jornada || ""} ${plato.calorias || ""} ${plato.variante || ""} ${dia.dia} semana ${semana.semana}`;
                 return coincide(texto, busqueda);
               });
               if (platosFiltrados.length === 0) return null;
@@ -92,6 +96,7 @@ export default function TabMenu({
                         {plato.imagen && <img className="miniatura-menu" src={plato.imagen} alt={plato.platillo} />}
                         <div>
                           <strong>{plato.platillo}</strong>
+                          {plato.variante && plato.variante !== "Estandar" && <span className={`etiqueta-variante ${plato.variante.toLowerCase()}`}>{plato.variante}</span>}
                           {plato.estado === "borrador" && <span className="etiqueta-estado borrador">Borrador</span>}
                           <span className="fila-reserva-detalle">{plato.descripcion}{plato.calorias ? ` · ${plato.calorias} kcal` : ""}{plato.jornada ? ` · ${plato.jornada}` : ""}</span>
                         </div>

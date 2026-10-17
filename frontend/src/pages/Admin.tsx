@@ -14,7 +14,7 @@ import type {
   Institucion, Mensaje, MensajeChat, MenuItem, Notificacion,
   PanelCocina, Pestana, Reporte, ReservaAsistencia, ReservaDiaria,
   Sobrante, Sede, TableroDia, TurnoCocina, Usuario, UsuarioCocina,
-  AuditoriaEntrada, MenuSemanaAdmin,
+  AuditoriaEntrada, MenuSemanaAdmin, Tendencia,
 } from "./admin/types";
 import type { SeccionTabla, OpcionesExportar } from "../config/exportar";
 
@@ -128,6 +128,9 @@ function Admin() {
   const [diariaCargada, setDiariaCargada] = useState(false);
   const [desde, setDesde] = useState("");
   const [hasta, setHasta] = useState("");
+  // Tendencia: pronostico de demanda vs sobrantes reales (grafico)
+  const [tendencia, setTendencia] = useState<Tendencia | null>(null);
+  const [tendenciaCargando, setTendenciaCargando] = useState(false);
 
   const [nombreUsu, setNombreUsu] = useState("");
   const [usuarioUsu, setUsuarioUsu] = useState("");
@@ -224,6 +227,7 @@ function Admin() {
   const [semanaMenu, setSemanaMenu] = useState(1);
   const [diaMenu, setDiaMenu] = useState("Lunes");
   const [jornadaMenu, setJornadaMenu] = useState("Almuerzo");
+  const [varianteMenu, setVarianteMenu] = useState("Estandar");
   const [platilloMenu, setPlatilloMenu] = useState("");
   const [descripcionMenu, setDescripcionMenu] = useState("");
   const [caloriasMenu, setCaloriasMenu] = useState("");
@@ -238,6 +242,8 @@ function Admin() {
   const [turnoBen, setTurnoBen] = useState("Almuerzo");
   const [gradoBen, setGradoBen] = useState("");
   const [pinBen, setPinBen] = useState("");
+  const [alergiasBen, setAlergiasBen] = useState("");
+  const [prefBen, setPrefBen] = useState("");
   const [benError, setBenError] = useState("");
   const [benExito, setBenExito] = useState("");
 
@@ -594,6 +600,26 @@ function Admin() {
     if (autenticado && (rol === "admin" || rol === "cocina")) cargarReportes();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autenticado, desde, hasta]);
+
+  const cargarTendencia = async () => {
+    setTendenciaCargando(true);
+    try {
+      const respuesta = await fetch(`${API_URL}/api/reservas/tendencia`);
+      if (!respuesta.ok) throw new Error("No se pudo cargar la tendencia");
+      setTendencia(await respuesta.json());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error desconocido");
+    } finally {
+      setTendenciaCargando(false);
+    }
+  };
+
+  useEffect(() => {
+    if (autenticado && (rol === "admin" || rol === "cocina") && pestana === "reportes") {
+      cargarTendencia();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autenticado, pestana]);
 
   useEffect(() => {
     if (!autenticado || pestana !== "mensajes") return;
@@ -1188,6 +1214,7 @@ function Admin() {
           semana: semanaMenu,
           dia: diaMenu,
           jornada: jornadaMenu,
+          variante: varianteMenu,
           platillo: platilloMenu,
           descripcion: descripcionMenu,
           calorias: caloriasMenu ? Number(caloriasMenu) : null,
@@ -1376,6 +1403,8 @@ function Admin() {
           turno: turnoBen,
           grado: gradoBen,
           pin: pinBen,
+          alergias: alergiasBen.trim() || null,
+          preferencias: prefBen || null,
         }),
       });
       if (!respuesta.ok) {
@@ -1386,6 +1415,8 @@ function Admin() {
       setNombreBen("");
       setGradoBen("");
       setPinBen("");
+      setAlergiasBen("");
+      setPrefBen("");
       setBenExito("✅ Beneficiario registrado. Ya puede reservar su minuta.");
       cargarDatos();
     } catch (err) {
@@ -1907,6 +1938,10 @@ function Admin() {
           setGradoBen={setGradoBen}
           pinBen={pinBen}
           setPinBen={setPinBen}
+          alergiasBen={alergiasBen}
+          setAlergiasBen={setAlergiasBen}
+          prefBen={prefBen}
+          setPrefBen={setPrefBen}
           benError={benError}
           benExito={benExito}
           pins={pins}
@@ -1991,6 +2026,8 @@ function Admin() {
           setDiaMenu={setDiaMenu}
           jornadaMenu={jornadaMenu}
           setJornadaMenu={setJornadaMenu}
+          varianteMenu={varianteMenu}
+          setVarianteMenu={setVarianteMenu}
           platilloMenu={platilloMenu}
           setPlatilloMenu={setPlatilloMenu}
           descripcionMenu={descripcionMenu}
@@ -2130,6 +2167,8 @@ function Admin() {
           borrarSobrantes={borrarSobrantes}
           construirSecciones={construirSecciones}
           opcionesReporte={opcionesReporte}
+          tendencia={tendencia}
+          tendenciaCargando={tendenciaCargando}
         />
       )}
 

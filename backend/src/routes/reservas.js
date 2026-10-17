@@ -323,13 +323,14 @@ router.get("/diario", requiereRol("admin", "cocina", "profesor", "coordinador"),
 // GET /api/reservas/panel?fecha=...
 // Panel compacto de cocina: cuantas minutas preparar para la fecha
 // indicada, agrupado por jornada (Almuerzo/Refrigerio) y por sede.
-// Devuelve: { fecha, porJornada: { Almuerzo: n, Refrigerio: n },
-//             porSede: { "Sede A": n, ... }, total }
+// Tambien devuelve la lista detallada (con codigo Grab&Go, "para llevar"
+// y alergias del beneficiario) para el empacado por nombre.
+// Devuelve: { fecha, porJornada, porSede, total, reservas }
 router.get("/panel", requiereRol("admin", "cocina"), async (req, res) => {
   const fecha = req.query.fecha || fechaHoy();
   const { data, error } = await getSupabase()
     .from("reservas")
-    .select("turno, sede")
+    .select("id, estudiante, documento, sede, turno, grado, asistio, para_llevar, codigo")
     .eq("fecha", fecha);
 
   if (error) return res.status(500).json({ error: error.message });
@@ -345,7 +346,24 @@ router.get("/panel", requiereRol("admin", "cocina"), async (req, res) => {
     total += 1;
   }
 
-  res.json({ fecha, porJornada, porSede, total });
+  // Alergias/preferencias de los reservados para avisar a la cocina
+  const docs = data.map((r) => r.documento).filter(Boolean);
+  const alergiasPorDoc = {};
+  if (docs.length > 0) {
+    const { data: bens } = await getSupabase()
+      .from("beneficiarios")
+      .select("documento, alergias, preferencias")
+      .in("documento", docs);
+    for (const b of bens || []) alergiasPorDoc[b.documento] = b;
+  }
+
+  const reservas = data.map((r) => ({
+    ...r,
+    alergias: alergiasPorDoc[r.documento]?.alergias || "",
+    preferencias: alergiasPorDoc[r.documento]?.preferencias || "",
+  }));
+
+  res.json({ fecha, porJornada, porSede, total, reservas });
 });
 
 // GET /api/reservas/tablero?fecha=...
@@ -442,6 +460,119 @@ router.get("/recordatorio", limiteFormularios, async (req, res) => {
   });
 });
 
+// GET /api/reservas/tendencia?dias=14
+// Serie para el grafico "pronostico de demanda vs sobrantes reales".
+// Devuelve, para cada uno de los ultimos N dias habiles:
+//   { fecha, reservas, asistieron, porciones_sobrantes, porcentajeDesperdicio }
+// y "pronostico": la demanda esperada (promedio por dia de la semana)
+// para los proximos 5 dias habiles. La cocina compara lo que preveian
+// con lo que realmente sobro y ajusta.
+// La usa el panel (pestana Reportes). Es publico (datos agregados).
+router.get("/tendencia", async (req, res) => {
+  const dias = Math.min(30, Math.max(7, Number(req.query.dias) || 14));
+  const hoy = fechaHoy();
+
+  // Dias habiles de atras (de hoy hacia 2*N para juntar bastantes habiles)
+  const hasta = hoy;
+  const desde = fechaDesdeHoy(-Math.ceil(dias * 2));
+
+  const [{ data: reservas, error: errRes }, { data: sobrantes, error: errSob }] = await Promise.all([
+    getSupabase()
+      .from("reservas")
+      .select("fecha, asistio")
+      .gte("fecha", desde)
+      .lte("fecha", hasta),
+    getSupabase()
+      .from("sobrantes")
+      .select("fecha, porciones")
+      .gte("fecha", desde)
+      .lte("fecha", hasta),
+  ]);
+
+  if (errRes || errSob) {
+    return res.status(500).json({ error: errRes?.message || errSob?.message });
+  }
+
+  const porFecha = {};
+  for (const r of reservas || []) {
+    if (!porFecha[r.fecha]) porFecha[r.fecha] = { reservas: 0, asistieron: 0 };
+    porFecha[r.fecha].reservas += 1;
+    if (r.asistio) porFecha[r.fecha].asistieron += 1;
+  }
+  for (const s of sobrantes || []) {
+    if (!porFecha[s.fecha]) porFecha[s.fecha] = { reservas: 0, asistieron: 0, porciones_sobrantes: 0 };
+    porFecha[s.fecha].porciones_sobrantes = (porFecha[s.fecha].porciones_sobrantes || 0) + (s.porciones || 0);
+  }
+
+  // Armamos la serie hacia atras: consentre los dias habiles mas recientes
+  const serie = [];
+  let cursor = new Date(hasta);
+  const totalPorDiaSemana = {}; // para el pronostico
+  const conteoDiasSemana = {};
+  while (serie.length < dias && cursor >= new Date(desde)) {
+    const f = cursor.toISOString().split("T")[0];
+    const diaSem = diaSemana(f);
+    if (diaSem !== 0 && diaSem !== 6) {
+      const dato = porFecha[f] || { reservas: 0, asistieron: 0 };
+      const desperdiciados = Math.max(0, dato.reservas - dato.asistieron);
+      serie.push({
+        fecha: f,
+        reservas: dato.reservas,
+        asistieron: dato.asistieron,
+        porciones_sobrantes: dato.porciones_sobrantes || 0,
+        porcentajeDesperdicio: dato.reservas > 0
+          ? Math.round((desperdiciados / dato.reservas) * 100)
+          : 0,
+      });
+      totalPorDiaSemana[diaSem] = (totalPorDiaSemana[diaSem] || 0) + dato.reservas;
+      conteoDiasSemana[diaSem] = (conteoDiasSemana[diaSem] || 0) + 1;
+    }
+    const prev = new Date(cursor);
+    prev.setDate(prev.getDate() - 1);
+    cursor = prev;
+  }
+  serie.reverse();
+
+  // Pronostico: proximos 5 dias habiles con el promedio de reservas
+  // de ese mismo dia de la semana segun lo observado.
+  const pronostico = [];
+  let futuro = new Date(
+    new Date(hoy + "T12:00:00").getTime() + 24 * 60 * 60 * 1000
+  );
+  while (pronostico.length < 5) {
+    const f = futuro.toISOString().split("T")[0];
+    const diaSem = diaSemana(f);
+    if (diaSem !== 0 && diaSem !== 6) {
+      const conteo = conteoDiasSemana[diaSem] || 0;
+      const esperado = conteo > 0
+        ? Math.round((totalPorDiaSemana[diaSem] || 0) / conteo)
+        : 0;
+      pronostico.push({ fecha: f, esperado });
+    }
+    futuro = new Date(futuro.getTime() + 24 * 60 * 60 * 1000);
+  }
+
+  res.json({ dias: serie, pronostico });
+});
+
+// GET /api/reservas/por-codigo/:codigo
+// Busca una reserva por el codigo corto de entrega (Grab & Go). Lo usa
+// la cocina en el panel y la hoja de entrega imprime el codigo para
+// escanear/leer rapido.
+router.get("/por-codigo/:codigo", requiereRol("admin", "cocina", "profesor", "coordinador"), async (req, res) => {
+  const codigo = String(req.params.codigo || "").trim().toUpperCase();
+  if (!codigo) return res.status(400).json({ error: "Falta el código" });
+
+  const { data, error } = await getSupabase()
+    .from("reservas")
+    .select("*")
+    .eq("codigo", codigo)
+    .maybeSingle();
+  if (error) return res.status(500).json({ error: error.message });
+  if (!data) return res.status(404).json({ error: "No se encontró ninguna reserva con ese código" });
+  res.json(data);
+});
+
 // GET /api/reservas/:id
 // Busca una reserva por su id
 router.get("/:id", async (req, res) => {
@@ -455,13 +586,23 @@ router.get("/:id", async (req, res) => {
 });
 
 // POST /api/reservas
-// Crea una reserva nueva
-// Cuerpo esperado: { estudiante, documento, sede, turno, fecha }
+// Crea una reserva nueva.
+// Cuerpo esperado: { estudiante, documento, sede, turno, fecha, para_llevar? }
+// Si llega semanal:true, en vez de reservar un solo dia, reserva del
+// dia indicado en adelante todos los dias habil de esa misma semana
+// (de lunes a viernes hasta el que toca). Devuelve:
+//   { creadas, omitidas: [{fecha, motivo}], reservas }
 router.post("/", limiteFormularios, async (req, res) => {
-  const { estudiante, documento, sede, turno, fecha } = req.body;
+  const { estudiante, documento, sede, turno, fecha, para_llevar, semanal } = req.body;
+
+  // La reserva semanal empieza en el PROXIMO LUNES si no se pasa fecha
+  // explicita: asi "reservar toda la semana" siempre deja una semana
+  // completa (lunes a viernes) y no un sobrante de la semana actual
+  // que puede empezar en sabado.
+  const fechaBase = fecha || (semanal ? proximoLunes() : fechaDesdeHoy(0));
 
   // Validacion basica de datos obligatorios
-  if (!estudiante || !documento || !sede || !turno || !fecha) {
+  if (!estudiante || !documento || !sede || !turno || !fechaBase) {
     return res.status(400).json({ error: "Faltan datos obligatorios" });
   }
 
@@ -492,12 +633,6 @@ router.post("/", limiteFormularios, async (req, res) => {
     return res.status(400).json({ error: "Documento no válido" });
   }
 
-  // La fecha debe ser real y estar dentro del rango permitido
-  const errorFecha = validarFecha(fecha);
-  if (errorFecha) {
-    return res.status(400).json({ error: errorFecha });
-  }
-
   // El documento debe estar registrado como beneficiario del programa.
   // Asi la reserva solo la pueden hacer estudiantes matriculados.
   const { data: beneficiario, error: errBen } = await getSupabase()
@@ -514,73 +649,226 @@ router.post("/", limiteFormularios, async (req, res) => {
       .json({ error: "Documento no registrado en el programa" });
   }
 
-  // Hora limite: si la reserva es para HOY y ya paso la hora limite
-  // configurada (settings.hora_limite_reserva), el dia se cierra y no
-  // se aceptan reservas nuevas ni cambios para hoy.
-  const errorLimite = await errorSiDiaCerrado(fecha, "reservar");
-  if (errorLimite) return res.status(400).json({ error: errorLimite });
+  const nombreFinal = estudiante || beneficiario.nombre;
+  const gradoFinal = beneficiario.grado || null;
+  const llevar = para_llevar === true;
 
-  // Cupo por sede: si la sede ya alcanzo el cupo maximo de reservas
-  // para esa fecha, no se aceptan mas (settings.cupos_sede).
-  const settings = await leerSettings();
-  const cupo = settings.cupos_sede?.[sede];
-  if (typeof cupo === "number" && cupo > 0) {
-    const { count, error: errCount } = await getSupabase()
+  // Reserva solo un dia
+  if (!semanal) {
+    // La fecha debe ser real y estar dentro del rango permitido
+    const errorFecha = validarFecha(fechaBase);
+    if (errorFecha) {
+      return res.status(400).json({ error: errorFecha });
+    }
+
+    // Hora limite: si la reserva es para HOY y ya paso la hora limite
+    // configurada (settings.hora_limite_reserva), el dia se cierra y no
+    // se aceptan reservas nuevas ni cambios para hoy.
+    const errorLimite = await errorSiDiaCerrado(fechaBase, "reservar");
+    if (errorLimite) return res.status(400).json({ error: errorLimite });
+
+    // Cupo por sede: si la sede ya alcanzo el cupo maximo de reservas
+    // para esa fecha, no se aceptan mas (settings.cupos_sede).
+    const settings = await leerSettings();
+    const cupo = settings.cupos_sede?.[sede];
+    if (typeof cupo === "number" && cupo > 0) {
+      const { count, error: errCount } = await getSupabase()
+        .from("reservas")
+        .select("*", { count: "exact", head: true })
+        .eq("fecha", fechaBase)
+        .eq("sede", sede);
+
+      if (errCount) return res.status(500).json({ error: errCount.message });
+      if (count >= cupo) {
+        return res.status(400).json({
+          error: `La sede ${sede} ya alcanzó su cupo de ${cupo} reservas para ese día.`,
+        });
+      }
+    }
+
+    // Evitar reservar dos veces la misma fecha y turno
+    const { data: existente } = await getSupabase()
       .from("reservas")
-      .select("*", { count: "exact", head: true })
-      .eq("fecha", fecha)
-      .eq("sede", sede);
+      .select("id")
+      .eq("documento", docLimpio)
+      .eq("fecha", fechaBase)
+      .eq("turno", turno)
+      .maybeSingle();
+    if (existente) {
+      return res
+        .status(400)
+        .json({ error: "Ya tienes una reserva para esa fecha y ese turno." });
+    }
 
-    if (errCount) return res.status(500).json({ error: errCount.message });
-    if (count >= cupo) {
-      return res.status(400).json({
-        error: `La sede ${sede} ya alcanzó su cupo de ${cupo} reservas para ese día.`,
-      });
+    const { data: dataInsertada, error } = await insertarReserva(
+      nombreFinal, docLimpio, sede, turno, fechaBase, gradoFinal, llevar
+    );
+    if (error) return res.status(500).json({ error: error.message });
+
+    // Registramos una notificacion de confirmacion (email si hay RESEND)
+    crearNotificacion({
+      tipo: "reserva",
+      destinatario: req.body.correo || "",
+      mensaje: armarMensajeEmail(nombreFinal, fechaBase, turno, sede),
+      mensajeHtml: armarMensajeEmailHtml(nombreFinal, fechaBase, turno, sede),
+    });
+
+    return res.status(201).json(dataInsertada);
+  }
+
+  // --- Reserva de TODA la semana (de una sola vez) ---
+  // Calcula los dias habil (lunes a viernes) desde la fecha base hasta
+  // el final de esa semana. Para cada uno valida lo mismo que una
+  // reserva normal y guarda solo los que se puedan.
+  const diasASem = diasDeLaSemanaDesde(fechaBase);
+  const creadas = [];
+  const omitidas = [];
+
+  for (const f of diasASem) {
+    if (f < fechaHoy()) {
+      omitidas.push({ fecha: f, motivo: "ya pasó" });
+      continue;
+    }
+
+    const errorFecha = validarFecha(f);
+    if (errorFecha) {
+      omitidas.push({ fecha: f, motivo: errorFecha });
+      continue;
+    }
+
+    const errorLimite = await errorSiDiaCerrado(f, "reservar");
+    if (errorLimite) {
+      omitidas.push({ fecha: f, motivo: errorLimite });
+      continue;
+    }
+
+    // Evitar doble reserva de la misma fecha + turno
+    const { data: existente } = await getSupabase()
+      .from("reservas")
+      .select("id")
+      .eq("documento", docLimpio)
+      .eq("fecha", f)
+      .eq("turno", turno)
+      .maybeSingle();
+    if (existente) {
+      omitidas.push({ fecha: f, motivo: "ya tenías reserva" });
+      continue;
+    }
+
+    // Cupo por sede
+    const settings = await leerSettings();
+    const cupo = settings.cupos_sede?.[sede];
+    if (typeof cupo === "number" && cupo > 0) {
+      const { count } = await getSupabase()
+        .from("reservas")
+        .select("*", { count: "exact", head: true })
+        .eq("fecha", f)
+        .eq("sede", sede);
+      if (count >= cupo) {
+        omitidas.push({ fecha: f, motivo: `sede con cupo lleno (${cupo})` });
+        continue;
+      }
+    }
+
+    const { data: fila, error } = await insertarReserva(
+      nombreFinal, docLimpio, sede, turno, f, gradoFinal, llevar
+    );
+    if (error) {
+      omitidas.push({ fecha: f, motivo: error.message });
+    } else {
+      creadas.push(fila);
     }
   }
 
-  // Si no nos pasaron el nombre, lo tomamos del registro
-  const nombreFinal = estudiante || beneficiario.nombre;
-
-  // Evitar que el mismo documento reserve dos veces la misma fecha
-  // Y EL MISMO TURNO. Un estudiante puede comer en dos jornadas
-  // (Almuerzo y Refrigerio) el mismo dia, asi que solo se bloquea
-  // la reserva repetida de la misma fecha + turno.
-  const { data: existente, error: errExistente } = await getSupabase()
-    .from("reservas")
-    .select("id")
-    .eq("documento", docLimpio)
-    .eq("fecha", fecha)
-    .eq("turno", turno)
-    .maybeSingle();
-
-  if (errExistente) {
-    return res.status(500).json({ error: errExistente.message });
-  }
-  if (existente) {
-    return res
-      .status(400)
-      .json({ error: "Ya tienes una reserva para esa fecha y ese turno" });
+  if (creadas.length > 0) {
+    crearNotificacion({
+      tipo: "reserva",
+      destinatario: req.body.correo || "",
+      mensaje: `Confirmación de ${creadas.length} minutas para ${nombreFinal} (${sede}, ${turno}).`,
+      mensajeHtml: `<p>Confirmación de <strong>${creadas.length}</strong> minutas para <strong>${nombreFinal}</strong> (${sede}, ${turno}).</p>`,
+    });
   }
 
-  const { data, error } = await getSupabase()
-    .from("reservas")
-    .insert([{ estudiante: nombreFinal, documento: docLimpio, sede, turno, fecha, grado: beneficiario.grado || null }])
-    .select()
-    .single();
-
-  if (error) return res.status(500).json({ error: error.message });
-
-  // Registramos una notificacion de confirmacion (email si hay RESEND)
-  crearNotificacion({
-    tipo: "reserva",
-    destinatario: req.body.correo || "",
-    mensaje: armarMensajeEmail(nombreFinal, fecha, turno, sede),
-    mensajeHtml: armarMensajeEmailHtml(nombreFinal, fecha, turno, sede),
+  res.status(201).json({
+    creadas: creadas.length,
+    omitidas,
+    reservas: creadas,
   });
-
-  res.status(201).json(data);
 });
+
+// Proximo lunes a partir de hoy (aunque hoy sea lunes se reserva la
+// semana siguiente). Se usa como inicio de la reserva semanal.
+function proximoLunes() {
+  const hoy = new Date();
+  const dia = hoy.getDay();
+  const faltan = ((8 - dia) % 7) || 7;
+  const lunes = new Date(hoy);
+  lunes.setDate(lunes.getDate() + faltan);
+  return `${lunes.getFullYear()}-${String(lunes.getMonth() + 1).padStart(2, "0")}-${String(lunes.getDate()).padStart(2, "0")}`;
+}
+
+// Dias habil (lunes a viernes) desde una fecha hasta el final de esa
+// semana (el sabado para). Ej: miercoles -> miercoles, jueves, viernes.
+function diasDeLaSemanaDesde(fechaTexto) {
+  const [anio, mes, dia] = fechaTexto.split("-").map(Number);
+  const base = new Date(anio, mes - 1, dia);
+  const dias = [];
+  const cursor = new Date(base);
+  while (cursor.getDay() !== 6) {
+    const f = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(cursor.getDate()).padStart(2, "0")}`;
+    if (cursor.getDay() !== 0) dias.push(f);
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return dias;
+}
+
+// Genera un codigo corto unico para entrega (Grab & Go). Intenta
+// hasta 3 veces por si hay colision.
+async function generarCodigoUnico() {
+  const abecedario = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  for (let intento = 0; intento < 3; intento++) {
+    let codigo = "";
+    for (let i = 0; i < 6; i++) {
+      codigo += abecedario[Math.floor(Math.random() * abecedario.length)];
+    }
+    const { data: existente } = await getSupabase()
+      .from("reservas")
+      .select("id")
+      .eq("codigo", codigo)
+      .maybeSingle();
+    if (!existente) return codigo;
+  }
+  // Ultimo recurso: basado en el tiempo para evitar colisiones reales
+  return `R${Date.now().toString(36).toUpperCase()}${Math.floor(Math.random() * 9) + 1}`;
+}
+
+// Inserta una reserva con su codigo de entrega. El codigo se genera
+// antes del insert (si una mil colisiona, se regenera y reintenta).
+async function insertarReserva(estudiante, documento, sede, turno, fecha, grado, paraLlevar) {
+  for (let intento = 0; intento < 3; intento++) {
+    const codigo = await generarCodigoUnico();
+    const { data, error } = await getSupabase()
+      .from("reservas")
+      .insert([{
+        estudiante,
+        documento,
+        sede,
+        turno,
+        fecha,
+        grado: grado || null,
+        para_llevar: paraLlevar,
+        codigo,
+      }])
+      .select()
+      .single();
+    if (!error) return { data };
+    // Si fue por el codigo repetido, reintentamos
+    if (error.code !== "23505") return { error };
+  }
+  return {
+    error: new Error("No se pudo generar un código de entrega único"),
+  };
+}
 
 // DELETE /api/reservas/mis/:id?documento=...
 // Cancelacion propia: solo se puede borrar si el documento de la

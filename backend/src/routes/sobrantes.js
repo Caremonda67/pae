@@ -61,7 +61,6 @@ router.get("/", requiereRol("admin", "cocina", "coordinador"), async (req, res) 
   const { data, error } = await consulta;
 
   if (error) return res.status(500).json({ error: error.message });
-  auditar(req, "sobrantes:guardar", `${fecha} | ${sede} | ${turno} | porciones ${porciones ?? "-"} | ${peso_kg ?? "-"} kg`);
   res.json(data);
 });
 

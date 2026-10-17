@@ -69,6 +69,51 @@ export default function TabPanelCocina({
             </>
           )}
 
+          {Array.isArray(panelDia.reservas) && panelDia.reservas.length > 0 && (
+            <>
+              <h2 className="admin-subtitulo">Entrega (Grab & Go)</h2>
+              {panelDia.reservas.filter((r) => r.para_llevar).length > 0 ? (
+                <p className="estado">
+                  🛍️{" "}
+                  <strong>{panelDia.reservas.filter((r) => r.para_llevar).length}</strong>{" "}
+                  minuta{panelDia.reservas.filter((r) => r.para_llevar).length === 1 ? "" : "s"} para
+                  llevar con código. En los turnos de refrigerio pide el código
+                  al estudiante y entrégalo rápido.
+                </p>
+              ) : (
+                <p className="estado">
+                  Las minutas de hoy se sirven en el comedor. Si un estudiante
+                  marca "Para llevar", su reserva aparecerá aquí con código de
+                  verificación.
+                </p>
+              )}
+              <div className="lista-reservas">
+                {panelDia.reservas.map((r) => (
+                  <article key={r.id} className="fila-reserva">
+                    <div className="fila-menu-contenido">
+                      <div>
+                        <strong>{r.estudiante}</strong>
+                        <span className="fila-reserva-detalle">
+                          {r.sede} · {r.turno} · {r.grado ? `Grado ${r.grado}` : "Sin grado"}
+                          {r.para_llevar ? " · Para llevar" : " · En comedor"}
+                        </span>
+                        {r.para_llevar && r.codigo && (
+                          <span className="ticket-codigo-inline">{r.codigo}</span>
+                        )}
+                        {r.alergias && (
+                          <span className="etiqueta-alergia">⚠️ Alergias: {r.alergias}</span>
+                        )}
+                        {r.preferencias && (
+                          <span className="etiqueta-preferencia">{r.preferencias}</span>
+                        )}
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </>
+          )}
+
           <div className="sobrantes">
             <h2 className="admin-subtitulo">Sobrantes del día</h2>
             <p className="estado">

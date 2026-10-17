@@ -10,7 +10,7 @@
 
 import { Router } from "express";
 import { getSupabase } from "../config/supabase.js";
-import { requiereRol } from "../config/auth.js";
+import { requiereRol, verificarToken } from "../config/auth.js";
 
 const router = Router();
 
@@ -41,6 +41,9 @@ function sinTildes(texto) {
 // GET /api/menus
 // Lista los menus PUBLICADOS con su valoracion promedio. Se puede
 // filtrar por semana (?semana=2) o por semana y dia (?semana=2&dia=Lunes).
+// Si se pasa ?documento=YYYY..., se marcan los platos que ese estudiante
+// guardo como favoritos y se devuelven las etiquetas "popular", "favorito"
+// y "recomendado" (calculadas desde las valoraciones y los favoritos).
 router.get("/", async (req, res) => {
   let consulta = getSupabase()
     .from("menus")
@@ -83,14 +86,167 @@ router.get("/", async (req, res) => {
     );
   }
 
-  // Adjuntamos el promedio y la cantidad de votos a cada menu
-  const menusConValoracion = data.map((menu) => ({
-    ...menu,
-    valoracion: promedioPorMenu[menu.id] || null,
-    votos: conteoPorMenu[menu.id] || 0,
-  }));
+  // Favoritos del estudiante (si viene ?documento= y el token coincide):
+  // los favoritos son datos personales y no se exponen a cualquiera que
+  // adivine un documento. Sin token valido, la bandera se deja en false.
+  let favoritosDelDoc = new Set();
+  if (req.query.documento) {
+    const doc = String(req.query.documento).trim();
+    let tokenOk = false;
+    const auth = req.headers.authorization;
+    if (auth && auth.startsWith("Bearer ")) {
+      try {
+        const t = verificarToken(auth.slice(7));
+        if (t && String(t.sub).trim() === doc) tokenOk = true;
+      } catch (_e) {}
+    }
+    if (tokenOk) {
+      const { data: favs } = await getSupabase()
+        .from("favoritos")
+        .select("menu_id")
+        .eq("documento", doc);
+      if (favs) favoritosDelDoc = new Set(favs.map((f) => f.menu_id));
+    }
+  }
+
+  // Maximos de votos para decidir que plato es "popular"
+  let maxVotos = 0;
+  for (const id of Object.keys(conteoPorMenu)) {
+    maxVotos = Math.max(maxVotos, conteoPorMenu[id]);
+  }
+
+  // Adjuntamos el promedio, la cantidad de votos y las etiquetas
+  const menusConValoracion = data.map((menu) => {
+    const votos = conteoPorMenu[menu.id] || 0;
+    const valoracion = promedioPorMenu[menu.id] || null;
+    const popular =
+      votos > 0 && maxVotos > 0 && votos >= Math.max(2, Math.round(maxVotos * 0.6));
+    return {
+      ...menu,
+      valoracion,
+      votos,
+      popular,
+      recomendado: votos > 0 && valoracion !== null && valoracion >= 4,
+      favorito: req.query.documento ? favoritosDelDoc.has(menu.id) : false,
+    };
+  });
 
   res.json(menusConValoracion);
+});
+
+// GET /api/menus/favoritos?documento=...
+// Lista los platos que un estudiante marco como favoritos, para que
+// puede consultarlos desde "Mis reservas" / Home.
+// Devuelve: [{ id, menu_id, platillo, semana, dia, jornada, created_at }]
+router.get("/favoritos", async (req, res) => {
+  const { documento } = req.query;
+  if (!documento) {
+    return res.status(400).json({ error: "Falta el documento" });
+  }
+  const doc = String(documento).trim();
+
+  // Los favoritos son personales: solo los ve el dueno de la sesion.
+  const auth = req.headers.authorization;
+  try {
+    const t = verificarToken(auth && auth.startsWith("Bearer ") ? auth.slice(7) : "");
+    if (!t || String(t.sub || "").trim() !== doc) {
+      return res.status(403).json({ error: "No autenticado para ese documento" });
+    }
+  } catch (_e) {
+    return res.status(403).json({ error: "No autenticado para ese documento" });
+  }
+
+  const { data, error } = await getSupabase()
+    .from("favoritos")
+    .select("id, menu_id, created_at")
+    .eq("documento", String(documento).trim())
+    .order("created_at", { ascending: false });
+
+  if (error) return res.status(500).json({ error: error.message });
+
+  // Rellenar el nombre del plato desde la tabla de menus
+  const platos = [];
+  for (const fav of data || []) {
+    const { data: menu } = await getSupabase()
+      .from("menus")
+      .select("id, platillo, semana, dia, jornada")
+      .eq("id", fav.menu_id)
+      .maybeSingle();
+    if (menu) platos.push({ ...fav, ...menu });
+  }
+
+  res.json(platos);
+});
+
+// PUT /api/menus/:id/favorito
+// Marca o desmarca un plato como favorito del estudiante.
+// Cuerpo: { documento: "..." , activo: true|false }
+// Devuelve: { ok: true, favorito: true|false }
+router.put("/:id/favorito", async (req, res) => {
+  const { documento, activo } = req.body || {};
+  if (!documento) {
+    return res.status(400).json({ error: "Falta el documento" });
+  }
+  const doc = String(documento).trim();
+  const deseaActivo = activo !== false;
+
+  // Solo el dueno de la sesion puede marcar sus propios favoritos
+  const auth = req.headers.authorization;
+  try {
+    const t = verificarToken(auth && auth.startsWith("Bearer ") ? auth.slice(7) : "");
+    if (!t || String(t.sub || "").trim() !== doc) {
+      return res.status(403).json({ error: "No autenticado para ese documento" });
+    }
+  } catch (_e) {
+    return res.status(403).json({ error: "No autenticado para ese documento" });
+  }
+
+  // El documento debe estar registrado como beneficiario
+  const { data: beneficiario } = await getSupabase()
+    .from("beneficiarios")
+    .select("id")
+    .eq("documento", doc)
+    .maybeSingle();
+  if (!beneficiario) {
+    return res.status(400).json({ error: "Documento no registrado" });
+  }
+
+  const { data: plato } = await getSupabase()
+    .from("menus")
+    .select("id")
+    .eq("id", req.params.id)
+    .maybeSingle();
+  if (!plato) {
+    return res.status(404).json({ error: "Plato no encontrado" });
+  }
+
+  // Ver si ya esta marcado
+  const { data: existente } = await getSupabase()
+    .from("favoritos")
+    .select("id")
+    .eq("documento", doc)
+    .eq("menu_id", req.params.id)
+    .maybeSingle();
+
+  if (deseaActivo && !existente) {
+    const { error } = await getSupabase()
+      .from("favoritos")
+      .insert([{ documento: doc, menu_id: Number(req.params.id) }]);
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json({ ok: true, favorito: true });
+  }
+
+  if (!deseaActivo && existente) {
+    const { error } = await getSupabase()
+      .from("favoritos")
+      .delete()
+      .eq("id", existente.id);
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json({ ok: true, favorito: false });
+  }
+
+  // Si ya estaba en el estado pedido, devolvemos ese estado
+  res.json({ ok: true, favorito: deseaActivo ? Boolean(existente) : !existente });
 });
 
 // GET /api/menus/todos
@@ -120,7 +276,9 @@ router.get("/todos", requiereRol("admin", "cocina", "coordinador"), async (req, 
 // La comida del dia actual (zona horaria de Colombia): todas las
 // jornadas de HOY de la semana del mes vigente. La usa la Home.
 // Tambien acepta ?fecha=YYYY-MM-DD para consultar un dia concreto
-// (lo usa el panel de cocina). Devuelve:
+// (lo usa el panel de cocina). Si se pasa ?documento=YYYY..., cada
+// plato incluye "esFavorito" para que la web avise "hoy toca tu favorito".
+// Devuelve:
 // { semana, dia, platos: [{ jornada, platillo, ... }] }
 router.get("/hoy", async (req, res) => {
   let colombia;
@@ -147,15 +305,41 @@ router.get("/hoy", async (req, res) => {
     .order("jornada", { ascending: true });
 
   if (error) return res.status(500).json({ error: error.message });
+
+  // Si viene el documento y el token coincide, marcamos cuales de los
+  // platos de hoy son sus favoritos (aviso "hoy toca tu favorito").
+  if (req.query.documento) {
+    const doc = String(req.query.documento).trim();
+    let tokenOk = false;
+    const auth = req.headers.authorization;
+    if (auth && auth.startsWith("Bearer ")) {
+      try {
+        const t = verificarToken(auth.slice(7));
+        if (t && String(t.sub).trim() === doc) tokenOk = true;
+      } catch (_e) {}
+    }
+    if (tokenOk) {
+      const { data: favs } = await getSupabase()
+        .from("favoritos")
+        .select("menu_id")
+        .eq("documento", doc);
+      const favIds = new Set((favs || []).map((f) => f.menu_id));
+      data.forEach((plato) => {
+        plato.esFavorito = favIds.has(plato.id);
+      });
+    }
+  }
+
   res.json({ semana, dia, platos: data });
 });
 
 // POST /api/menus
 // Crea una comida del menu (solo admin o cocina).
-// Cuerpo: { semana, dia, jornada, platillo, descripcion?, calorias?, imagen?, estado? }
+// Cuerpo: { semana, dia, jornada, platillo, descripcion?, calorias?, imagen?, estado?, variante? }
 // Si estado es "borrador" no se ve en la web hasta publicarlo.
+// variante: "Estandar" | "Celiaco" | "Vegetariano" | "Vegano" (opcional).
 router.post("/", requiereRol("admin", "cocina"), async (req, res) => {
-  const { semana, dia, jornada, platillo, descripcion, calorias, imagen } = req.body;
+  const { semana, dia, jornada, platillo, descripcion, calorias, imagen, variante } = req.body;
   const estado = req.body.estado === "borrador" ? "borrador" : "publicado";
 
   if (!dia || !platillo || !jornada) {
@@ -175,6 +359,7 @@ router.post("/", requiereRol("admin", "cocina"), async (req, res) => {
       calorias: calorias || null,
       imagen: imagen || null,
       estado,
+      variante: variante || "Estandar",
     }])
     .select()
     .single();
@@ -187,7 +372,7 @@ router.post("/", requiereRol("admin", "cocina"), async (req, res) => {
 // Edita un plato o cambia su estado (publicar / pasar a borrador).
 // Solo admin o cocina.
 router.put("/:id", requiereRol("admin", "cocina"), async (req, res) => {
-  const { semana, dia, jornada, platillo, descripcion, calorias, imagen } = req.body;
+  const { semana, dia, jornada, platillo, descripcion, calorias, imagen, variante } = req.body;
   const { estado } = req.body;
 
   const cambios = {};
@@ -198,6 +383,13 @@ router.put("/:id", requiereRol("admin", "cocina"), async (req, res) => {
   if (descripcion !== undefined) cambios.descripcion = descripcion;
   if (calorias !== undefined) cambios.calorias = calorias;
   if (imagen !== undefined) cambios.imagen = imagen;
+  if (variante !== undefined) {
+    const variantesValidas = ["Estandar", "Celiaco", "Vegetariano", "Vegano"];
+    if (!variantesValidas.includes(variante)) {
+      return res.status(400).json({ error: "Variante no válida" });
+    }
+    cambios.variante = variante;
+  }
   if (estado !== undefined) {
     if (!["borrador", "publicado"].includes(estado)) {
       return res.status(400).json({ error: "Estado inválido" });
@@ -261,6 +453,17 @@ router.post("/:id/valorar", async (req, res) => {
 
   if (!beneficiario) {
     return res.status(400).json({ error: "Documento no registrado" });
+  }
+
+  // El plato debe existir (si no, 404, no un error de base de datos)
+  const { data: plato } = await getSupabase()
+    .from("menus")
+    .select("id")
+    .eq("id", menuId)
+    .maybeSingle();
+
+  if (!plato) {
+    return res.status(404).json({ error: "Plato no encontrado" });
   }
 
   // Evitar votos repetidos del mismo documento en el mismo plato
