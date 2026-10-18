@@ -47,6 +47,21 @@ router.get("/", requiereRol("admin"), async (_req, res) => {
   res.json(data);
 });
 
+// GET /api/usuarios/cocina
+// Lista el personal de cocina activo (para asignar turnos). Lo usan el
+// admin y el coordinador desde la pestana "Turnos".
+router.get("/cocina", requiereRol("admin", "coordinador"), async (_req, res) => {
+  const { data, error } = await getSupabase()
+    .from("usuarios")
+    .select("id, usuario, nombre, rol, activo, sede")
+    .eq("rol", "cocina")
+    .eq("activo", true)
+    .order("nombre", { ascending: true });
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data || []);
+});
+
 // POST /api/usuarios
 // Crea una cuenta. Cuerpo: { nombre, usuario, clave, rol, sede?, turno?, grado? }
 // Para un estudiante, usuario = su documento y clave = su PIN.

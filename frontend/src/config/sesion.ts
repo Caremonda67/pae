@@ -48,15 +48,39 @@ export function suscribirseASesion(alCambiar: () => void): () => void {
 }
 
 // Lee la sesion guardada (o null si no hay sesion valida)
+// Si el token ya expiro (exp en el payload) se ignora: se trata como
+// sesion cerrada para que la pagina pida entrar de nuevo en lugar de
+// lanzar una lluvia de 401 al backend.
 export function leerSesion(): Sesion | null {
   try {
     const crudo = localStorage.getItem(SESION_KEY);
     if (!crudo) return null;
     const sesion = JSON.parse(crudo) as Sesion;
     if (!sesion.token || !sesion.rol) return null;
+    if (tokenExpirado(sesion.token)) return null;
     return sesion;
   } catch {
     return null;
+  }
+}
+
+// Decodifica el payload de un token (formato b64url.b64url) y dice si
+// su exp ya paso. Devuelve false si el token no tiene exp (o no se
+// puede leer) para no cerrarle la sesion a nadie por equivocacion.
+function tokenExpirado(token: string): boolean {
+  try {
+    const [payloadB64] = token.split(".");
+    if (!payloadB64) return false;
+    const base64 = payloadB64.replace(/-/g, "+").replace(/_/g, "/");
+    const crudo = atob(base64);
+    const bytes = new Uint8Array(crudo.length);
+    for (let i = 0; i < crudo.length; i++) bytes[i] = crudo.charCodeAt(i);
+    const texto = new TextDecoder().decode(bytes);
+    const payload = JSON.parse(texto) as { exp?: number };
+    if (typeof payload.exp !== "number") return false;
+    return payload.exp < Date.now();
+  } catch {
+    return false;
   }
 }
 
