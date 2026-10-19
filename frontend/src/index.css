@@ -11,8 +11,8 @@
   --crema: #f9f6f1;
   --blanco: #ffffff;
   --texto: #2c3e2c;
-  --texto-suave: #6b7a6b;
-  --naranja: #ef6c00;
+  --texto-suave: #5f6c5f;
+  --naranja: #b35000;
   --naranja-suave: #fff3e0;
   --borde: #e3e8dd;
   --radio: 14px;
@@ -92,6 +92,13 @@ button:focus-visible,
 .buscador input:focus-visible {
   outline: none;
   border-color: var(--verde);
+}
+
+/* Form controls siempre >= 16px (evita el zoom de iOS Safari al enfocar) */
+input,
+select,
+textarea {
+  font-size: 1rem;
 }
 
 body {
@@ -261,6 +268,7 @@ h1 {
   display: inline-block;
   padding: 0.75rem 1.5rem;
   border-radius: 10px;
+  font-size: 1rem;
   font-weight: 600;
   text-decoration: none;
   border: none;
@@ -1021,7 +1029,7 @@ h1 {
   flex: 1;
   border: none;
   outline: none;
-  font-size: 0.95rem;
+  font-size: 1rem;
   font-family: inherit;
   background-color: transparent;
   color: var(--texto);
@@ -1300,6 +1308,7 @@ h1 {
 
 .filtro-fechas-botones .boton {
   padding: 0.5rem 1rem;
+  min-height: 44px;
   font-size: 0.9rem;
 }
 

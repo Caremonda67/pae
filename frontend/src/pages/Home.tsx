@@ -278,6 +278,7 @@ function Home() {
               <span aria-hidden="true">🔍</span>
               <input
                 type="search"
+                aria-label="Buscar platillo, día o aviso"
                 placeholder="Buscar platillo, día o aviso..."
                 value={buscador}
                 onChange={(e) => {

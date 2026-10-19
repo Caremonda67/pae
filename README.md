@@ -1,4 +1,4 @@
-# 🍽️ PAE - Programa de Alimentación Escolar
+#  PAE - Programa de Alimentación Escolar
 
 Aplicación web **full stack** para instituciones educativas que busca **reducir el desperdicio de alimentos**: los estudiantes reservan su minuta, la cocina ve los totales por fecha y prepara solo la cantidad exacta.
 
@@ -8,11 +8,11 @@ Proyecto final de la **Ruta Avanzada** (Frontend + Backend + IA).
 
 | Componente | URL |
 |---|---|
-| 🌐 Sitio web (frontend) | https://caremonda67.github.io/pae/ |
+| 🌐 Sitio web (frontend) | https://pae-frontend.onrender.com/ |
 | ⚙️ API (backend) | https://pae-app-y0f2.onrender.com |
 | 📖 Repositorio | https://github.com/Caremonda67/pae |
 
-## ✨ Funcionalidades
+##  Funcionalidades
 
 ### Estudiantes
 
@@ -52,7 +52,7 @@ Proyecto final de la **Ruta Avanzada** (Frontend + Backend + IA).
 - **Noticias/avisos** y **sedes dinámicas**.
 - **Accesibilidad** (ARIA, focus visible, skip link) y **CI en pull requests**.
 
-## 🔐 Roles de acceso
+##  Roles de acceso
 
 | Rol | Acceso |
 |---|---|
@@ -61,7 +61,7 @@ Proyecto final de la **Ruta Avanzada** (Frontend + Backend + IA).
 | Cocina | Panel de cocina: totales del día, sobrantes y reportes |
 | Profesor | Asistencia de su grupo e incidentes/alergias |
 
-## 🛠️ Tecnologías
+##  Tecnologías
 
 | Capa | Tecnología |
 |---|---|
@@ -73,7 +73,7 @@ Proyecto final de la **Ruta Avanzada** (Frontend + Backend + IA).
 | Control de versiones | Git + GitHub |
 | Despliegue | Frontend en GitHub Pages · Backend en Render |
 
-## 📁 Estructura del proyecto
+##  Estructura del proyecto
 
 ```
 /
@@ -90,7 +90,7 @@ Proyecto final de la **Ruta Avanzada** (Frontend + Backend + IA).
 └── render.yaml             # Configuración del backend en Render
 ```
 
-## 🚀 Cómo correrlo en local
+##  Cómo correrlo en local
 
 ### 1. Backend
 
@@ -109,21 +109,21 @@ npm install
 npm run dev            # http://localhost:5173
 ```
 
-## 🗄️ Base de datos (Supabase)
+##  Base de datos (Supabase)
 
 El script completo de tablas, políticas de acceso (RLS) y datos de ejemplo está en `backend/setup.sql`. Se ejecuta en Supabase → SQL Editor → New query → Run. Es seguro correrlo varias veces.
 
 La tabla de mensajes del chat de contacto está en `backend/sql/chat_mensajes.sql`.
 
-## 🤖 Chatbot IA
+##  Chatbot IA
 
 El bot usa la API de Google Gemini. La clave vive en `backend/.env` (`GEMINI_API_KEY`) y el backend es el único que la usa; nunca llega al navegador.
 
-## 🔑 Clave del panel de administrador
+##  Clave del panel de administrador
 
 Por defecto: `pae2026`
 
-## 👥 Equipo
+##  Equipo
 
 Proyecto final de la Ruta Avanzada, hecho por Luis y Mariana.
 
