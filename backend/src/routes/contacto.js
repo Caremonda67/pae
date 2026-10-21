@@ -26,8 +26,13 @@ async function subirImagen(base64, nombre) {
     throw new Error("La imagen supera los 5 MB");
   }
 
-  // Nombre unico: fecha + numero aleatorio + extension
-  const extension = String(nombre).split(".").pop() || "png";
+  // Nombre unico: fecha + numero aleatorio + extension.
+  // La extension se valida contra una lista blanca (imagenes comunes):
+  // rechaza nombres raros, rutas y caracteres problematicos del upload.
+  const extension = (String(nombre).match(/\.([a-z0-9]{1,5})$/i)?.[1] || "png").toLowerCase();
+  if (!["png", "jpg", "jpeg", "webp", "gif"].includes(extension)) {
+    throw new Error("Formato de imagen no permitido");
+  }
   const ruta = `contacto/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${extension}`;
 
   const { error } = await getSupabase()

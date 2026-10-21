@@ -4,7 +4,7 @@
 
 import { Router } from "express";
 import { getSupabase } from "../config/supabase.js";
-import { requiereRol, verificarToken } from "../config/auth.js";
+import { requiereRol, leerToken } from "../config/auth.js";
 import { crearNotificacion } from "./notificaciones.js";
 import { limiteFormularios } from "../config/rateLimit.js";
 import { leerSettings } from "../config/settings.js";
@@ -176,21 +176,26 @@ router.get("/totales", async (req, res) => {
 // GET /api/reservas/mis?documento=...
 // Reservas propias de un estudiante (para la pagina "Mis reservas")
 // IMPORTANTE: debe ir ANTES de la ruta /:id para que "mis" no se confunda
-router.get("/mis", async (req, res) => {
-  // Si el estudiante envia su token, se verifica que el documento
-  // sea el suyo. Sin token se deja pasar (compatibilidad).
-  const auth = req.headers.authorization;
-  if (auth && auth.startsWith("Bearer ") && auth.length > 10) {
-    try {
-      const token = verificarToken(auth.slice(7));
-      if (token && token.sub !== String(req.query.documento || "").trim()) {
-        return res.status(403).json({ error: "El token no coincide con el documento" });
-      }
-    } catch (_e) {}
+router.get("/mis", limiteFormularios, async (req, res) => {
+  // Solo el dueno del documento (sesion de estudiante) puede ver sus
+  // reservas: se exige el token y que coincida con el documento.
+  const token = leerToken(req);
+  if (!token) {
+    return res.status(401).json({
+      error: "Debes ingresar con tu documento y PIN para ver tus reservas.",
+    });
   }
   const { documento } = req.query;
   if (!documento) {
     return res.status(400).json({ error: "Falta el documento" });
+  }
+  if (
+      String(token.sub).replace(/[\s.\-]/g, "") !==
+      String(documento).replace(/[\s.\-]/g, "")
+    ) {
+    return res
+      .status(403)
+      .json({ error: "El token no coincide con el documento" });
   }
 
   const { data, error } = await getSupabase()
@@ -426,19 +431,25 @@ router.get("/tablero", requiereRol("admin", "coordinador"), async (req, res) => 
 // considera si mañana es dia habil (lunes a viernes).
 // Devuelve: { necesita, fecha, finDeSemana }
 router.get("/recordatorio", limiteFormularios, async (req, res) => {
-  // Verificacion de token: si viaja, el documento debe coincidir.
-  const auth = req.headers.authorization;
-  if (auth && auth.startsWith("Bearer ") && auth.length > 10) {
-    try {
-      const token = verificarToken(auth.slice(7));
-      if (token && token.sub !== String(req.query.documento || "").trim()) {
-        return res.status(403).json({ error: "El token no coincide con el documento" });
-      }
-    } catch (_e) {}
+  // Solo el dueno del documento puede consultar si tiene reserva
+  // para manana: se exige el token y que coincida con el documento.
+  const token = leerToken(req);
+  if (!token) {
+    return res.status(401).json({
+      error: "Debes ingresar con tu documento y PIN para consultar tus reservas.",
+    });
   }
   const { documento } = req.query;
   if (!documento) {
     return res.status(400).json({ error: "Falta el documento" });
+  }
+  if (
+      String(token.sub).replace(/[\s.\-]/g, "") !==
+      String(documento).replace(/[\s.\-]/g, "")
+    ) {
+    return res
+      .status(403)
+      .json({ error: "El token no coincide con el documento" });
   }
 
   const fecha = fechaDesdeHoy(1);
@@ -631,6 +642,19 @@ router.post("/", limiteFormularios, async (req, res) => {
   const docLimpio = String(documento).replace(/[\s.\-]/g, "");
   if (!/^\d{4,20}$/.test(docLimpio)) {
     return res.status(400).json({ error: "Documento no válido" });
+  }
+  // La reserva solo la puede crear el estudiante dueno del documento:
+  // se exige el token de su sesion (documento + PIN) y que coincida.
+  const token = leerToken(req);
+  if (!token) {
+    return res
+      .status(401)
+      .json({ error: "Debes ingresar con tu documento y PIN para reservar." });
+  }
+  if (String(token.sub).replace(/[\s.\-]/g, "") !== docLimpio) {
+    return res
+      .status(403)
+      .json({ error: "No puedes reservar a nombre de otra persona." });
   }
 
   // El documento debe estar registrado como beneficiario del programa.
@@ -873,10 +897,24 @@ async function insertarReserva(estudiante, documento, sede, turno, fecha, grado,
 // DELETE /api/reservas/mis/:id?documento=...
 // Cancelacion propia: solo se puede borrar si el documento de la
 // consulta coincide con el dueño de la reserva.
-router.delete("/mis/:id", async (req, res) => {
+router.delete("/mis/:id", limiteFormularios, async (req, res) => {
+  // Solo el estudiante dueno de la reserva puede cancelarla: se
+  // exige el token y que coincida con el documento de la reserva.
+  const token = leerToken(req);
+  if (!token) {
+    return res.status(401).json({
+      error: "Debes ingresar con tu documento y PIN para cancelar tu reserva.",
+    });
+  }
   const { documento } = req.query;
   if (!documento) {
     return res.status(400).json({ error: "Falta el documento" });
+  }
+  const docLimpio = String(documento).replace(/[\s.\-]/g, "");
+  if (String(token.sub).replace(/[\s.\-]/g, "") !== docLimpio) {
+    return res
+      .status(403)
+      .json({ error: "El token no coincide con el documento" });
   }
 
   const { data: reserva, error: errReserva } = await getSupabase()
@@ -889,7 +927,7 @@ router.delete("/mis/:id", async (req, res) => {
   if (!reserva) return res.status(404).json({ error: "Reserva no encontrada" });
 
   // Solo el dueño puede cancelar su propia reserva
-  if (reserva.documento !== String(documento).trim()) {
+  if (reserva.documento !== docLimpio) {
     return res
       .status(403)
       .json({ error: "No puedes cancelar la reserva de otra persona" });

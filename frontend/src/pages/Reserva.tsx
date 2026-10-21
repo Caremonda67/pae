@@ -454,7 +454,7 @@ function Reserva() {
       if (formulario.semanal) cuerpo.fecha = "";
       const respuesta = await fetch(`${API_URL}/api/reservas`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: cabeceras(),
         body: JSON.stringify(cuerpo),
       });
 
@@ -522,7 +522,8 @@ function Reserva() {
   const consultarRecordatorio = async (documento: string) => {
     try {
       const respuesta = await fetch(
-        `${API_URL}/api/reservas/recordatorio?documento=${encodeURIComponent(documento)}`
+        `${API_URL}/api/reservas/recordatorio?documento=${encodeURIComponent(documento)}`,
+        { headers: cabeceras(false) }
       );
       if (!respuesta.ok) {
         setRecordatorio(null);
@@ -548,7 +549,8 @@ function Reserva() {
     setErrorConsulta("");
     try {
       const respuesta = await fetch(
-        `${API_URL}/api/reservas/mis?documento=${encodeURIComponent(documento)}`
+        `${API_URL}/api/reservas/mis?documento=${encodeURIComponent(documento)}`,
+        { headers: cabeceras(false) }
       );
       if (!respuesta.ok) {
         const datos = await respuesta.json().catch(() => null);
@@ -572,7 +574,7 @@ function Reserva() {
     try {
       const respuesta = await fetch(
         `${API_URL}/api/reservas/mis/${id}?documento=${encodeURIComponent(documento)}`,
-        { method: "DELETE" }
+        { method: "DELETE", headers: cabeceras(false) }
       );
       if (!respuesta.ok) {
         const datos = await respuesta.json().catch(() => null);

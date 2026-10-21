@@ -36,8 +36,13 @@ router.post("/subir", requiereRol("admin", "cocina", "coordinador", "profesor"),
   }
 
   try {
-    // Nombre unico: fecha + numero aleatorio + extension
-    const extension = nombre.split(".").pop() || "png";
+    // Nombre unico: fecha + numero aleatorio + extension.
+    // La extension se valida contra una lista blanca (imagenes comunes):
+    // rechaza nombres raros, rutas y caracteres problematicos del upload.
+    const extension = (String(nombre).match(/\.([a-z0-9]{1,5})$/i)?.[1] || "png").toLowerCase();
+    if (!["png", "jpg", "jpeg", "webp", "gif"].includes(extension)) {
+      return res.status(400).json({ error: "Formato de imagen no permitido" });
+    }
     const ruta = `pae/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${extension}`;
 
     const { error } = await getSupabase()
