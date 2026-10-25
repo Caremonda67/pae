@@ -1,32 +1,16 @@
-// ============================================================
-// Autenticacion del panel con roles
-// ============================================================
-// Los usuarios entran con usuario + clave (o documento + PIN los
-// estudiantes) y el backend entrega un token firmado con el rol.
-// Cada rol solo puede acceder a las rutas que le corresponden.
-//
-// El token es STATELESS: se firma con HMAC y una fecha de
-// expiracion, asi no hay que guardar sesiones en memoria y
-// sobrevive a reinicios del servidor (importante en Render).
-// ============================================================
-
+// Firma de tokens (HMAC) para el panel y los estudiantes (documento/PIN).
 import crypto from "node:crypto";
 
-// Clave del panel de admin. Debe estar en el .env (backend/.env o
-// Render). NO se sube a github. Si no se define, el login del admin
-// se bloquea (ninguna clave es valida) en lugar de usar una conocida.
+// Clave del login de admin, en el .env. Con ella vacia, ese login se bloquea.
 const ADMIN_CLAVE = process.env.ADMIN_CLAVE || null;
 
-// Secreto con el que se firman los tokens. Mientras no se defina
-// uno propio se usa la clave del admin. Si tampoco hay clave, se
-// usa un valor aleatorio: nadie podra firmar tokens validos.
+// Secreto de firma: ADMIN_SECRET si esta, si no la clave del admin, si no uno al azar.
 const SECRETO =
   process.env.ADMIN_SECRET || ADMIN_CLAVE || crypto.randomBytes(32).toString("hex");
 
-// Cuanto dura el token (12 horas, tiempo de una jornada escolar)
+// Validez del token: 12 horas (una jornada escolar)
 const EXPIRACION_MS = 12 * 60 * 60 * 1000;
 
-// Roles que existen en el sistema
 export const ROLES = ["admin", "cocina", "profesor", "coordinador", "estudiante"];
 
 // ¿Esta configurada la clave del panel?
@@ -51,15 +35,13 @@ export function firmarToken({ usuario, rol, nombre }) {
   return `${base64}.${firma}`;
 }
 
-// Verifica el token y devuelve el payload si es valido (null si no)
+// Devuelve el payload si la firma y la expiracion son correctas.
 export function verificarToken(token) {
   if (!token || typeof token !== "string") return null;
 
   const [base64, firma] = token.split(".");
   if (!base64 || !firma) return null;
 
-  // Recalculamos la firma y comparamos en tiempo constante:
-  // comparar texto con === filtra informacion sobre la firma esperada
   const esperada = crypto
     .createHmac("sha256", SECRETO)
     .update(base64)
@@ -70,7 +52,6 @@ export function verificarToken(token) {
     firmoA.length === firmoB.length && crypto.timingSafeEqual(firmoA, firmoB);
   if (!firmaValida) return null;
 
-  // Validamos la expiracion
   try {
     const payload = JSON.parse(Buffer.from(base64, "base64url").toString());
     if (!payload.exp || payload.exp < Date.now()) return null;
@@ -89,8 +70,7 @@ export function leerToken(req) {
   return verificarToken(token);
 }
 
-// Middleware de Express: exige un token valido Y que el rol del
-// usuario este entre los permitidos. Ej: requiereRol("admin", "cocina")
+// Exige sesion valida y un rol permitido; deja el usuario en req.
 export function requiereRol(...rolesPermitidos) {
   return (req, res, next) => {
     const payload = leerToken(req);
@@ -102,16 +82,12 @@ export function requiereRol(...rolesPermitidos) {
         error: "Tu rol no tiene permiso para esta accion.",
       });
     }
-    // Dejamos el usuario en la peticion para las rutas que lo necesiten
     req.usuario = payload;
     next();
   };
 }
 
-// Atajo para las rutas que solo puede usar el administrador
 export const requiereAdmin = requiereRol("admin");
 
-// Middleware para rutas que solo necesitan una sesion valida
-// (cualquier rol que haya entrado). Por ejemplo, un estudiante
-// consultando sus propios mensajes de contacto.
+// Solo pide una sesion valida, sin exigir un rol concreto.
 export const requiereSesion = requiereRol(...ROLES);

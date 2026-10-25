@@ -1,10 +1,5 @@
-// Sesion del panel compartida entre paginas.
-// Guarda el token y los datos del usuario que entra (rol, usuario,
-// nombre) para que el panel y la reserva usen la misma sesion.
-//
-// El token se conserva en localStorage para que al recargar la
-// pagina la sesion siga abierta. Los datos del usuario se guardan
-// para saber que rol entro y que pestañas puede ver.
+// Sesion compartida entre paginas (localStorage): token y datos del
+// usuario que entro (rol, usuario, nombre).
 
 export interface Sesion {
   token: string;
@@ -15,9 +10,7 @@ export interface Sesion {
 
 const SESION_KEY = "pae_sesion";
 
-// Nombre del evento que se dispara cuando la sesion cambia (entrar o
-// salir). La sidebar lo escucha para actualizar su boton al instante,
-// sin necesidad de recargar la pagina.
+// Evento que se dispara cuando la sesion cambia (la sidebar lo escucha).
 const EVENTO_SESION = "pae_sesion_cambio";
 
 export const ROLES_LABEL: Record<string, string> = {
@@ -28,8 +21,7 @@ export const ROLES_LABEL: Record<string, string> = {
   estudiante: "Estudiante",
 };
 
-// Avisa a los componentes que escuchan (misma pestana y otras pestanas
-// abiertas) que la sesion guardada cambio.
+// Dispara el evento en esta pestana y en las demas abiertas.
 function notificarCambioSesion() {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new Event(EVENTO_SESION));
@@ -47,10 +39,7 @@ export function suscribirseASesion(alCambiar: () => void): () => void {
   };
 }
 
-// Lee la sesion guardada (o null si no hay sesion valida)
-// Si el token ya expiro (exp en el payload) se ignora: se trata como
-// sesion cerrada para que la pagina pida entrar de nuevo en lugar de
-// lanzar una lluvia de 401 al backend.
+// Devuelve la sesion guardada, o null si no hay o el token ya expiro.
 export function leerSesion(): Sesion | null {
   try {
     const crudo = localStorage.getItem(SESION_KEY);
@@ -64,9 +53,7 @@ export function leerSesion(): Sesion | null {
   }
 }
 
-// Decodifica el payload de un token (formato b64url.b64url) y dice si
-// su exp ya paso. Devuelve false si el token no tiene exp (o no se
-// puede leer) para no cerrarle la sesion a nadie por equivocacion.
+// True si el exp del token ya paso (si no se puede leer, false).
 function tokenExpirado(token: string): boolean {
   try {
     const [payloadB64] = token.split(".");

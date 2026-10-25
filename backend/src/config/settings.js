@@ -1,18 +1,7 @@
-// Lee la configuracion del sistema (tabla settings) y la devuelve
-// lista para usar. Si la tabla no existe o esta vacia, devuelve los
-// valores por defecto para que la app nunca se caiga.
-//
-// Devuelve:
-//   {
-//     hora_limite_reserva: "08:00" | null,
-//     cupos_sede: { "Sede A": 50, "Sede B": 40 }
-//   }
-
+// Configuracion del sistema (tabla settings); si esta vacia, valores por defecto.
 import { getSupabase } from "./supabase.js";
 
-// Cache en memoria: los settings cambian muy raro (solo cuando el admin
-// los modifica), asi que no vale la pena consultar la DB en cada reserva.
-// Se invalida cada 60 segundos o cuando se llama invalidarSettings().
+// Cache de 60s; se invalida a mano con invalidarSettings().
 let _cache = null;
 let _cacheTs = 0;
 const TTL_MS = 60_000;

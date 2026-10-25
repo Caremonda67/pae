@@ -1,22 +1,6 @@
-// ============================================================
-// Chatbot con IA (Gemini)
-// ============================================================
-// El estudiante pregunta "que hay de comer hoy" o "como reservo"
-// y el bot responde usando los datos REALES de la base:
-// el menu (que rota por SEMANA del mes y por jornada), cuantas
-// minutas hay reservadas, el reporte de desperdicio y los avisos
-// publicados. Tambien conoce las metricas del programa.
-//
-// IMPORTANTE: el bot calcula la fecha de HOY en Colombia y la
-// SEMANA del mes actual, y agrupa el menu por semana. Asi cuando
-// le preguntan "que daran el lunes" responde con el menu de la
-// semana correcta y no se confunde entre semanas.
-//
-// La clave de gemini esta en el .env (GEMINI_API_KEY) y no se
-// sube a github ni se manda al navegador, el backend es el que
-// habla con la api de google internamente.
-// ============================================================
-
+// Chatbot con Gemini. Responde con datos reales de la base: menu (rota
+// por semana del mes y jornada), reservas del dia, desperdicio, avisos.
+// La fecha y la semana se calculan en hora de Colombia para no cruzar semanas.
 import { Router } from "express";
 import { limiteChat } from "../config/rateLimit.js";
 import { getSupabase } from "../config/supabase.js";

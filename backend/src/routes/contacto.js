@@ -175,19 +175,11 @@ router.put("/:id/respuesta", requiereRol("admin", "coordinador"), async (req, re
   res.json(data);
 });
 
-// ============================================================
-// Chat entre el estudiante y el admin
-// El primer mensaje del estudiante vive en "contactos.mensaje".
-// Los mensajes siguientes de ida y vuelta viven en "chat_mensajes"
-// (ver sql/chat_mensajes.sql). Asi la conversacion puede tener
-// varios mensajes y no solo uno.
-// ============================================================
+// Chat estudiante-admin: el primer mensaje vive en "contactos.mensaje"
+// y la conversacion completa en "chat_mensajes".
 
-// Arma el hilo de la conversacion: el mensaje original del
-// estudiante + las respuestas que le dio el admin. Si todavia no
-// hay mensajes en chat_mensajes pero el mensaje tiene una respuesta
-// antigua guardada (campo respuesta), esa se muestra como el primer
-// mensaje del admin para no perder conversaciones pasadas.
+// Arma el hilo: mensaje original + respuestas del admin (incluye la
+// respuesta vieja del campo "respuesta" para no perder historial).
 function armarHilo(contacto, filas) {
   const hilo = [
     {

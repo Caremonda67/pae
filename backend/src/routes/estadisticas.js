@@ -1,14 +1,6 @@
-// ============================================================
-// Estadisticas del programa
-// ============================================================
-// Con un mes seleccionado se calcula:
-// - el resumen general del mes (reservas, servidas, desperdicio)
-// - minutas servidas por dia de la semana del mes
-// - desglose por sede y por turno del mes
-// - ranking de platos: el que mas gusta y el que menos gusta
-//   (se calcula con las valoraciones en estrellas de los platos)
-// ============================================================
-
+// Estadisticas del mes: resumen (reservas/servidas/desperdicio),
+// servidas por dia de semana, por sede y turno, y ranking de platos
+// segun las valoraciones en estrellas.
 import { Router } from "express";
 import { getSupabase } from "../config/supabase.js";
 

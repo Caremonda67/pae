@@ -1,16 +1,6 @@
-// ============================================================
-// Notificaciones del programa
-// ============================================================
-// Cuando un estudiante reserva, se guarda una notificacion en la
-// base. Si el servidor tiene configurado RESEND_API_KEY se envia
-// un email real de confirmacion (via HTTP, puerto 443, que no
-// esta bloqueado en Render). Si no esta configurado, la
-// notificacion queda como "pendiente" y el admin la puede ver
-// desde el panel.
-//
-// Lectura: solo admin. Escritura: interna (al reservar).
-// ============================================================
-
+// Notificaciones: al reservar se guarda una en la base; con
+// RESEND_API_KEY se envia tambien un email. De lo contrario queda
+// "pendiente" y la ve el admin en el panel.
 import { Router } from "express";
 import { getSupabase } from "../config/supabase.js";
 import { requiereRol } from "../config/auth.js";

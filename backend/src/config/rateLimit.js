@@ -1,18 +1,7 @@
-// ============================================================
-// Limites de peticiones (rate limiting)
-// ============================================================
-// Protege los endpoints publicos contra abuso: fuerza bruta en el
-// login, spam en el formulario de contacto y en las reservas.
-// Express guarda los contadores en memoria (suficiente para este
-// proyecto; en Render con varios reinicios se resetea, que esta
-// bien para el uso educativo).
-// ============================================================
-
+// Limites de peticiones por IP para los endpoints publicos.
 import rateLimit from "express-rate-limit";
 
-// Login del admin: 30 intentos cada 10 minutos por IP,
-// suficiente para que varios estudiantes compartan la misma IP
-// del colegio sin bloquearse entre si.
+// Login: 30 intentos / 10 min por IP (varias maquinas del colegio comparten IP).
 export const limiteLogin = rateLimit({
   windowMs: 10 * 60 * 1000,
   max: 30,
@@ -21,9 +10,7 @@ export const limiteLogin = rateLimit({
   message: { error: "Demasiados intentos de inicio de sesion. Espera 10 minutos." },
 });
 
-// Chat con IA: cada mensaje consulta la base y gasta cuota de
-// Gemini. 15 mensajes cada 5 minutos por IP alcanza de sobra para
-// conversar y evita que alguien queme la cuota a proposito.
+// Chat: 15 mensajes / 5 min por IP (cada mensaje gasta cuota de Gemini).
 export const limiteChat = rateLimit({
   windowMs: 5 * 60 * 1000,
   max: 15,
@@ -32,8 +19,7 @@ export const limiteChat = rateLimit({
   message: { error: "Demasiados mensajes al chat. Espera unos minutos e intenta de nuevo." },
 });
 
-// Formularios publicos (contacto y reservas): moderado.
-// 30 peticiones cada 10 minutos por IP.
+// Formularios publicos (contacto y reservas): 30 peticiones / 10 min por IP.
 export const limiteFormularios = rateLimit({
   windowMs: 10 * 60 * 1000,
   max: 30,

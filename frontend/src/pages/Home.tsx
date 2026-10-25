@@ -1,10 +1,6 @@
-// pagina principal, sigue la estructura de la referencia:
-// hero, comida del dia, metricas, impacto, menu de la semana, avisos,
-// galeria y cita
-//
-// Las metricas (estudiantes, instituciones, minutas) son REALES:
-// se cuentan desde la base. La comida del dia viene de /api/menus/hoy
-// que calcula la semana del mes y el dia actual.
+// Pagina principal (hero, comida del dia, metricas, impacto, menu de la
+// semana, avisos, galeria y cita). Las metricas se cuentan de la base y
+// la comida del dia viene de /api/menus/hoy (semana del mes + dia actual).
 
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -262,7 +258,7 @@ function Home() {
 
   return (
     <div className="home-pae">
-      {/* ===== HERO ===== */}
+      {/* Hero */}
       <section className="hero-pae">
         <div className="hero-texto">
           <span className="hero-badge">Programa de Alimentación Escolar</span>
@@ -357,7 +353,7 @@ function Home() {
         </div>
       </section>
 
-      {/* ===== COMIDA DEL DIA (grande, con imagen) ===== */}
+      {/* Comida del dia */}
       {comidaHoy && comidaHoy.platos.length > 0 && (
         <section className="comida-dia">
           <div className="seccion-titulo">
@@ -409,7 +405,7 @@ function Home() {
         </section>
       )}
 
-      {/* ===== METRICAS (reales, contadas desde la base) ===== */}
+      {/* Metricas reales desde la base */}
       <section className="metricas">
         <article className="metrica">
           <span className="metrica-numero">
@@ -434,7 +430,7 @@ function Home() {
         </article>
       </section>
 
-      {/* ===== BENEFICIARIOS DEL PROGRAMA (registro por sede) ===== */}
+      {/* Beneficiarios por sede */}
       <section className="seccion-pae">
         <div className="seccion-titulo">
           <h2>🎓 Beneficiarios del programa</h2>
@@ -476,7 +472,7 @@ function Home() {
         </p>
       </section>
 
-      {/* ===== IMPACTO ===== */}
+      {/* Impacto */}
       <section className="seccion-pae impacto">
         <div className="impacto-texto">
           <span className="seccion-etiqueta">Impacto del PAE</span>
@@ -493,7 +489,7 @@ function Home() {
         </div>
       </section>
 
-      {/* ===== MENU DE LA SEMANA (semana actual del mes) ===== */}
+      {/* Menu de la semana actual */}
       <section className="seccion-pae">
         <div className="seccion-titulo">
           <h2>Menú de esta semana</h2>
@@ -554,7 +550,7 @@ function Home() {
         )}
       </section>
 
-      {/* ===== AVISOS ===== */}
+      {/* Avisos */}
       <section className="seccion-pae">
         <div className="seccion-titulo">
           <h2>Avisos importantes</h2>
@@ -583,7 +579,7 @@ function Home() {
         </div>
       </section>
 
-      {/* ===== GALERIA ===== */}
+      {/* Galeria */}
       <section className="seccion-pae">
         <div className="seccion-titulo">
           <h2>Galería</h2>
@@ -637,7 +633,7 @@ function Home() {
         />
       )}
 
-      {/* ===== CITA ===== */}
+      {/* Cita */}
       <section className="cita">
         <blockquote>
           "La educación es el arma más poderosa que puedes usar para cambiar el

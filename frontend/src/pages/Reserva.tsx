@@ -1,20 +1,6 @@
-// pagina donde el estudiante confirma que va a comer
-// asi la cocina sabe cuantas minutas preparar y no sobra comida
-//
-// incluye:
-// - autocompletado: al escribir el documento se busca al
-//   estudiante en el registro de beneficiarios y se rellena el nombre
-// - confirmacion por WhatsApp: tras reservar, un boton abre
-//   wa.me con el mensaje de confirmacion listo para enviar
-// - "Mis reservas": consulta y cancelacion de las reservas propias
-// - Grab & Go: cada reserva genera un codigo corto (y QR) para que la
-//   cocina entregue la minuta sin confusiones; sirve tambien para
-//   "para llevar" (empacar la comida)
-// - reserva semanal: con un clic se reservan todos los dias habiles
-//   de la proxima semana
-// - aviso "hoy toca tu favorito": si el plato del dia esta en la lista
-//   de favoritos del estudiante, se le avisa
-// - perfil de alimento: alergias y preferencia (menus alternativos)
+// Flujo de reserva del estudiante: autocompletado del nombre, confirmacion
+// por WhatsApp, "Mis reservas" con codigo Grab & Go (QR) y cancelacion,
+// reserva semanal, aviso de favorito y perfil de alimento (alergias/variante).
 
 import { useEffect, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";

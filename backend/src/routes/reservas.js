@@ -11,13 +11,8 @@ import { leerSettings } from "../config/settings.js";
 
 const router = Router();
 
-// ============================================================
-// Fechas y horas SIEMPRE en hora de Colombia (America/Bogota).
-// El servidor puede vivir en UTC (Render u otro hosting): si usamos
-// new Date() directo, la fecha cambia 5 horas antes que para los
-// estudiantes y la hora limite se evaluaria mal. Con Intl obtenemos
-// las partes del dia directamente en hora colombiana.
-// ============================================================
+// Fechas y horas SIEMPRE en America/Bogota. Render corre en UTC y
+// new Date() daria 5 horas antes; sacamos las partes con Intl.
 const ZONA_HORARIA = "America/Bogota";
 
 // Partes de la fecha actual (+ desfase en dias) segun la hora de Bogota
@@ -173,9 +168,8 @@ router.get("/totales", async (req, res) => {
   res.json(totales);
 });
 
-// GET /api/reservas/mis?documento=...
-// Reservas propias de un estudiante (para la pagina "Mis reservas")
-// IMPORTANTE: debe ir ANTES de la ruta /:id para que "mis" no se confunda
+// GET /api/reservas/mis?documento=...  (debe ir antes de /:id)
+// Reservas propias de un estudiante: exige su token y que coincida con el documento.
 router.get("/mis", limiteFormularios, async (req, res) => {
   // Solo el dueno del documento (sesion de estudiante) puede ver sus
   // reservas: se exige el token y que coincida con el documento.
@@ -208,11 +202,8 @@ router.get("/mis", limiteFormularios, async (req, res) => {
   res.json(data);
 });
 
-// GET /api/reservas/reporte
-// Reporte de desperdicio: cuantas minutas se reservaron, cuantas
-// se sirvieron y cuantas se desperdiciaron por no asistir.
-// Incluye desglose por sede y por turno para cocina.
-// Acepta ?desde=YYYY-MM-DD y ?hasta=YYYY-MM-DD para filtrar por rango.
+// GET /api/reservas/reporte?desde&hasta
+// Desperdicio: reservadas vs servidas vs no asistieron, por sede y turno.
 router.get("/reporte", async (req, res) => {
   let consulta = getSupabase()
     .from("reservas")
@@ -472,12 +463,8 @@ router.get("/recordatorio", limiteFormularios, async (req, res) => {
 });
 
 // GET /api/reservas/tendencia?dias=14
-// Serie para el grafico "pronostico de demanda vs sobrantes reales".
-// Devuelve, para cada uno de los ultimos N dias habiles:
-//   { fecha, reservas, asistieron, porciones_sobrantes, porcentajeDesperdicio }
-// y "pronostico": la demanda esperada (promedio por dia de la semana)
-// para los proximos 5 dias habiles. La cocina compara lo que preveian
-// con lo que realmente sobro y ajusta.
+// Ultimos N dias habiles (reservas, asistieron, sobrantes) y pronostico
+// de demanda para los proximos 5 dias habiles (promedio por dia de semana).
 // La usa el panel (pestana Reportes). Es publico (datos agregados).
 router.get("/tendencia", async (req, res) => {
   const dias = Math.min(30, Math.max(7, Number(req.query.dias) || 14));

@@ -1,11 +1,6 @@
-// ============================================================
-// Envio de correos con Resend (compartido entre modulos)
-// ============================================================
-// Resend envia por HTTP (puerto 443), que no esta bloqueado en
-// Render (plan gratis). Requiere RESEND_API_KEY y RESEND_FROM.
-// Si faltan, las funciones devuelven false sin lanzar error.
+// Envio de correos con Resend (por HTTP, que Render gratis no bloquea).
+// Sin RESEND_API_KEY o RESEND_FROM las funciones devuelven false.
 
-// Envia un email. Devuelve true si salio bien, false si no.
 export async function enviarEmail(destinatario, asunto, texto, html) {
   try {
     if (!destinatario) return false;

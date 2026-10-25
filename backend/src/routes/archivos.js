@@ -1,13 +1,5 @@
-// ============================================================
-// Subida de imagenes al almacenamiento (Supabase Storage)
-// ============================================================
-// El administrador sube una foto (minuta o aviso). El frontend
-// la envia como base64, el backend la guarda en el bucket
-// "imagenes" y devuelve la URL publica para guardarla en la base.
-//
-// Solo el admin (token valido) puede subir archivos.
-// ============================================================
-
+// Subida de imagenes a Supabase Storage. El frontend la manda en
+// base64, aqui se guarda en el bucket "imagenes" y se devuelve la URL.
 import { Router } from "express";
 import { getSupabase } from "../config/supabase.js";
 import { requiereRol } from "../config/auth.js";

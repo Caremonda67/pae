@@ -1,15 +1,6 @@
-// pagina del menu semanal
-// el menu es rotativo: cada semana del mes (1 a 4) tiene su propio
-// plan de alimentacion y cada dia tiene una comida por jornada
-// (Almuerzo y Refrigerio). Los platos se cargan del backend con fetch.
-// El estudiante puede calificar cada plato con 1 a 5 estrellas y esa
-// retroalimentacion ayuda a la cocina a mejorar el menu.
-//
-// Ademas, si hay sesion de estudiante:
-//   - cada plato puede marcarse como FAVORITO (corazon): el sistema le
-//     avisa "hoy toca tu favorito" cuando uno aparece en el menu del dia
-//   - se ven las etiquetas popular/recomendado calculadas por el backend
-// Se puede filtrar por variante (estandar, celiaco, vegetariano, vegano).
+// Menu semanal rotativo (semana del mes x jornada) con puntuacion de
+// platos. Con sesion de estudiante: favoritos (se avisa en el menu del
+// dia) y etiquetas popular/recomendado. Filtro por variante.
 
 import { useEffect, useState } from "react";
 import { API_URL } from "../config/api";

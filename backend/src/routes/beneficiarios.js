@@ -1,14 +1,5 @@
-// ============================================================
-// Beneficiarios del programa
-// ============================================================
-// Registro de estudiantes que reciben el PAE. La pagina de
-// beneficiarios lee esta tabla (antes eran datos fijos) y la
-// reserva valida que el documento exista aqui antes de guardar.
-//
-// Lectura: publica (todos ven el registro)
-// Escritura (crear/borrar): solo admin con token valido
-// ============================================================
-
+// Registro de estudiantes del PAE. Lectura publica; alta/edicion con
+// rol admin, coordinador o profesor. La reserva valida el documento aqui.
 import { Router } from "express";
 import { getSupabase } from "../config/supabase.js";
 import { requiereRol } from "../config/auth.js";

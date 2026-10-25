@@ -1,14 +1,5 @@
-// ============================================================
-// Login del administrador
-// ============================================================
-// POST /api/admin/login
-// Cuerpo esperado: { clave: "..." }
-// Compara la clave con ADMIN_CLAVE (variable de entorno) y si
-// coincide devuelve un token firmado con rol "admin" que el
-// frontend guarda y envia en cada peticion protegida
-// (Authorization: Bearer ...).
-// ============================================================
-
+// POST /api/admin/login — compara la clave con ADMIN_CLAVE y
+// devuelve un token con rol admin.
 import { Router } from "express";
 import { timingSafeEqual } from "node:crypto";
 import { firmarToken, adminConfigurado } from "../config/auth.js";

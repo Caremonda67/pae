@@ -1,17 +1,6 @@
-// ============================================================
-// Usuarios del sistema (cuentas con rol)
-// ============================================================
-// Solo el administrador crea/edita/borra cuentas. Cada cuenta tiene
-// un usuario (para estudiantes es su documento) y una clave/PIN.
-// La clave se guarda hasheada para el login (clave_hash) y tambien
-// en texto plano (clave) para que el admin la vea y la edite.
-//
-//   GET    /api/usuarios          lista cuentas (incluye la clave)
-//   POST   /api/usuarios          crea una cuenta
-//   PUT    /api/usuarios/:id      edita datos, activa/desactiva o cambia la clave
-//   DELETE /api/usuarios/:id      borra una cuenta
-// ============================================================
-
+// Cuentas del sistema (usuario + clave); para estudiantes el usuario es
+// su documento. Solo el admin las gestiona: GET lista (incluye la clave),
+// POST, PUT (activa/desactiva/cambia clave) y DELETE.
 import { Router } from "express";
 import { getSupabase } from "../config/supabase.js";
 import { requiereRol, ROLES } from "../config/auth.js";

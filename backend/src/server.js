@@ -1,8 +1,4 @@
-// ============================================================
-// servidor principal del backend
-// expone la API que usa el frontend, los datos estan en supabase
-// ============================================================
-
+// Backend: monta la API que usa el frontend. Los datos viven en Supabase.
 import "dotenv/config";
 import express from "express";
 import cors from "cors";

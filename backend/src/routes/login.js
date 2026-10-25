@@ -1,14 +1,5 @@
-// ============================================================
-// Login unificado del panel por roles
-// ============================================================
-// POST /api/login
-// Cuerpo esperado: { usuario, clave }
-//
-// Si el usuario es "admin" se valida contra ADMIN_CLAVE (env).
-// Cualquier otro usuario se busca en la tabla "usuarios" y se
-// verifica su clave/PIN hasheado. Devuelve el token con el rol.
-// ============================================================
-
+// POST /api/login — "admin" se valida contra ADMIN_CLAVE (env);
+// el resto contra la tabla usuarios (clave/PIN hasheado). Devuelve el token.
 import { Router } from "express";
 import { timingSafeEqual } from "node:crypto";
 import { firmarToken, adminConfigurado } from "../config/auth.js";
