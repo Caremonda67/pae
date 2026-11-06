@@ -61,7 +61,7 @@ router.get("/", async (req, res) => {
     consulta = consulta.eq("semana", semana);
   }
   if (req.query.dia) {
-    consulta = consulta.eq("dia", req.query.dia);
+    consulta = consulta.eq("dia", sinTildes(req.query.dia));
   }
 
   const { data, error } = await consulta;
@@ -275,7 +275,7 @@ router.get("/todos", requiereRol("admin", "cocina", "coordinador"), async (req, 
     consulta = consulta.eq("semana", semana);
   }
   if (req.query.dia) {
-    consulta = consulta.eq("dia", req.query.dia);
+    consulta = consulta.eq("dia", sinTildes(req.query.dia));
   }
 
   const { data, error } = await consulta;

@@ -3654,6 +3654,33 @@ img {
   border-radius: 999px;
 }
 
+.banner-aclaracion-horarios {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-left: 4px solid var(--verde-primario, #16a34a);
+  border-radius: 8px;
+  padding: 0.85rem 1.15rem;
+  margin: 1rem auto 1.5rem auto;
+  max-width: 860px;
+  font-size: 0.95rem;
+  color: #166534;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  line-height: 1.5;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.banner-aclaracion-horarios strong {
+  color: #14532d;
+}
+
+.banner-aclaracion-horarios .icono-info {
+  font-size: 1.3rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
 /* ==============================
    Ticket Grab & Go (Reserva)
    ============================== */

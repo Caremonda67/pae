@@ -497,36 +497,65 @@ create policy "imagenes_leer" on storage.objects
 -- 5. Datos de ejemplo: menu del PAE
 -- El menu rota por semana del mes (1-4) y cada dia tiene una comida
 -- DIFERENTE por jornada (Almuerzo y Refrigerio). Se inserta la
--- semana 1 y 2 completa como ejemplo; las semanas 3 y 4 las puede
--- cargar el administrador desde el panel.
+-- ============================================================
+-- Menus oficiales del PAE Cali 2026 (Resolucion 335 de 2021)
+-- Union Temporal Nutriendo Cali 2026.
+-- Jornada Unica = Almuerzo
+-- Horario PM / Complemento preparado en sitio = Refrigerio
+-- 4 semanas completas (40 minutas oficiales)
 -- Solo se insertan si la tabla esta vacia (evita duplicados)
 -- ============================================================
-insert into menus (semana, dia, jornada, platillo, descripcion, calorias, imagen)
+insert into menus (semana, dia, jornada, platillo, descripcion, calorias, imagen, estado)
 select datos.semana, datos.dia, datos.jornada, datos.platillo, datos.descripcion,
-       datos.calorias, datos.imagen
+       datos.calorias, datos.imagen, 'publicado'
 from (values
   -- Semana 1
-  (1, 'Lunes', 'Almuerzo', 'Arroz con pollo y ensalada', 'Arroz, pollo guisado, ensalada fresca y jugo natural.', 520, NULL),
-  (1, 'Lunes', 'Refrigerio', 'Sandwich de queso y fruta', 'Sandwich integral con queso, manzana y agua.', 340, NULL),
-  (1, 'Martes', 'Almuerzo', 'Sopa de verduras y pan', 'Sopa de verduras de temporada con pan integral.', 380, NULL),
-  (1, 'Martes', 'Refrigerio', 'Yogurt con avena', 'Yogurt con avena y trozos de platano.', 320, NULL),
-  (1, 'Miercoles', 'Almuerzo', 'Pasta con salsa de tomate', 'Pasta integral con salsa casera de tomate y queso.', 460, NULL),
-  (1, 'Miercoles', 'Refrigerio', 'Empanada de carne y jugo', 'Empanada horneada de carne con jugo de naranja.', 380, NULL),
-  (1, 'Jueves', 'Almuerzo', 'Pescado con arroz y platano', 'Pescado al horno, arroz blanco y platano asado.', 490, NULL),
-  (1, 'Jueves', 'Refrigerio', 'Arepa con queso y chocolate', 'Arepa de maiz con queso y chocolate caliente.', 400, NULL),
-  (1, 'Viernes', 'Almuerzo', 'Sancocho de gallina', 'Sancocho tradicional con yuca, platano y papa.', 550, NULL),
-  (1, 'Viernes', 'Refrigerio', 'Galletas de avena y leche', 'Galletas de avena con un vaso de leche.', 300, NULL),
+  (1, 'Lunes', 'Almuerzo', 'Fajitas de carne de cerdo asada con arroz primavera y papa criolla al romero', 'Fajitas de carne de cerdo asada con verduras entre la preparación, arroz primavera (zanahoria y arveja), papa criolla dorada con romero y ajo, y sorbete de guayaba.', 560, 'https://images.unsplash.com/photo-1544025162-d76694265947?w=400'),
+  (1, 'Lunes', 'Refrigerio', 'Huevos pericos con arroz con zanahoria y puré de papa criolla', 'Huevos pericos acompañados de arroz con zanahoria, puré de papa criolla y sorbete de guayaba con banano.', 380, 'https://images.unsplash.com/photo-1525351484163-7529414344d8?w=400'),
+  (1, 'Martes', 'Almuerzo', 'Fajitas de pechuga de pollo asado con lentejas guisadas y papa chorreada', 'Fajitas de pechuga de pollo asado, lentejas guisadas caseras, arroz blanco, papa chorreada en salsa criolla, ensalada de tomate, aguacate y lechuga con limón, y jugo de lulo en agua.', 580, 'https://images.unsplash.com/photo-1594998893017-36147cbcae05?w=400'),
+  (1, 'Martes', 'Refrigerio', 'Fajitas de pollo salteado con espaguetis en salsa criolla y arroz', 'Fajitas de pollo salteado con verduras (cebolla y zanahoria), espaguetis en salsa criolla con queso, arroz blanco, piña picada y jugo de maracuyá en agua.', 420, 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=400'),
+  (1, 'Miercoles', 'Almuerzo', 'Estofado de cerdo con papa, arroz con fideos y plátano maduro', 'Estofado tierno de carne de cerdo con papa, arroz con fideos dorados, tajada de plátano maduro asado, verduras orientales salteadas (repollo, zanahoria y pimentón), y sorbete de guanábana.', 570, 'https://images.unsplash.com/photo-1574484284002-952d92456975?w=400'),
+  (1, 'Miercoles', 'Refrigerio', 'Huevos pericos con frijoles guisados y plátano maduro con queso', 'Huevos pericos, frijoles guisados con zapallo, arroz blanco, tajada de plátano maduro asado con queso doble crema, mandarina y jugo de lulo en agua.', 410, 'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=400'),
+  (1, 'Jueves', 'Almuerzo', 'Huevos pericos con arvejas guisadas, puré de papa y ensalada tropical', 'Huevos pericos tradicionales, arvejas guisadas, arroz blanco, puré suave de papa común, ensalada tropical (piña calada, repollo y zanahoria), y jugo de piña en agua.', 520, 'https://images.unsplash.com/photo-1541832676-9b763b0239ab?w=400'),
+  (1, 'Jueves', 'Refrigerio', 'Carne de cerdo guisada con cilantro y arroz con verduras', 'Carne de cerdo guisada al cilantro, arroz blanco con habichuela y zanahoria, chips de papa común, mix de mango y papaya, y sorbete de fresa.', 430, 'https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?w=400'),
+  (1, 'Viernes', 'Almuerzo', 'Fajitas de pollo a la jardinera con arroz verde y plátano melado', 'Fajitas de pechuga de pollo a la jardinera con verduras entre la preparación, arroz verde al perejil, plátano melado tradicional y sorbete de mango.', 550, 'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=400'),
+  (1, 'Viernes', 'Refrigerio', 'Lentejas guisadas con arroz blanco y papas a la francesa', 'Lentejas guisadas caseras, arroz blanco, papas a la francesa doradas, ensalada fresca de cebolla, tomate y cilantro, y sorbete de mango.', 390, 'https://images.unsplash.com/photo-1547592166-23ac45744acd?w=400'),
+
   -- Semana 2
-  (2, 'Lunes', 'Almuerzo', 'Carne guisada con arroz', 'Carne guisada, arroz blanco, frijoles y ensalada.', 540, NULL),
-  (2, 'Lunes', 'Refrigerio', 'Pan con huevo y mango', 'Pan con huevo y rodajas de mango.', 350, NULL),
-  (2, 'Martes', 'Almuerzo', 'Arroz con pollo y frijol', 'Arroz con pollo, frijol caliente y platano.', 530, NULL),
-  (2, 'Martes', 'Refrigerio', 'Avena con pan', 'Avena caliente con pan de yuca.', 330, NULL),
-  (2, 'Miercoles', 'Almuerzo', 'Pechuga a la plancha con verdura', 'Pechuga a la plancha con verduras salteadas y arroz.', 470, NULL),
-  (2, 'Miercoles', 'Refrigerio', 'Fruta con galleta', 'Porcion de fruta variada con galleta integral.', 260, NULL),
-  (2, 'Jueves', 'Almuerzo', 'Cazuela de frijoles', 'Cazuela de frijoles con arroz y aguacate.', 520, NULL),
-  (2, 'Jueves', 'Refrigerio', 'Bocadillo con queso y agua', 'Bocadillo de guayaba con queso y agua.', 310, NULL),
-  (2, 'Viernes', 'Almuerzo', 'Sudado de pollo con arroz', 'Sudado de pollo con papas, arroz y ensalada.', 500, NULL),
-  (2, 'Viernes', 'Refrigerio', 'Sorbete de frutas y galleta', 'Sorbete de frutas naturales con galleta.', 290, NULL)
+  (2, 'Lunes', 'Almuerzo', 'Chop suey de pechuga de pollo con arroz blanco y plátano maduro', 'Chop suey de pechuga de pollo salteado con repollo y zanahoria, arroz blanco suelto, tajada de plátano maduro asado y sorbete de guanábana.', 540, 'https://images.unsplash.com/photo-1512058564366-18510be2db19?w=400'),
+  (2, 'Lunes', 'Refrigerio', 'Huevos revueltos con tomate, arroz blanco y plátano maduro', 'Huevos revueltos con tomate fresco, arroz blanco, tajada de plátano maduro asado, ensalada de lechuga, tomate y aguacate, y sorbete de mango.', 370, 'https://images.unsplash.com/photo-1525351484163-7529414344d8?w=400'),
+  (2, 'Martes', 'Almuerzo', 'Huevos revueltos con lentejas guisadas y papa chorreada', 'Huevos revueltos suaves, lentejas guisadas caseras, arroz blanco, papa chorreada con salsa de queso y cebolla, ensalada de lechuga, tomate y pepino cohombro, y jugo de piña en agua.', 530, 'https://images.unsplash.com/photo-1547592166-23ac45744acd?w=400'),
+  (2, 'Martes', 'Refrigerio', 'Fajitas de pollo asado con arroz primavera y puré de papa criolla', 'Fajitas de pollo asado jugoso, arroz primavera (zanahoria y arveja), puré suave de papa criolla, banano fresco y sorbete de guayaba.', 410, 'https://images.unsplash.com/photo-1532550907401-a500c9a57435?w=400'),
+  (2, 'Miercoles', 'Almuerzo', 'Fajitas de cerdo con zapallo y arveja, arroz con fideos y puré criollo', 'Fajitas de carne de cerdo salteadas con zapallo y arveja, arroz con fideos dorados, puré cremoso de papa criolla y sorbete de fresa.', 550, 'https://images.unsplash.com/photo-1543339308-43e59d6b73a6?w=400'),
+  (2, 'Miercoles', 'Refrigerio', 'Huevos pericos con papa criolla dorada al romero y ajo', 'Huevos pericos campesinos, arroz blanco, papa criolla dorada con romero y ajo, papaya picada fresca y sorbete de guanábana.', 360, 'https://images.unsplash.com/photo-1541832676-9b763b0239ab?w=400'),
+  (2, 'Jueves', 'Almuerzo', 'Fajitas de carne de res asada con frijoles guisados y moneditas de plátano', 'Fajitas de carne de res asada a la plancha, frijoles guisados con zapallo, arroz blanco, moneditas de plátano crocantes, ensalada de tomate, aguacate y lechuga con limón, y jugo de guayaba en agua.', 590, 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=400'),
+  (2, 'Jueves', 'Refrigerio', 'Sándwich de pollo apanado con queso y papas a la francesa', 'Sándwich de pollo apanado con queso derretido, lechuga y tomate en pan fresco, acompañado de papas a la francesa y jugo de maracuyá en agua.', 440, 'https://images.unsplash.com/photo-1625813506062-0aeb1d7a094b?w=400'),
+  (2, 'Viernes', 'Almuerzo', 'Chuleta de cerdo con arroz verde y ensalada fría de papa', 'Deliciosa chuleta de cerdo dorada, arroz verde al perejil, ensalada fría de papa en cuadritos con zanahoria, arveja y habichuela en salsa blanca, y sorbete de mango.', 610, 'https://images.unsplash.com/photo-1432139555190-58524dae6a55?w=400'),
+  (2, 'Viernes', 'Refrigerio', 'Frijoles guisados con zapallo y plátano maduro con queso doble crema', 'Frijoles guisados tradicionales con zapallo, arroz blanco, tajada de plátano maduro asado con queso doble crema, mandarina y agua de panela con limón.', 420, 'https://images.unsplash.com/photo-1589302168068-964664d93dc0?w=400'),
+
+  -- Semana 3
+  (3, 'Lunes', 'Almuerzo', 'Trozos de cerdo salteados con arroz con cilantro y puré de plátano maduro', 'Trozos de carne de cerdo salteados con zanahoria y habichuela, arroz con cilantro, puré dulce de plátano maduro y sorbete de mango.', 560, 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400'),
+  (3, 'Lunes', 'Refrigerio', 'Huevos revueltos con papa y arroz atomatado', 'Huevos revueltos con papa en cubitos, arroz atomatado sabroso, mango dulce picado y sorbete de guayaba y maracuyá.', 370, 'https://images.unsplash.com/photo-1525351484163-7529414344d8?w=400'),
+  (3, 'Martes', 'Almuerzo', 'Fajitas de pollo en salsa criolla con blanquillos guisados y papa criolla', 'Fajitas de pollo en salsa criolla tradicional, blanquillos guisados caseros, arroz blanco, papa criolla dorada con romero y ajo, ensalada de tomate y lechuga con limón, y jugo de guayaba en agua.', 570, 'https://images.unsplash.com/photo-1543353071-873f17a7a088?w=400'),
+  (3, 'Martes', 'Refrigerio', 'Pechuga de pollo salteada con arroz verde y papa chorreada', 'Pechuga de pollo salteada jugosa, arroz verde al perejil, papa chorreada con salsa criolla de queso, piña picada y sorbete de fresa.', 420, 'https://images.unsplash.com/photo-1594998893017-36147cbcae05?w=400'),
+  (3, 'Miercoles', 'Almuerzo', 'Trozos de cerdo salteados con papa en salsa blanca y verduras', 'Trozos de carne de cerdo salteados, arroz con fideos dorados, papa en salsa blanca con cilantro y margarina, verduras salteadas (brócoli, cebolla y zanahoria), y sorbete de fresa.', 580, 'https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?w=400'),
+  (3, 'Miercoles', 'Refrigerio', 'Fajitas de carne de res con frijoles guisados y plátano maduro', 'Fajitas de carne de res asada, frijoles guisados con zapallo, arroz blanco, tajada de plátano maduro asado con queso doble crema y jugo de maracuyá en agua.', 450, 'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=400'),
+  (3, 'Jueves', 'Almuerzo', 'Huevos revueltos con arvejas guisadas y moneditas de plátano', 'Huevos revueltos suaves, arvejas guisadas con papa en cubitos, arroz blanco, moneditas de plátano crocantes, ensalada tropical (piña calada, repollo y zanahoria), y jugo de maracuyá en agua.', 530, 'https://images.unsplash.com/photo-1541832676-9b763b0239ab?w=400'),
+  (3, 'Jueves', 'Refrigerio', 'Hamburguesa de carne de cerdo con queso y papas a la francesa', 'Hamburguesa de carne de cerdo con queso fundido, lechuga y tomate en pan tierno, acompañada de papas a la francesa y agua de panela con limón.', 460, 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400'),
+  (3, 'Viernes', 'Almuerzo', 'Fajitas de pollo con espinaca y pimentón con puré de papa criolla', 'Fajitas de pechuga de pollo salteadas con espinaca, cebolla y pimentón, arroz blanco, puré suave de papa criolla y sorbete de guayaba.', 540, 'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=400'),
+  (3, 'Viernes', 'Refrigerio', 'Lentejas guisadas con arroz blanco y moneditas de plátano', 'Lentejas guisadas caseras, arroz blanco, moneditas de plátano crocantes, ensalada de lechuga, zanahoria y mango, y sorbete de guayaba.', 390, 'https://images.unsplash.com/photo-1547592166-23ac45744acd?w=400'),
+
+  -- Semana 4
+  (4, 'Lunes', 'Almuerzo', 'Fajitas de carne de cerdo asada con arroz verde y papa chorreada', 'Fajitas de carne de cerdo asada, arroz verde al perejil, papa chorreada en salsa criolla, ensalada tropical con piña calada, repollo y zanahoria, y sorbete de mango.', 570, 'https://images.unsplash.com/photo-1544025162-d76694265947?w=400'),
+  (4, 'Lunes', 'Refrigerio', 'Huevos pericos con tortas de papa, brócoli y queso', 'Huevos pericos tradicionales, arroz blanco, tortas horneadas de papa con brócoli y queso fundido, manzana fresca y sorbete de banano.', 380, 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400'),
+  (4, 'Martes', 'Almuerzo', 'Huevos pericos con lentejas guisadas y papas a la francesa', 'Huevos pericos campesinos, lentejas guisadas caseras, arroz blanco, papas a la francesa doradas, ensalada de lechuga, tomate y cilantro, y jugo de piña en agua.', 540, 'https://images.unsplash.com/photo-1547592166-23ac45744acd?w=400'),
+  (4, 'Martes', 'Refrigerio', 'Fajitas de pollo guisadas con habichuela y zanahoria', 'Fajitas de pechuga de pollo guisadas con habichuela y zanahoria en su jugo, arroz blanco, piña picada y sorbete de maracuyá-mango.', 390, 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=400'),
+  (4, 'Miercoles', 'Almuerzo', 'Fajitas de carne de res asada con arroz primavera y puré de papa criolla', 'Fajitas de carne de res asada a la plancha, arroz primavera (zanahoria y arveja), puré cremoso de papa criolla, verduras entre el cereal acompañante, y sorbete de guayaba.', 560, 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=400'),
+  (4, 'Miercoles', 'Refrigerio', 'Pechuga de pollo salteada con arroz con fideos', 'Pechuga de pollo salteada jugosa, arroz con fideos dorados, ensalada fresca de lechuga, zanahoria y mango, y sorbete de guanábana.', 410, 'https://images.unsplash.com/photo-1532550907401-a500c9a57435?w=400'),
+  (4, 'Jueves', 'Almuerzo', 'Trozos de cerdo salteados con frijoles guisados y plátano maduro', 'Trozos de carne de cerdo salteados, frijoles guisados con zapallo, arroz blanco, tajada de plátano maduro asado, ensalada de tomate, aguacate y lechuga con limón, y jugo de tomate de árbol en agua.', 590, 'https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=400'),
+  (4, 'Jueves', 'Refrigerio', 'Fajitas de cerdo con zapallo y arveja con papa criolla dorada', 'Fajitas de carne de cerdo salteadas con zapallo y arveja, arroz blanco, papa criolla dorada con queso fundido y jugo de piña en agua.', 430, 'https://images.unsplash.com/photo-1543339308-43e59d6b73a6?w=400'),
+  (4, 'Viernes', 'Almuerzo', 'Pechuga de pollo desmechada en salsa blanca con espaguetis salteados', 'Pechuga de pollo desmechada en salsa blanca con hierbas, espaguetis salteados, arroz blanco, ensalada de lechuga, zanahoria y mango, y sorbete de fresa.', 580, 'https://images.unsplash.com/photo-1567620832903-9fc6debc209f?w=400'),
+  (4, 'Viernes', 'Refrigerio', 'Espaguetis en salsa criolla con queso y ensalada de aguacate', 'Espaguetis en salsa criolla con queso rallado, arroz blanco, ensalada fresca de aguacate, lechuga, maíz tierno y manzana, y sorbete de guayaba.', 400, 'https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=400')
 ) as datos(semana, dia, jornada, platillo, descripcion, calorias, imagen)
 where not exists (select 1 from menus);
 

@@ -60,7 +60,7 @@ export default function TabMenu({
         <div className="formulario-fila">
           <label>Semana del mes<select value={semanaMenu} onChange={(e) => setSemanaMenu(Number(e.target.value))}><option value={1}>Semana 1</option><option value={2}>Semana 2</option><option value={3}>Semana 3</option><option value={4}>Semana 4</option></select></label>
           <label>Día<select value={diaMenu} onChange={(e) => setDiaMenu(e.target.value)}><option>Lunes</option><option>Martes</option><option>Miércoles</option><option>Jueves</option><option>Viernes</option></select></label>
-          <label>Jornada<select value={jornadaMenu} onChange={(e) => setJornadaMenu(e.target.value)}><option>Almuerzo</option><option>Refrigerio</option></select></label>
+          <label>Jornada<select value={jornadaMenu} onChange={(e) => setJornadaMenu(e.target.value)}><option value="Almuerzo">Almuerzo (Jornada Única)</option><option value="Refrigerio">Refrigerio (Horario PM)</option></select></label>
           <label>Variante<select value={varianteMenu} onChange={(e) => setVarianteMenu(e.target.value)}><option value="Estandar">Estándar</option><option value="Celiaco">Celíaco</option><option value="Vegetariano">Vegetariano</option><option value="Vegano">Vegano</option></select></label>
           <label>Calorías (opcional)<input type="number" value={caloriasMenu} onChange={(e) => setCaloriasMenu(e.target.value)} placeholder="Ej: 650" /></label>
         </div>
@@ -98,7 +98,7 @@ export default function TabMenu({
                           <strong>{plato.platillo}</strong>
                           {plato.variante && plato.variante !== "Estandar" && <span className={`etiqueta-variante ${plato.variante.toLowerCase()}`}>{plato.variante}</span>}
                           {plato.estado === "borrador" && <span className="etiqueta-estado borrador">Borrador</span>}
-                          <span className="fila-reserva-detalle">{plato.descripcion}{plato.calorias ? ` · ${plato.calorias} kcal` : ""}{plato.jornada ? ` · ${plato.jornada}` : ""}</span>
+                          <span className="fila-reserva-detalle">{plato.descripcion}{plato.calorias ? ` · ${plato.calorias} kcal` : ""}{plato.jornada ? ` · ${plato.jornada === "Almuerzo" ? "Almuerzo (Jornada Única)" : plato.jornada === "Refrigerio" ? "Refrigerio (Horario PM)" : plato.jornada}` : ""}</span>
                         </div>
                       </div>
                       <button type="button" className="boton boton-secundario" onClick={() => borrarPlato(plato.id)} aria-label={`Borrar plato ${plato.platillo}`}>Borrar</button>

@@ -684,7 +684,7 @@ function Reserva() {
           <p className="estado exito">
             ❤️ ¡Hoy toca tu favorito!{" "}
             {favoritosHoy
-              .map((f) => `${f.platillo} (${f.jornada})`)
+              .map((f) => `${f.platillo} (${f.jornada === "Almuerzo" ? "Almuerzo · Jornada Única" : f.jornada === "Refrigerio" ? "Refrigerio · Horario PM" : f.jornada})`)
               .join(" y ")}{" "}
             — no dejes de reservar.
           </p>
@@ -837,17 +837,21 @@ function Reserva() {
                       </option>
                       {TURNOS.map((t) => (
                         <option key={t} value={t}>
-                          {t}
+                          {t === "Almuerzo"
+                            ? "Almuerzo (Jornada Única)"
+                            : t === "Refrigerio"
+                            ? "Refrigerio (Horario PM)"
+                            : "Ambas jornadas (Almuerzo y Refrigerio)"}
                         </option>
                       ))}
                     </select>
-                    {beneficiarioConfirmado && (
-                        <small className="campo-fijo">
-                          {turnoDoble
-                            ? "Puedes reservar ambas jornadas de una vez, o elegir solo una."
-                            : "Tu turno habitual ya se seleccionó, pero puedes cambiarlo."}
-                        </small>
-                    )}
+                    <small className="campo-fijo">
+                      {beneficiarioConfirmado && turnoDoble
+                        ? "Puedes reservar ambas jornadas de una vez, o elegir solo una. (Jornada Única = Almuerzo | Horario PM = Refrigerio)."
+                        : beneficiarioConfirmado
+                        ? "Tu turno habitual ya se seleccionó, pero puedes cambiarlo. (Jornada Única = Almuerzo | Horario PM = Refrigerio)."
+                        : "Aclaración PAE: Jornada Única corresponde al Almuerzo y Horario PM (Complemento preparado en sitio) al Refrigerio."}
+                    </small>
                   </label>
           
                   <label>

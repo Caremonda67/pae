@@ -302,7 +302,7 @@ function Home() {
                       >
                         <strong>{plato.platillo}</strong>
                         <small>
-                          {plato.dia} · {plato.jornada}
+                          {plato.dia} · {plato.jornada === "Almuerzo" ? "Almuerzo (Jornada Única)" : plato.jornada === "Refrigerio" ? "Refrigerio (Horario PM)" : plato.jornada}
                         </small>
                       </button>
                     ))}
@@ -362,6 +362,9 @@ function Home() {
               Semana {comidaHoy.semana} del mes
             </span>
           </div>
+          <p className="subtitulo" style={{ margin: "0.25rem 0 1rem 0" }}>
+            💡 <strong>Equivalencia de horarios:</strong> La <strong>Jornada Única</strong> corresponde al <strong>Almuerzo</strong> y el <strong>Horario PM</strong> (Complemento preparado en sitio) al <strong>Refrigerio</strong>.
+          </p>
           <div className="comida-dia-lista">
             {comidaHoy.platos.map((plato) => (
               <article key={plato.id} className="comida-dia-tarjeta">
@@ -390,7 +393,13 @@ function Home() {
                   )}
                 </button>
                 <div className="comida-dia-info">
-                  <span className="comida-dia-jornada">{plato.jornada}</span>
+                  <span className="comida-dia-jornada">
+                    {plato.jornada === "Almuerzo"
+                      ? "Almuerzo · Jornada Única"
+                      : plato.jornada === "Refrigerio"
+                      ? "Refrigerio · Horario PM"
+                      : plato.jornada}
+                  </span>
                   <h3>{plato.platillo}</h3>
                   <p>{plato.descripcion}</p>
                   {plato.calorias && (
@@ -565,7 +574,13 @@ function Home() {
                   <div className="grupo-menu-platos">
                     {grupo.platos.map((item) => (
                       <div key={item.id} className="fila-menu-jornada">
-                        <span className="fila-jornada">{item.jornada}</span>
+                        <span className="fila-jornada">
+                          {item.jornada === "Almuerzo"
+                            ? "Almuerzo (Jornada Única)"
+                            : item.jornada === "Refrigerio"
+                            ? "Refrigerio (Horario PM)"
+                            : item.jornada}
+                        </span>
                         <span className="fila-platillo">{item.platillo}</span>
                         <span className="fila-descripcion">{item.descripcion}</span>
                       </div>

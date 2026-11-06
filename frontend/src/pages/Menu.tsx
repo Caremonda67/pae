@@ -267,6 +267,13 @@ function Menu() {
   return (
     <section className="menu-pagina">
       <h1>Menú semanal</h1>
+      {/* Aclaración sobre correspondencia de horarios y jornadas */}
+      <div className="banner-aclaracion-horarios" role="note">
+        <span className="icono-info" aria-hidden="true">💡</span>
+        <div>
+          <strong>Aclaración de horarios PAE Cali:</strong> La <strong>Jornada Única</strong> corresponde al <strong>Almuerzo</strong>, y el <strong>Horario PM</strong> (Complemento preparado en sitio) corresponde al <strong>Refrigerio</strong>.
+        </div>
+      </div>
       <p className="subtitulo">
         El menú rota cada semana del mes y cada día se sirve una comida por
         jornada. Reserva antes de la fecha para asegurar tu minuta.
@@ -365,7 +372,13 @@ function Menu() {
                         )}
                         <div className="plato-cuerpo">
                           <div className="plato-cabecera">
-                            <span className="etiqueta-comida">{item.jornada}</span>
+                            <span className="etiqueta-comida">
+                              {item.jornada === "Almuerzo"
+                                ? "Almuerzo · Jornada Única"
+                                : item.jornada === "Refrigerio"
+                                ? "Refrigerio · Horario PM"
+                                : item.jornada}
+                            </span>
                             <span className="plato-dia">Semana {item.semana}</span>
                           </div>
                           <h3>{item.platillo}</h3>
